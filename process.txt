@@ -1,0 +1,722 @@
+For this application, I would use a **domain-first, test-driven, modular monolith development style with strict AI-agent boundaries**.
+
+The key idea is: **make it difficult for a developer—or AI—to introduce a bug that violates the accounting model.**
+
+### 1. Domain-first development
+
+Do **not** develop screen-by-screen:
+
+> Dashboard → Expense screen → Invoice screen → Inventory screen
+
+Instead:
+
+```text
+Business rules
+      ↓
+Domain model
+      ↓
+Use cases
+      ↓
+Accounting behavior
+      ↓
+Database
+      ↓
+Tests
+      ↓
+UI
+      ↓
+Sync / cloud
+```
+
+For example, before building the invoice UI, define and test:
+
+```text
+CreateInvoice
+IssueInvoice
+RecordInvoicePayment
+Cancel/ReverseInvoice
+CreateCreditNote
+CreateDebitNote
+```
+
+The UI merely invokes those operations.
+
+This matches your architecture's existing rule that UI should not manipulate accounting data directly. 
+
+---
+
+## 2. Use Clean Architecture / Hexagonal Architecture principles
+
+I wouldn't obsess over the exact terminology, but the structure should look roughly like:
+
+```text
+┌─────────────────────────────┐
+│             UI              │
+│      Desktop Application    │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│       APPLICATION           │
+│                             │
+│ Commands / Queries          │
+│ Use Cases                   │
+│ Transaction orchestration   │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│           DOMAIN            │
+│                             │
+│ Accounting                  │
+│ Invoices                    │
+│ Inventory                   │
+│ Payments                    │
+│ Purchases                   │
+│ Business Rules              │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│       INFRASTRUCTURE        │
+│                             │
+│ SQLite                      │
+│ File system                 │
+│ Cloud API                   │
+│ Object storage              │
+│ Encryption                  │
+└─────────────────────────────┘
+```
+
+The important part is **dependency direction**.
+
+The domain should not know:
+
+```text
+SQLite
+Electron
+Flutter
+Laravel
+HTTP
+filesystem
+UI
+```
+
+That makes the business logic easier to test and much safer for AI agents to modify.
+
+---
+
+# 3. Test-driven development for financial rules
+
+For this project, I'd go further than ordinary TDD.
+
+Use:
+
+> **Test → Implement → Verify accounting result → Commit**
+
+For example:
+
+```text
+TEST
+
+Given:
+Bank = 100,000
+
+When:
+Create expense = 5,000
+
+Expected:
+
+Bank             95,000
+Expense           5,000
+
+Debit = 5,000
+Credit = 5,000
+```
+
+Then implement it.
+
+Then run the test.
+
+Then independently verify the accounting result.
+
+Your architecture already explicitly says that expected accounting results should be tested. 
+
+---
+
+# 4. Use vertical slices, not giant modules
+
+Instead of asking the AI:
+
+> "Build the accounting module."
+
+Give it one complete business capability.
+
+For example:
+
+### Slice: Cash Expense
+
+```text
+Domain
+  ↓
+CreateExpense
+  ↓
+Accounting journal
+  ↓
+SQLite persistence
+  ↓
+Tests
+```
+
+Then:
+
+### Slice: Invoice
+
+```text
+CreateInvoice
+      ↓
+Invoice lines
+      ↓
+Receivable
+      ↓
+Revenue
+      ↓
+Journal
+      ↓
+Tests
+```
+
+Then:
+
+### Slice: Invoice Payment
+
+```text
+RecordPayment
+      ↓
+Bank/Cash
+      ↓
+Accounts Receivable
+      ↓
+Journal
+      ↓
+Tests
+```
+
+Each slice should be complete and working before moving on.
+
+---
+
+# 5. Use strict invariants
+
+This is probably the **single most important technique** for your application.
+
+Define things that **must never be false**.
+
+For example:
+
+### Accounting invariants
+
+```text
+Every journal must balance.
+
+SUM(debits) == SUM(credits)
+```
+
+### Invoice invariants
+
+```text
+Issued invoice cannot be deleted.
+
+Invoice number cannot be reused.
+
+Finalized invoice cannot be silently modified.
+```
+
+### Inventory invariants
+
+```text
+Every stock-changing operation creates an inventory movement.
+
+Inventory-affecting sale creates COGS/accounting effects.
+
+Inventory quantity must equal movements.
+```
+
+### Database invariants
+
+```text
+Foreign keys valid.
+
+Required fields cannot be NULL.
+
+Financial operations are atomic.
+
+Schema changes require migrations.
+```
+
+### Fiscal-year invariants
+
+```text
+A transaction belongs to exactly one fiscal year.
+
+Closed fiscal year cannot accept normal transactions.
+
+Previous fiscal-year database becomes immutable after archival.
+
+New fiscal year starts with validated opening balances.
+
+Previous database must be successfully archived before
+fiscal-year conclusion is finalized.
+```
+
+These should exist both as **documented rules and automated tests**.
+
+---
+
+# 6. Treat the database as a second line of defense
+
+Don't rely entirely on application code.
+
+For example:
+
+```text
+Application validation
+        +
+Domain validation
+        +
+SQLite constraints
+        +
+Database transaction
+        +
+Automated tests
+```
+
+Your architecture already calls for foreign keys, constraints, indexes, transactions, migrations, and audit information. 
+
+That's exactly the direction I'd keep.
+
+---
+
+# 7. Never allow "magic fixes"
+
+This is particularly important when using AI.
+
+Suppose a test says:
+
+```text
+Expected profit = 10,000
+Actual profit   = 8,000
+```
+
+Don't let the AI simply modify the test:
+
+```text
+Expected profit = 8,000
+```
+
+The development rule should be:
+
+> **Tests represent independently established business expectations. Production code must be changed when implementation is wrong; tests must only change when the documented business rule is intentionally changed.**
+
+---
+
+# 8. Make every AI task extremely small
+
+This will dramatically reduce bugs.
+
+Bad prompt:
+
+> Build the entire inventory system.
+
+Good prompt:
+
+> Implement `RecordPurchase`.
+> Do not modify UI, sync, fiscal-year logic, or database schema.
+> Create the required inventory movement and accounting journal.
+> Add tests for cash purchase, credit purchase, and invalid quantity.
+> Run the complete test suite.
+> Do not modify existing tests unless the documented requirement has changed.
+
+Then review the diff.
+
+Then commit.
+
+Then move on.
+
+Your existing architecture already recommends bounded AI tasks rather than asking an agent to build the whole accounting application. 
+
+---
+
+# 9. Use architectural gates
+
+I would make the project progress like this:
+
+```text
+                 SPECIFICATION
+                       │
+                       ▼
+                DOMAIN MODEL
+                       │
+                    TESTS
+                       │
+                 ┌─────┴─────┐
+                 │   PASS?   │
+                 └─────┬─────┘
+                       │
+                       ▼
+               ACCOUNTING ENGINE
+                       │
+                    TESTS
+                       │
+                       ▼
+                  SQLite
+                       │
+                    TESTS
+                       │
+                       ▼
+                   REPORTS
+                       │
+                    TESTS
+                       │
+                       ▼
+                   BILLING
+                       │
+                    TESTS
+                       │
+                       ▼
+                  INVENTORY
+                       │
+                    TESTS
+                       │
+                       ▼
+                      UI
+                       │
+                    TESTS
+                       │
+                       ▼
+                OFFLINE MODE
+                       │
+                    TESTS
+                       │
+                       ▼
+             BACKUP / RESTORE
+                       │
+                    TESTS
+                       │
+                       ▼
+             FISCAL YEAR CLOSE
+                       │
+                    TESTS
+                       │
+                       ▼
+                 PRODUCTION
+```
+
+**Never proceed merely because the previous phase compiles.**
+
+The phase needs to satisfy its tests and invariants.
+
+---
+
+# 10. Use property/invariant testing for accounting
+
+This is especially valuable.
+
+Instead of testing only specific examples, continuously test properties such as:
+
+```text
+For every journal:
+
+debits == credits
+```
+
+For every finalized transaction:
+
+```text
+original transaction remains immutable
+```
+
+For inventory:
+
+```text
+opening quantity
++ purchases
++ returns in
+- sales
+- returns out
+± adjustments
+=
+current quantity
+```
+
+For fiscal-year transition:
+
+```text
+old closing balance
+=
+new opening balance
+```
+
+For restore:
+
+```text
+database before backup
+=
+database after restore
+```
+
+These tests catch entire classes of bugs rather than one particular bug.
+
+---
+
+# 11. Use immutable financial records
+
+This should be a major design philosophy.
+
+Don't think:
+
+```text
+Edit invoice
+```
+
+Think:
+
+```text
+Draft invoice
+      ↓
+Edit freely
+      ↓
+Issue
+      ↓
+IMMUTABLE
+      ↓
+Correction
+      ↓
+Credit/Debit note or reversal
+```
+
+Similarly:
+
+```text
+Journal
+   ↓
+Posted
+   ↓
+Immutable
+```
+
+and:
+
+```text
+Inventory movement
+   ↓
+Recorded
+   ↓
+Never deleted
+   ↓
+Compensating movement if correction required
+```
+
+This makes auditing and debugging much easier.
+
+---
+
+# 12. Make operations transactional
+
+A business operation should be one atomic unit.
+
+For example:
+
+```text
+ISSUE INVOICE
+
+BEGIN TRANSACTION
+
+Create invoice
+Create invoice lines
+Create receivable
+Create revenue journal
+Create inventory movement
+Create COGS journal
+
+COMMIT
+```
+
+If something fails:
+
+```text
+ROLLBACK EVERYTHING
+```
+
+Never:
+
+```text
+Invoice created ✓
+Inventory changed ✓
+Accounting failed ✗
+```
+
+Your existing architecture already specifies this atomicity requirement. 
+
+---
+
+# 13. Use Git aggressively
+
+I'd make **small commits** part of the development process.
+
+For example:
+
+```text
+feat(domain): add expense entity
+test(accounting): add cash expense scenarios
+feat(accounting): implement expense journal
+test(accounting): verify expense journal balance
+feat(db): add expense migration
+feat(app): add CreateExpense use case
+```
+
+Avoid:
+
+```text
+"Added accounting, inventory, billing and UI"
+```
+
+one giant commit.
+
+Small commits make AI-generated changes much easier to inspect and revert.
+
+---
+
+# 14. Have the AI perform a review after implementation
+
+A useful workflow is:
+
+```text
+Agent A
+   ↓
+implements feature
+   ↓
+tests
+   ↓
+commit
+
+Agent B / fresh context
+   ↓
+reviews implementation
+   ↓
+checks architecture
+   ↓
+checks accounting rules
+   ↓
+checks tests
+```
+
+The second agent should **not automatically rewrite things**.
+
+Ask it to identify:
+
+```text
+Potential bugs
+Missing invariants
+Missing tests
+Architecture violations
+Accounting inconsistencies
+Security problems
+Transaction-boundary problems
+```
+
+This is particularly useful with AI because a fresh context is less likely to rationalize the first implementation.
+
+---
+
+# 15. Keep an Architecture Decision Record
+
+For decisions that are difficult to change later, create:
+
+```text
+/docs/decisions/
+```
+
+For example:
+
+```text
+001-local-sqlite-source-of-truth.md
+002-fiscal-year-per-database.md
+003-one-book-v1.md
+004-inventory-costing-method.md
+005-invoice-numbering.md
+006-license-architecture.md
+007-sync-strategy.md
+```
+
+Then the AI can understand **why** something exists rather than merely seeing the code.
+
+---
+
+# 16. Add a "Do Not Do This" document
+
+I'd actually add:
+
+```text
+/docs/AI_RULES.md
+```
+
+with explicit prohibitions:
+
+```text
+NEVER:
+
+- Put accounting logic in UI code.
+- Write SQL from the UI.
+- Directly modify journal balances.
+- Delete posted financial transactions.
+- Delete inventory movements.
+- Bypass the accounting engine.
+- Change schema without a migration.
+- Change accounting behavior without tests.
+- Make cloud calls mandatory for normal accounting.
+- Change tests merely to make them pass.
+- Invent unspecified accounting rules.
+- Implement ambiguous requirements without asking.
+- Perform unrelated refactoring during a feature task.
+- Modify multiple architectural layers unnecessarily.
+```
+
+This is exactly the kind of explicit contract that will make AI-assisted development safer.
+
+---
+
+# The development philosophy I'd use
+
+If I had to give your AI coding agent **one development methodology**, it would be:
+
+> **Domain-Driven Design + Clean/Hexagonal Architecture + Test-Driven Development + Vertical Slices + Immutable Financial Records + Database Transactions + Small AI Tasks + Mandatory Architectural Gates.**
+
+Not because those buzzwords sound good, but because they attack the actual sources of risk in your application:
+
+| Risk                            | Defense                           |
+| ------------------------------- | --------------------------------- |
+| Wrong accounting                | Domain rules + tests              |
+| AI hallucinating business rules | Explicit specifications           |
+| UI bypassing business logic     | Layer boundaries                  |
+| Corrupt partial transactions    | SQLite transactions               |
+| Bad inventory calculations      | Invariants + accounting tests     |
+| Accidental financial deletion   | Immutable posted records          |
+| Schema corruption               | Migrations + constraints          |
+| AI making huge changes          | Bounded tasks                     |
+| Regression                      | Full automated test suite         |
+| Sync corruption                 | Checksums + atomic restore        |
+| Fiscal-year corruption          | Explicit transition state machine |
+| Hard-to-debug AI code           | Small commits + review            |
+| Security bugs                   | Dedicated security boundaries     |
+| Unclear requirements            | AI must stop and ask              |
+
+### And one thing I'd add to your documentation
+
+I think your architecture should explicitly have a new section called:
+
+**"Development Methodology and AI Coding Rules"**
+
+because the architecture currently explains *what the system should be*, but this methodology defines **how the system should be built without gradually becoming unreliable**.
+
+For this particular application, I'd consider that almost as important as choosing the UI framework.

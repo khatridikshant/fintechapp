@@ -1,0 +1,2085 @@
+Complete Architecture Specification
+I would make this the project's canonical architecture document — something a human developer or an AI coding agent can read and understand.
+
+1. Product definition
+The product is an offline-first desktop business management application for individuals and small businesses.
+
+It combines:
+
+Accounting
+
+Expense tracking
+
+Income tracking
+
+Invoicing/billing
+
+Customer management
+
+Supplier management
+
+Product management
+
+Inventory/stock management
+
+Purchases
+
+Payments
+
+Financial reporting
+
+Cloud backup/synchronization
+
+The application is primarily operated on the user's computer.
+
+The user's accounting/business database lives locally in SQLite. The active fiscal year has its own SQLite database. A new SQLite database is created for each fiscal year; a fiscal-year database is never allowed to grow across multiple fiscal years.
+
+Internet connectivity is not required for normal business operations.
+
+When internet connectivity is available, the active fiscal-year database can be synchronized/backed up to the cloud. Normal business operations do not require internet connectivity, but concluding a fiscal year is an explicitly online operation because the completed fiscal-year SQLite database must be archived on the server before the transition is finalized.
+
+2. Fundamental architecture principle
+There is one extremely important rule:
+
+The local application is the primary business system. The cloud is primarily responsible for identity, synchronization, backup, and recovery.
+
+Therefore:
+
+LOCAL COMPUTER
+     │
+     ├── Business operations
+     ├── Accounting
+     ├── Inventory
+     ├── Billing
+     ├── Reports
+     └── SQLite
+          │
+          │ Sync / Backup
+          ▼
+CLOUD
+     │
+     ├── User account
+     ├── Authentication
+     ├── Backup metadata
+     ├── Database snapshots
+     └── Restore
+
+The user should be able to continue working when:
+
+Internet = OFF
+
+3. Technology stack
+Desktop
+Cross-platform desktop UI framework (TBD)
+
+Used only for the desktop presentation layer. The final framework must support Windows, macOS, and Linux and must keep the UI replaceable.
+
+Desktop UI framework
+    ↓
+Application language/runtime (TBD)
+
+Application language/runtime
+TBD
+
+The selected language/runtime shall support:
+
+Application logic
+
+Domain logic
+
+Accounting engine
+
+Inventory engine
+
+Billing engine
+
+Database access
+
+Sync client
+
+The language/runtime choice is secondary to the architectural requirements. It must have strong cross-platform desktop support, SQLite support, mature testing tools, and sufficient documentation/resources for AI-assisted development.
+
+Local database
+SQLite
+
+Example active database:
+
+accounting-FY-2082-83.db
+
+Each fiscal year has its own SQLite database.
+
+Cloud backend
+Laravel
+
+Used for:
+
+Authentication
+
+User accounts
+
+Book management
+
+Sync API
+
+Backup management
+
+Restore
+
+Subscription functionality later
+
+Administrative functions
+
+Cloud relational database
+PostgreSQL
+
+Used primarily for cloud metadata.
+
+Cloud file/object storage
+Used for actual SQLite database snapshots.
+
+Infrastructure
+Initially:
+
+Cloudflare
+    ↓
+VPS
+    ↓
+Laravel
+    ↓
+PostgreSQL
+
+The actual SQLite backup files can eventually be stored in object storage rather than directly on the VPS.
+
+4. High-level architecture
+                         USER
+                          │
+                          ▼
+                ┌──────────────────┐
+                │   DESKTOP UI    │
+                │                  │
+                │ Dashboard        │
+                │ Expenses         │
+                │ Sales            │
+                │ Purchases        │
+                │ Inventory        │
+                │ Customers        │
+                │ Suppliers        │
+                │ Reports          │
+                │ Settings         │
+                └────────┬─────────┘
+                         │
+                         ▼
+                ┌──────────────────┐
+                │ APPLICATION      │
+                │ LAYER            │
+                │                  │
+                │ Commands         │
+                │ Queries          │
+                │ Use Cases        │
+                └────────┬─────────┘
+                         │
+                         ▼
+                ┌──────────────────┐
+                │ DOMAIN CORE      │
+                │                  │
+                │ Accounting       │
+                │ Billing          │
+                │ Inventory        │
+                │ Expenses         │
+                │ Payments         │
+                └────────┬─────────┘
+                         │
+                         ▼
+                ┌──────────────────┐
+                │ INFRASTRUCTURE   │
+                │                  │
+                │ SQLite           │
+                │ Files            │
+                │ Backups          │
+                │ Sync             │
+                └────────┬─────────┘
+                         │
+                         ▼
+                    SQLite DB
+
+Cloud:
+
+                     INTERNET
+                         │
+                         ▼
+                    CLOUDFLARE
+                         │
+                         ▼
+                       VPS
+                         │
+                         ▼
+                    LARAVEL API
+                    /          \
+                   /            \
+                  ▼              ▼
+            PostgreSQL       File Storage
+            metadata         SQLite backups
+
+5. The most important architectural rule
+The UI must never directly manipulate accounting data.
+
+Bad:
+
+Desktop UI action
+     ↓
+UPDATE journal_entries
+
+Good:
+
+Desktop UI action
+     ↓
+CreateExpenseCommand
+     ↓
+ExpenseService
+     ↓
+AccountingEngine
+     ↓
+Journal
+     ↓
+SQLite
+
+This matters enormously for AI-generated code.
+
+An AI agent should always know:
+
+"UI requests an operation. Domain/application logic performs the operation. Infrastructure persists it."
+
+6. Project structure
+The application should be divided into clearly separated projects/modules according to the selected language/runtime.
+
+BusinessApp/
+│
+├── BusinessApp.Desktop/
+│
+├── BusinessApp.Application/
+│
+├── BusinessApp.Domain/
+│
+├── BusinessApp.Infrastructure/
+│
+├── BusinessApp.Contracts/
+│
+└── BusinessApp.Tests/
+
+Desktop
+BusinessApp.Desktop
+
+Contains:
+
+Desktop windows/views
+
+Views
+
+ViewModels
+
+UI navigation
+
+UI-specific state
+
+It should contain almost no accounting logic.
+
+Domain
+BusinessApp.Domain
+
+Contains the business rules.
+
+For example:
+
+Accounting/
+Billing/
+Inventory/
+Expenses/
+Payments/
+Customers/
+Suppliers/
+Products/
+
+This is the heart of the application.
+
+Application
+BusinessApp.Application
+
+Contains use cases.
+
+Examples:
+
+CreateExpense
+CreateInvoice
+RecordPayment
+ReceivePurchase
+SellProduct
+AdjustInventory
+CreateCustomer
+CreateSupplier
+
+Infrastructure
+BusinessApp.Infrastructure
+
+Contains:
+
+SQLite
+Repositories
+Database migrations
+File system
+Backup
+Sync
+Encryption
+
+Contracts
+BusinessApp.Contracts
+
+Contains DTOs/contracts used for:
+
+Sync
+API communication
+Import/export
+
+7. Business modules
+The domain is divided into modules.
+
+Domain
+│
+├── Accounting
+├── Expenses
+├── Sales
+├── Purchases
+├── Inventory
+├── Customers
+├── Suppliers
+├── Payments
+└── Reporting
+
+These aren't independent applications.
+
+They share one accounting foundation.
+
+8. Accounting is the foundation
+Everything ultimately feeds accounting.
+
+Expense
+   ↓
+Accounting
+
+Sale
+   ↓
+Accounting
+
+Purchase
+   ↓
+Accounting
+
+Payment
+   ↓
+Accounting
+
+Inventory movement
+   ↓
+Accounting
+
+This is crucial.
+
+9. Accounting model
+The accounting engine uses double-entry accounting.
+
+Every financial transaction must satisfy:
+
+TOTAL DEBITS = TOTAL CREDITS
+
+A journal entry contains:
+
+JournalEntry
+    id
+    date
+    description
+    reference
+    lines[]
+
+Each line:
+
+JournalLine
+    account_id
+    debit
+    credit
+
+Example:
+
+Expense: Rs 500
+paid from Bank
+
+becomes:
+
+Journal Entry
+
+Dr Office Expense       500
+Cr Bank                 500
+
+10. Chart of accounts
+Accounts have types:
+
+Asset
+Liability
+Equity
+Income
+Expense
+
+Example:
+
+Assets
+├── Cash
+├── Bank
+├── Accounts Receivable
+└── Inventory
+
+Liabilities
+├── Accounts Payable
+└── Loans
+
+Equity
+└── Owner's Equity
+
+Income
+├── Sales
+└── Other Income
+
+Expenses
+├── Rent
+├── Salary
+├── Utilities
+└── Office Expenses
+
+11. Expense module
+An expense is a business event.
+
+Example:
+
+User:
+"Paid Rs 1,000 for electricity from bank."
+
+Application:
+
+CreateExpense
+
+Domain creates:
+
+Dr Electricity Expense    1,000
+Cr Bank                   1,000
+
+The UI doesn't create those journal lines itself.
+
+12. Billing module
+An invoice contains:
+
+Invoice
+    id
+    customer
+    date
+    due_date
+    status
+    lines[]
+
+Invoice line:
+
+InvoiceLine
+    product
+    quantity
+    unit_price
+    discount
+    tax
+
+Example:
+
+2 × Keyboard @ Rs 1,500
+
+Total = Rs 3,000
+
+If unpaid:
+
+Dr Accounts Receivable    3,000
+Cr Sales Revenue          3,000
+
+When paid:
+
+Dr Bank                   3,000
+Cr Accounts Receivable    3,000
+
+13. Inventory module
+Products are separate from accounting accounts.
+
+Example:
+
+Product
+----------------
+id
+SKU
+name
+unit
+selling_price
+cost
+stock_tracking_enabled
+
+Inventory tracks physical quantities.
+
+Example:
+
+Keyboard
+----------------
+Opening stock: 10
+Purchased:      20
+Sold:             5
+----------------
+Current stock:   25
+
+But inventory movements are also connected to accounting.
+
+14. Inventory movement
+Every stock change should have a reason.
+
+Examples:
+
+PURCHASE
+SALE
+RETURN_IN
+RETURN_OUT
+ADJUSTMENT
+TRANSFER
+OPENING_STOCK
+
+So instead of simply:
+
+stock = stock - 5
+
+you record:
+
+InventoryMovement
+
+Product: Keyboard
+Quantity: -5
+Reason: SALE
+Reference: Invoice #104
+Date: ...
+
+This gives you an audit trail.
+
+15. Purchase
+Suppose:
+
+10 keyboards
+Rs 1,000 each
+
+Purchase value:
+
+Rs 10,000
+
+Inventory increases:
+
+Keyboard
+10 → 20
+
+Accounting:
+
+Dr Inventory             10,000
+Cr Accounts Payable      10,000
+
+If immediately paid:
+
+Dr Inventory             10,000
+Cr Bank                  10,000
+
+16. Sale + inventory
+Suppose:
+
+Keyboard cost = Rs 1,000
+Selling price = Rs 1,500
+
+Sell 2.
+
+Revenue:
+
+Dr Cash/Receivable        3,000
+Cr Sales Revenue          3,000
+
+Inventory/COGS:
+
+Dr Cost of Goods Sold     2,000
+Cr Inventory              2,000
+
+Therefore:
+
+Revenue        3,000
+COGS           2,000
+----------------------
+Gross Profit   1,000
+
+This is why inventory and accounting must be designed together.
+
+17. Customers
+Customer:
+
+Customer
+---------
+id
+name
+phone
+email
+address
+notes
+
+Invoices reference customers.
+
+Receivables reference customers.
+
+Payments reference invoices/customer accounts.
+
+18. Suppliers
+Supplier:
+
+Supplier
+---------
+id
+name
+phone
+email
+address
+notes
+
+Purchases reference suppliers.
+
+Payables reference suppliers.
+
+19. Payments
+Payments should be their own concept.
+
+Examples:
+
+Customer payment
+Supplier payment
+Expense payment
+Invoice payment
+Loan payment
+
+This prevents you from hardcoding payment behavior into every module.
+
+20. Reporting
+Reports should be derived, not independently maintained.
+
+Examples:
+
+Profit & Loss
+Balance Sheet
+Trial Balance
+General Ledger
+Accounts Receivable
+Accounts Payable
+Inventory Valuation
+Sales Report
+Expense Report
+Cash Flow
+
+The report engine reads the underlying data.
+
+It shouldn't maintain:
+
+profit = 123456
+
+as a separate mutable number.
+
+21. Database philosophy
+SQLite is the source of truth for the local book and active fiscal year. The currently active fiscal-year SQLite database is the authoritative local working database. Historical fiscal-year databases are immutable archives and are not used for current-period transactions.
+
+The database should have proper:
+
+Foreign keys
+
+Constraints
+
+Indexes
+
+Transactions
+
+Migrations
+
+Audit information
+
+Don't rely on the application code alone to maintain data integrity.
+
+22. Database entities
+A future-oriented schema might contain:
+
+books
+
+accounts
+journal_entries
+journal_lines
+
+customers
+suppliers
+
+products
+product_categories
+
+invoices
+invoice_lines
+payments
+
+purchases
+purchase_lines
+
+inventory_movements
+
+expenses
+
+settings
+
+audit_log
+
+The exact schema should be designed separately before implementation.
+
+23. Don't duplicate accounting data
+For example, don't maintain:
+
+transactions.amount
+journal.total
+account.balance
+profit
+
+as independently editable values unless there's a specific reason.
+
+Prefer:
+
+Business event
+      ↓
+Journal entries
+      ↓
+Derived balances
+      ↓
+Reports
+
+This reduces inconsistencies.
+
+24. Local database transactions
+A business operation should be atomic.
+
+For example:
+
+Create Invoice
+
+might require:
+
+Create invoice
+Create invoice lines
+Create inventory movements
+Create journal entry
+Create journal lines
+
+These should happen inside one SQLite transaction.
+
+Either:
+
+EVERYTHING SUCCEEDS
+
+or:
+
+EVERYTHING ROLLS BACK
+
+Never leave:
+
+Invoice created
+but
+Accounting entry missing
+
+25. Offline-first
+The application must assume:
+
+Internet = unavailable
+
+rather than treating offline mode as an error.
+
+All normal operations happen locally.
+
+User
+ ↓
+Desktop UI
+ ↓
+Application
+ ↓
+Domain
+ ↓
+SQLite
+
+No API request is required to:
+
+Create an expense
+
+Create an invoice
+
+Record a payment
+
+Sell stock
+
+View reports
+
+
+26. Fiscal-year database architecture
+The application shall use one SQLite database per fiscal year.
+
+The active book therefore has a database lifecycle like:
+
+FY 2081/82 SQLite
+        ↓
+Conclude fiscal year
+        ↓
+Archive completed SQLite on server
+        ↓
+Create FY 2082/83 SQLite
+        ↓
+FY 2082/83 becomes active
+
+The fiscal-year database is the working source of truth for that fiscal year. The application shall not keep one SQLite database growing indefinitely across multiple fiscal years.
+
+Example:
+
+Book ABC
+│
+├── accounting-FY-2081-82.db   ← historical/read-only
+├── accounting-FY-2082-83.db   ← historical/read-only after close
+└── accounting-FY-2083-84.db   ← current active database
+
+Only the current fiscal-year database is writable during normal operation.
+
+Completed fiscal-year databases shall become immutable from the application's normal business workflow. Historical years may be opened or downloaded for reporting and review, but they shall be opened in read-only mode.
+
+27. Fiscal year definition
+The default fiscal year for a Nepal-focused deployment shall be:
+
+1 Shrawan → end of Ashadh
+
+Fiscal years shall have explicit identifiers such as:
+
+FY 2082/83
+
+Every transaction shall belong to a fiscal year through its transaction date and active database. The application shall validate that a transaction date belongs to the currently active fiscal year before posting it.
+
+A closed fiscal year shall reject new financial transactions unless an explicit controlled period-reopen workflow is implemented.
+
+The fiscal-year transition shall carry forward the balances and opening information required by the accounting model. Revenue and expense activity from the completed year shall not simply be copied into the new database as new transactions.
+
+28. Fiscal year conclusion
+Concluding a fiscal year is a controlled business operation and requires an internet connection.
+
+Normal business operations remain offline-first, but fiscal-year conclusion is an exception because the completed SQLite database must be successfully archived on the server before the transition is finalized.
+
+The process shall be:
+
+1. User selects "Conclude Fiscal Year".
+2. Application verifies that internet connectivity is available.
+3. Application validates the active SQLite database.
+4. Application checks for invalid or unbalanced journals, incomplete required transactions, and other blocking conditions.
+5. Application calculates the year-end accounting state.
+6. Application creates required closing entries.
+7. Application determines the opening balances required for the next fiscal year.
+8. Application creates a consistent final snapshot of the completed fiscal-year SQLite database.
+9. Application calculates the SHA-256 checksum and validates SQLite integrity.
+10. Application uploads the completed SQLite file to server-side object/file storage.
+11. Server verifies ownership, fiscal year, checksum, file size, and archive metadata.
+12. Server confirms that the fiscal-year archive has been successfully stored.
+13. Only after server confirmation may the local application create and activate the next fiscal-year SQLite database.
+14. The new SQLite database is initialized with the required opening balances and other explicitly carried-forward data.
+15. The new database is validated.
+16. The previous fiscal year is marked closed and the new fiscal year becomes active.
+
+The application shall never delete or discard the previous fiscal-year database before the server has confirmed successful archival.
+
+If internet connectivity is unavailable, the user may continue normal operations in the current fiscal year, but the fiscal year cannot be concluded.
+
+If the archive upload fails, the current fiscal-year database remains active and writable. The application shall not partially complete the year transition.
+
+If creation or initialization of the new fiscal-year database fails after the server archive has succeeded, the application shall preserve the archived old year and retain a safe local recovery copy of the old database until the transition has been successfully completed.
+
+29. Carry-forward rules
+At fiscal-year conclusion, the application shall carry forward the balances required to establish the opening state of the next fiscal year.
+
+Typical carried-forward balances include:
+
+Cash
+Bank
+Accounts Receivable
+Accounts Payable
+Inventory
+Fixed Assets
+Loans and other liabilities
+Owner's Equity / retained earnings as applicable
+Other balance-sheet accounts requiring opening balances
+
+The application shall not copy the completed year's ordinary sales, purchases, expenses, payments, or journal history into the new fiscal-year database merely to preserve history. Those records remain in the archived database for the completed fiscal year.
+
+Revenue and expense accounts shall be reset for the new fiscal year according to the accounting model, with the completed year's result transferred through the appropriate equity/retained-earnings treatment.
+
+Inventory shall carry forward the required opening quantity and valuation. Historical inventory movements remain in the completed fiscal-year database.
+
+The exact inventory valuation method shall be explicitly selected and documented before implementation. The application shall not silently choose FIFO, weighted average, moving average, or another costing method.
+
+Negative inventory behavior shall also be explicitly defined before implementation.
+
+30. Fiscal-year database naming and metadata
+Each SQLite file shall be identifiable by book and fiscal year.
+
+Example:
+
+book-id: BOOK-001
+fiscal year: FY 2082/83
+local file:
+accounting-FY-2082-83.db
+
+The database metadata shall identify at least:
+
+book_id
+fiscal_year_id
+fiscal_year_start
+fiscal_year_end
+database_schema_version
+created_at
+last_modified_at
+status
+
+The fiscal-year identifier must be validated against the application configuration and cloud metadata. A database from one book or fiscal year must not be silently opened as another book or fiscal year.
+
+31. Historical fiscal-year access
+Completed fiscal-year databases shall remain available as historical records.
+
+When a user needs an old year, the application may:
+
+1. Download the archived SQLite file from the server.
+2. Verify ownership and authorization.
+3. Verify the checksum.
+4. Run SQLite integrity checks.
+5. Validate the fiscal-year metadata.
+6. Open the database in read-only mode.
+
+Historical databases shall not be used for normal posting of new transactions.
+
+If a correction to a closed fiscal year is ever required, the application shall use an explicit controlled period-reopen or adjustment workflow. It shall never silently modify an archived database.
+
+32. Book and business lifecycle
+V1 shall support one book per account.
+
+A book represents one business/accounting environment.
+
+The application shall support the following lifecycle operations where applicable:
+
+Create book
+Open book
+Rename book
+Archive book
+Conclude fiscal year
+Reopen a closed period through an explicit controlled workflow
+
+Archiving a book shall make it read-only. Deletion, if implemented, shall require an explicit warning and shall not be treated as a normal accounting correction mechanism.
+
+Multiple active books per account are outside the V1 scope unless explicitly added later.
+
+33. Currency
+Each book shall have one base currency in V1.
+
+The default currency for the Nepal-focused deployment shall be:
+
+NPR / Rs.
+
+The user may change the displayed currency setting where supported, but changing the base currency after financial transactions exist shall be restricted and shall require an explicit controlled process.
+
+Multi-currency accounting is outside V1 unless separately specified.
+
+Financial calculations shall use fixed decimal/decimal-safe representations and consistent rounding rules. Binary floating-point values shall not be used for authoritative financial calculations.
+
+34. Authentication and sessions
+The desktop application shall support:
+
+Login
+Logout
+Authenticated session handling
+
+The initial session policy shall use a seven-day session validity period.
+
+When the session expires, the application shall log the user out and require authentication again.
+
+Password reset and email verification are outside V1 unless separately specified.
+
+Authentication state shall remain separate from accounting data and shall not be restored from an old SQLite backup.
+
+35. Invoice numbering and Nepal business-document requirements
+For the Nepal-focused deployment, finalized invoice numbering shall be sequential within the applicable fiscal year and document type.
+
+The sequence shall start at 1 for each fiscal year where that numbering policy applies.
+
+A finalized invoice number shall never be reused or duplicated.
+
+Draft invoices may be edited or deleted before final issuance. A draft should not consume a finalized invoice serial until the invoice is actually issued.
+
+Once issued, an invoice shall not be physically deleted through normal business operations. Corrections shall use appropriate corrective documents such as credit notes, debit notes, sales returns, payment reversals, or other explicitly defined correction workflows.
+
+Credit notes and debit notes shall have their own controlled sequences where required, shall reference the original invoice, and shall preserve an audit trail.
+
+The final document number shall be determined from the fiscal year, issue date, document type, and configured numbering policy.
+
+Business profile information shall support the information required for Nepal operations, including PAN and VAT-related information where applicable.
+
+Tax behavior shall be configurable and rule-based rather than hardcoded throughout the accounting engine. The model shall support, where applicable:
+
+VAT registered / not registered
+PAN information
+Taxable transactions
+Zero-rated transactions
+Exempt transactions
+Tax-inclusive pricing
+Tax-exclusive pricing
+Separate tax amount
+Tax rule/version information
+
+Nepal's applicable tax rules shall be verified against current authoritative requirements before production release and shall not be treated as permanently fixed application constants.
+
+36. Deletion, reversal, and correction policy
+Draft and unposted records may be deleted where appropriate.
+
+Finalized financial transactions shall not normally be physically deleted.
+
+Corrections shall preserve the original transaction and use an appropriate compensating operation, such as:
+
+Reversal
+Credit note
+Debit note
+Payment reversal
+Purchase return
+Sales return
+Inventory adjustment
+
+A reversal shall create the opposite accounting effect while preserving the original journal and audit trail.
+
+Inventory movements shall not be physically deleted from normal operations. Corrections shall use compensating inventory movements with references to the original movement.
+
+Every corrective transaction shall remain traceable to the original business event.
+
+37. Cloud synchronization
+The cloud stores versions of the active fiscal-year SQLite database. Completed fiscal-year databases are archived as immutable SQLite files.
+
+Each active-year revision has metadata:
+
+revision
+book_id
+fiscal_year_id
+file_path or object_key
+file_size
+checksum
+created_at
+database_version
+status
+
+The actual SQLite file is stored in object/file storage. PostgreSQL stores only the metadata and storage reference required to locate and validate that file.
+
+Cloud synchronization is an online feature. It is not required for normal local accounting operations. Fiscal-year conclusion is a separate controlled online operation and cannot be finalized until the completed SQLite file has been successfully archived on the server.
+
+38. V1 synchronization restriction
+To keep synchronization manageable:
+
+One book should have one active desktop installation in V1. The active installation operates on one current fiscal-year SQLite database at a time.
+
+This eliminates a huge amount of complexity.
+
+You don't need to solve:
+
+Laptop A changed invoice
+Laptop B changed invoice
+
+simultaneously.
+
+Later, multi-device synchronization can be designed separately.
+
+39. Sync process
+For the active fiscal year:
+
+Desktop:
+
+Active SQLite
+ ↓
+Validate
+ ↓
+Create consistent snapshot
+ ↓
+Calculate SHA-256
+ ↓
+Upload
+
+Server:
+
+Authenticate
+ ↓
+Verify book ownership
+ ↓
+Verify fiscal year
+ ↓
+Verify expected revision
+ ↓
+Store SQLite file in object/file storage
+ ↓
+Create/update PostgreSQL metadata
+ ↓
+Return new revision
+
+The server shall never treat an unverified upload as a valid backup. The checksum, file size, book, fiscal year, and database/schema version shall be validated before the backup is marked successful.
+
+40. Restore process
+Never immediately overwrite the current database.
+
+For an active fiscal-year restore:
+
+Current DB
+   ↓
+Local emergency backup
+   ↓
+Authenticate user
+   ↓
+Verify authorization/license
+   ↓
+Download cloud snapshot
+   ↓
+Validate metadata and checksum
+   ↓
+Run SQLite integrity checks
+   ↓
+Run required migrations if applicable
+   ↓
+Replace current DB
+   ↓
+Open application
+
+For a historical fiscal-year database, the same verification process applies, but the resulting database shall be opened read-only.
+
+If the local database is lost and no valid cloud snapshot or fiscal-year archive exists, the application cannot recover the missing data.
+
+Restoring an accounting database shall never restore obsolete license, authentication, subscription, or device-authorization state.
+
+41. Cloud architecture
+Laravel:
+
+Laravel
+│
+├── Authentication
+├── Users
+├── Books
+├── Fiscal Year Metadata
+├── Backup API
+├── Restore API
+├── Sync API
+├── Fiscal Year Archive API
+├── Subscription
+└── Admin
+
+PostgreSQL stores metadata, not the actual SQLite database files.
+
+PostgreSQL:
+
+users
+books
+fiscal_years
+backup_revisions
+fiscal_year_archives
+subscriptions
+sessions/tokens
+registered_desktop_installations
+
+Actual SQLite files:
+
+Object/File Storage
+│
+└── books/{book-id}/fiscal-years/{fiscal-year-id}/
+    ├── active revisions
+    └── archive.db
+
+The actual SQLite file is stored as a file/object, in the same general architectural pattern as storing an uploaded image file while keeping only its path/key and metadata in PostgreSQL.
+
+PostgreSQL shall store information such as:
+
+book_id
+fiscal_year_id
+file_path or object_key
+file_size
+checksum
+database_version
+created_at
+archived_at
+revision
+archive_status
+
+The database shall not store the full SQLite file as a PostgreSQL table/blob unless a later architecture decision explicitly requires it.
+
+42. Security
+The desktop database is valuable financial data.
+
+Therefore:
+
+HTTPS
+Authentication
+Authorization
+Encrypted cloud storage
+Secure passwords
+Database access controls
+Backups
+Checksums
+
+The cloud must never allow:
+
+User A → download User B's database or fiscal-year archive
+
+Every request must verify ownership.
+
+43. AI-agent development rules
+This is especially important given your goal of having AI help build the application.
+
+I would create a /docs directory:
+
+docs/
+│
+├── ARCHITECTURE.md
+├── DOMAIN_RULES.md
+├── ACCOUNTING_RULES.md
+├── INVENTORY_RULES.md
+├── BILLING_RULES.md
+├── DATABASE.md
+├── SYNC.md
+├── SECURITY.md
+├── TESTING.md
+└── DEVELOPMENT_RULES.md
+
+The AI agent should read these before modifying code.
+
+44. AI must follow these rules
+For example:
+
+RULE 1:
+UI must never directly access SQLite.
+
+RULE 2:
+All financial operations go through the Application/Domain layer.
+
+RULE 3:
+Every accounting journal must balance.
+
+RULE 4:
+Inventory changes must create inventory movements.
+
+RULE 5:
+Inventory-affecting sales must create appropriate accounting entries.
+
+RULE 6:
+Reports are derived from accounting data.
+
+RULE 7:
+Never modify the database schema without a migration.
+
+RULE 8:
+Never modify accounting behavior without tests.
+
+RULE 9:
+All normal business operations must work offline. Fiscal-year conclusion is an explicit exception because completed-year archival on the server is mandatory before the year transition is finalized.
+
+RULE 10:
+Cloud synchronization must never be required for normal local accounting operations. Fiscal-year conclusion must require successful server archival of the completed SQLite database.
+
+RULE 11:
+Never delete or discard the previous fiscal-year SQLite database until server-side archival has been confirmed.
+
+RULE 12:
+Historical fiscal-year databases are read-only and shall never be silently modified.
+
+RULE 13:
+PostgreSQL stores metadata and object/file storage stores the actual SQLite database files.
+
+That kind of explicit contract makes AI-assisted development much safer.
+
+45. Testing architecture
+This is more important than the UI framework.
+
+You want tests like:
+
+ExpenseTests
+InvoiceTests
+PaymentTests
+PurchaseTests
+InventoryTests
+AccountingTests
+SyncTests
+
+For example:
+
+Given:
+Bank = 10,000
+
+When:
+Expense = 1,000
+
+Then:
+Bank = 9,000
+Expense = 1,000
+
+And:
+Total Debits = Total Credits
+
+Inventory:
+
+Given:
+Stock = 10
+
+When:
+Sell = 3
+
+Then:
+Stock = 7
+
+And:
+COGS is correct
+
+And:
+Journal balances
+
+These tests give an AI agent a safety net.
+
+46. Desktop framework architecture
+The desktop UI framework is deliberately isolated from the business core.
+
+The selected framework must support:
+
+Windows
+macOS
+Linux
+
+It must integrate cleanly with the application layer, provide mature SQLite/database integration options, support automated UI and integration testing, and have sufficient documentation and ecosystem resources for AI-assisted development.
+
+The desktop framework must remain a presentation-layer concern. Replacing the UI framework must not require rewriting:
+
+Application
+Domain
+Accounting
+Inventory
+Billing
+Infrastructure
+SQLite persistence
+Sync and archive protocols
+
+The hardest parts of this product are accounting correctness, inventory correctness, billing correctness, data integrity, fiscal-year transitions, backup/restore correctness, and licensing/security. The UI framework must not be allowed to become the source of truth for any of these concerns.
+
+47. Final technology architecture
+The final technology architecture is:
+
+┌─────────────────────────────────────────────┐
+│                 USER LAPTOP                 │
+│                                             │
+│              CROSS-PLATFORM DESKTOP UI + APPLICATION RUNTIME                 │
+│                                             │
+│  Dashboard                                 │
+│  Expenses                                  │
+│  Sales / Billing                           │
+│  Purchases                                 │
+│  Inventory                                 │
+│  Customers                                 │
+│  Suppliers                                 │
+│  Payments                                  │
+│  Reports                                   │
+│                                             │
+│                  ↓                          │
+│          APPLICATION LAYER                  │
+│                  ↓                          │
+│             DOMAIN CORE                     │
+│                                             │
+│       Accounting                            │
+│       Billing                               │
+│       Inventory                             │
+│       Expenses                              │
+│       Payments                              │
+│                                             │
+│                  ↓                          │
+│            INFRASTRUCTURE                   │
+│                  ↓                          │
+│               SQLite                        │
+│                                             │
+│       accounting-FY-2082-83.db              │
+│                                             │
+└──────────────────┬──────────────────────────┘
+                   │
+                 HTTPS
+                   │
+                   ▼
+             ┌────────────┐
+             │ Cloudflare │
+             └─────┬──────┘
+                   │
+                   ▼
+             ┌────────────┐
+             │  Laravel   │
+             │    API     │
+             └─────┬──────┘
+                   │
+             ┌─────┴─────┐
+             ▼           ▼
+       ┌──────────┐  ┌──────────────┐
+       │PostgreSQL│  │File/Object   │
+       │ Metadata │  │Storage       │
+       └──────────┘  │              │
+                     │ SQLite       │
+                     │ snapshots    │
+                     └──────────────┘
+
+The one sentence I'd give an AI coding agent
+Build an offline-first cross-platform desktop business management application using the selected desktop UI framework and application runtime, with one SQLite database per fiscal year as the local source of truth; keep all accounting, billing, inventory, expense, payment, fiscal-year, and reporting rules inside framework-independent domain/application layers; use Laravel/PostgreSQL for authentication, book and fiscal-year metadata, licensing, authorization, synchronization, backup metadata, and restoration while storing actual SQLite files in object/file storage; never require internet connectivity for normal business operations, but require successful server archival of the completed fiscal-year SQLite file before concluding a fiscal year; and enforce double-entry accounting, inventory integrity, atomic database transactions, migrations, immutable historical fiscal-year archives, and automated tests for every financial operation.
+
+That is the architecture I would freeze before asking an AI agent to start writing production code.
+
+And I would not start by asking the AI to "build the accounting app." I'd first have it implement the domain model + accounting tests + SQLite schema, because those are the pieces that determine whether the eventual expense/billing/stock system is actually reliable.
+
+Exactly. This is one of the most important things to understand if you want to build this with AI.
+
+Don't let the AI build the whole product in one shot. Treat the AI like a very fast junior/mid-level developer that needs a specification, checkpoints, and tests.
+
+The idea is:
+
+Specification
+     ↓
+Domain model
+     ↓
+Tests
+     ↓
+Database
+     ↓
+Accounting engine
+     ↓
+Billing
+     ↓
+Inventory
+     ↓
+UI
+     ↓
+Sync
+
+And at every stage:
+
+              ┌───────────────┐
+              │ Build phase   │
+              └───────┬───────┘
+                      ↓
+                  Run tests
+                      ↓
+                ┌─────┴─────┐
+                │           │
+              PASS         FAIL
+                │           │
+                ↓           ↓
+             Continue     STOP
+
+What "domain model first" means
+Before making screens like:
+
+[Add Expense]
+[Create Invoice]
+[Add Product]
+
+you first define what those things actually mean.
+
+For example:
+
+Expense
+- date
+- amount
+- account paid from
+- expense account
+- description
+
+And:
+
+Invoice
+- customer
+- date
+- due date
+- lines
+- subtotal
+- tax
+- total
+- status
+
+And:
+
+Product
+- SKU
+- name
+- unit
+- selling price
+- inventory tracking
+
+Then define their relationships.
+
+For example:
+
+Invoice
+   │
+   ├── Customer
+   │
+   ├── Invoice Lines
+   │       │
+   │       └── Product
+   │
+   ├── Payment
+   │
+   └── Accounting Entries
+           │
+           └── Inventory Movement
+
+That becomes the business model.
+
+Then make the AI prove the accounting works
+Don't trust:
+
+"I implemented double-entry accounting."
+
+Ask the AI to create tests.
+
+For example:
+
+Test 1 — Expense
+Given:
+
+Bank = Rs 10,000
+
+Record:
+
+Expense = Rs 1,000
+
+Expected:
+
+Bank = Rs 9,000
+Expense = Rs 1,000
+
+And:
+
+Total Debits = Total Credits
+
+Test 2 — Income
+Given:
+
+Bank = Rs 10,000
+
+Record:
+
+Income = Rs 5,000
+
+Expected:
+
+Bank = Rs 15,000
+Income = Rs 5,000
+
+And journal balances.
+
+Test 3 — Transfer
+Move:
+
+Bank → Cash
+Rs 2,000
+
+Expected:
+
+Bank = -2,000
+Cash = +2,000
+
+But:
+
+Total assets = unchanged
+
+Test 4 — Invoice
+Create:
+
+Invoice = Rs 5,000
+Customer hasn't paid
+
+Expected:
+
+Accounts Receivable +5,000
+Sales Revenue       +5,000
+
+Not:
+
+Bank +5,000
+
+because the customer hasn't paid yet.
+
+Test 5 — Inventory sale
+Suppose:
+
+Stock = 10
+Cost = Rs 100 each
+Selling price = Rs 150
+
+Sell 2.
+
+Expected:
+
+Stock = 8
+
+Sales Revenue = Rs 300
+COGS = Rs 200
+Gross Profit = Rs 100
+
+And:
+
+Dr Accounts Receivable/Cash  300
+Cr Sales Revenue             300
+
+Dr COGS                      200
+Cr Inventory                 200
+
+This is where the tests become extremely valuable.
+
+So when do you move forward?
+Use gates.
+
+Gate 1 — Domain model
+Don't move forward until:
+
+Entities are defined
+
+Relationships are defined
+
+Business rules are documented
+
+Ambiguities are resolved
+
+At this point you should be able to explain:
+
+What happens when a customer buys something?
+
+without talking about UI.
+
+Gate 2 — Accounting engine
+Build:
+
+Accounts
+Journal
+Journal lines
+Transactions
+Ledger
+
+Then test:
+
+Expense
+Income
+Transfer
+Opening balance
+Invoice
+Payment
+Purchase
+Inventory sale
+
+Don't proceed if the tests are failing.
+
+More importantly, don't let the AI simply change the test to make it pass.
+
+The expected result comes from your accounting rules.
+
+Gate 3 — SQLite
+Once the domain behavior works in memory:
+
+Application language/runtime
+Domain
+  ↓
+Tests
+
+connect it to:
+
+SQLite
+
+Then test:
+
+Create transaction
+Close application
+Open application
+Transaction still exists
+
+Also test:
+
+Database transaction
+     ↓
+Something fails
+     ↓
+Everything rolls back
+
+This is critical.
+
+Gate 4 — Reports
+Now build:
+
+Trial Balance
+General Ledger
+P&L
+Balance Sheet
+
+Then test them against known examples.
+
+For example:
+
+Opening bank       10,000
+Income              5,000
+Expense             2,000
+
+You should know exactly what the reports must say.
+
+If the numbers don't match your manually calculated result:
+
+STOP.
+
+Don't move to UI.
+
+Gate 5 — Billing
+Now build:
+
+Customers
+Invoices
+Invoice lines
+Payments
+Receivables
+
+Test:
+
+Cash sale
+Credit sale
+Partial payment
+Full payment
+Invoice cancellation
+
+Again:
+
+Tests pass → continue
+Tests fail → stop
+
+Gate 6 — Inventory
+This is a major checkpoint.
+
+Test:
+
+Opening stock
+Purchase
+Sale
+Purchase return
+Sales return
+Inventory adjustment
+
+And verify:
+
+Quantity
+Inventory value
+COGS
+Profit
+Accounting entries
+
+all agree.
+
+If:
+
+Inventory says 20 units
+Accounting implies 18
+
+STOP.
+
+Don't continue building UI features.
+
+Gate 7 — UI
+Only now build:
+
+Dashboard
+Expenses
+Invoices
+Products
+Inventory
+Reports
+
+The UI becomes much easier because you're essentially connecting screens to already-tested operations.
+
+Instead of AI inventing accounting logic inside the UI:
+
+Button
+ ↓
+CreateExpense()
+ ↓
+tested domain logic
+
+Gate 8 — Fiscal-year conclusion
+Before cloud synchronization is considered complete, test the fiscal-year transition.
+
+Test:
+
+Current fiscal-year SQLite
+   ↓
+Validate
+   ↓
+Conclude fiscal year
+   ↓
+Upload completed SQLite to server
+   ↓
+Server confirms archive
+   ↓
+Create next fiscal-year SQLite
+   ↓
+Carry forward opening balances
+
+Also test:
+
+Internet OFF → fiscal-year conclusion is blocked
+Upload FAIL → old fiscal year remains active
+Archive confirmed → new fiscal year can become active
+Historical year → opens read-only
+
+Do not allow the application to delete the old database or switch fiscal years before the server has confirmed archival.
+
+Gate 9 — Offline behavior
+Turn off the internet.
+
+Then verify:
+
+Create expense       ✓
+Create invoice       ✓
+Record payment       ✓
+Sell product         ✓
+View reports         ✓
+Restart application  ✓
+
+If any core operation needs the internet:
+
+STOP.
+
+That's a violation of your architecture.
+
+Gate 10 — Cloud sync
+Only after local operation is stable.
+
+Test:
+
+Local DB
+   ↓
+Sync
+   ↓
+Cloud
+   ↓
+Download
+   ↓
+Restore
+
+Then compare:
+
+Before sync
+     =
+After restore
+
+The accounting state should be identical.
+
+Gate 11 — Real-world testing
+This is where I'd stop letting the AI be the only judge.
+
+Create a fake business.
+
+For example:
+
+Opening bank       Rs 100,000
+
+Purchase inventory Rs 30,000
+
+Sale               Rs 20,000
+
+Expense             Rs 5,000
+
+Customer payment   Rs 10,000
+
+Calculate the expected result manually.
+
+Then put exactly those transactions into the application.
+
+Compare:
+
+Your calculation
+       VS
+Application
+
+You want:
+
+                     EXPECTED    ACTUAL
+
+Bank                 75,000      75,000
+Inventory             20,000      20,000
+Revenue               20,000      20,000
+COGS                  12,000      12,000
+Expenses               5,000       5,000
+Profit                 3,000       3,000
+
+If anything differs:
+
+STOP.
+
+Find the reason before adding another feature.
+
+The rule I would give your AI agent
+Put this directly into your project instructions:
+
+Never proceed to the next architectural phase merely because the code compiles. A phase is complete only when its documented requirements are implemented, automated tests pass, database integrity checks pass where applicable, and the expected accounting results have been independently verified. If a requirement is ambiguous or a test exposes an accounting inconsistency, stop implementation and ask for clarification rather than guessing.
+
+That's an extremely useful rule.
+
+And there are three different kinds of "pass"
+Don't confuse them.
+
+1. Code passes
+dotnet build
+     ↓
+SUCCESS
+
+This only means the code compiles.
+
+It does not mean your accounting is correct.
+
+2. Automated tests pass
+250 tests
+250 passed
+
+Much better.
+
+But tests can themselves be wrong.
+
+3. Accounting scenario passes
+You manually know:
+
+Expected = Rs 3,000 profit
+
+and the application says:
+
+Rs 3,000
+
+This gives you much more confidence.
+
+Your development loop
+I'd use this repeatedly:
+
+             DEFINE
+                ↓
+             DESIGN
+                ↓
+          ASK AI TO BUILD
+                ↓
+          REVIEW CHANGES
+                ↓
+             TEST
+                ↓
+        ┌───────┴────────┐
+        │                │
+      PASS              FAIL
+        │                │
+        ↓                ↓
+    CHECKPOINT        FIX / INVESTIGATE
+        │                │
+        ↓                │
+   NEXT FEATURE ◄────────┘
+
+And never have the AI simultaneously change 20 unrelated things.
+
+Give it a bounded task:
+
+Implement the CreateExpense use case. Do not modify the UI, database schema, synchronization system, or unrelated modules. Add unit tests for cash expense, bank expense, and invalid zero/negative amounts. Run the existing test suite and report the result.
+
+That's much easier to review.
+
+The most important checkpoints
+If I were managing this project, I'd put hard stops here:
+
+STOP 1
+Domain model
+        ↓
+STOP 2
+Double-entry accounting
+        ↓
+STOP 3
+SQLite persistence
+        ↓
+STOP 4
+Financial reports
+        ↓
+STOP 5
+Billing
+        ↓
+STOP 6
+Inventory + COGS
+        ↓
+STOP 7
+Complete offline workflow
+        ↓
+STOP 8
+Fiscal-year conclusion + archival
+        ↓
+STOP 9
+Cloud backup/restore
+        ↓
+STOP 10
+Production testing
+
+You don't have to wait until the entire application is finished to discover that the accounting model was wrong.
+
+That's the whole point of the checkpoints.
+
+The desktop framework should remain replaceable. AI-assisted development does not depend on one UI toolkit being the core of the application; the critical requirement is that accounting rules, data integrity, and fiscal-year lifecycle remain isolated from the presentation layer.
+
+
+
+Desktop security requirements
+
+The desktop application is a financial-data application and must be designed with a least-privilege security model regardless of the selected UI framework.
+
+The following are non-negotiable architectural requirements:
+
+No UI component may directly access SQLite.
+No UI component may directly execute arbitrary SQL.
+No UI component may directly access operating-system secrets or unrestricted filesystem operations unless explicitly required by a bounded application service.
+Privileged operations shall be exposed through typed application services or commands.
+Input crossing process or module boundaries shall be validated.
+Remote content shall not be trusted as executable application code.
+Dependencies shall be monitored and updated through a controlled process.
+Release artifacts shall be signed where the selected platform supports application signing.
+Sensitive local credentials, license state, and tokens shall use protected operating-system storage where available.
+Backups and cloud transfers shall use authenticated and encrypted channels.
+
+The exact security controls may differ by desktop framework, but the separation between presentation code and privileged business/data operations shall remain mandatory.
+
+Licensing, Authentication, and Offline License Enforcement
+
+The application shall use a server-controlled licensing system for user authentication, subscription status, and license authorization. The Laravel backend shall be the authoritative source for user accounts, licenses, subscriptions, books, and registered desktop installations. The desktop application shall authenticate the user with the backend when an account session is established and shall obtain a cryptographically signed license authorization that allows the application to operate.
+
+After successful authentication and license verification, the desktop application shall be capable of operating normally without an active internet connection. Normal accounting, invoicing, billing, inventory, customer, supplier, reporting, and other business operations shall not require continuous internet connectivity. Internet connectivity shall primarily be required for authentication, periodic license validation, cloud synchronization, backup, restore, fiscal-year conclusion/archival, and other explicitly online features.
+
+The backend shall issue a signed license authorization containing the information required by the desktop application to determine whether the user is authorized to operate the application. The authorization should contain, at minimum, the license identifier, user identifier, book identifier, license status, license expiration date, issuance date, next required server validation time, and license revision. Where device binding is enabled, the authorization may also contain the registered device identifier. The backend shall sign this authorization using a private signing key.
+
+The desktop application shall contain only the corresponding public verification key and shall verify the cryptographic signature of every license authorization before trusting it. The desktop application shall never trust an unsigned or locally modified license file. The private signing key shall never be included in the desktop application or distributed to clients. This ensures that the desktop application can verify that a license authorization was genuinely issued by the backend without requiring an internet connection for every verification.
+
+The system shall distinguish between the actual license expiration date and the next required online validation date. The license expiration date represents the end of the user's authorization to use the application and shall be enforceable locally. The next validation date represents when the application should contact the backend again to confirm the current license, subscription, device, or account status. These two values shall not be treated as the same concept.
+
+When the application has internet connectivity and the next validation time has been reached, the application shall contact the backend and request a fresh license authorization. The backend shall verify the user's account, license, subscription status, registered book, and registered desktop installation before issuing a new authorization. If the validation succeeds, the application shall securely store the new signed authorization and continue operating normally.
+
+If the application is offline when periodic validation is due, the application shall continue operating according to the configured offline-validation policy. The system should provide a defined offline grace period for periodic server revalidation so that a temporary loss of internet connectivity does not unnecessarily prevent normal business operations. However, the actual license expiration date shall remain an absolute local enforcement boundary unless the licensing policy explicitly defines otherwise.
+
+The desktop application shall be able to determine that a license has expired without contacting the backend. If the current date reaches or passes the locally verified license expiration date, the application shall no longer allow normal business operations. The application shall lock the application or terminate the authenticated session and require the user to obtain a valid license authorization before business operations can resume. Internet connectivity shall not be required merely to determine that an already-issued license has expired.
+
+License enforcement shall not delete, corrupt, or modify the user's accounting data. When a license expires, the application shall protect the business data and prevent unauthorized business operations while preserving the local SQLite database and all existing records. Re-authentication or renewal of the license shall restore access to the existing business data when the account is authorized again.
+
+The license and authentication state shall be maintained separately from the accounting database and shall not depend on restoring an old accounting SQLite snapshot. Restoring a business database shall therefore never restore an older license state, subscription state, authentication state, or device authorization. License information shall be stored in an appropriate protected application storage mechanism separate from normal accounting data.
+
+The application shall implement reasonable protection against local clock manipulation. It shall record trusted server time obtained during successful online validation and may compare subsequent local timestamps against the last trusted time to detect significant clock rollback. The application may also maintain additional integrity information required to identify suspicious changes to local licensing state. These mechanisms are intended to provide practical license enforcement and tamper detection; they shall not be treated as an absolute guarantee against a user with full control over the client machine.
+
+The licensing system shall support the application's V1 restriction of one book and one active desktop installation per account where applicable. The backend may maintain registered desktop installation or device information and shall be responsible for determining whether a new installation is authorized. Device registration, license validation, subscription status, and account authorization shall remain backend responsibilities and shall not be implemented as accounting-domain logic.
+
+The licensing implementation shall be isolated from the accounting, inventory, invoicing, purchasing, sales, and reporting domains. A dedicated security/licensing component shall manage authentication sessions, license authorization, signature verification, device identity, secure local storage, license expiration, periodic validation, trusted server time, and clock-integrity checks. Financial business operations shall not contain licensing logic.
+
+The application shall fail safely when licensing information is missing, invalid, corrupted, expired, or fails cryptographic verification. Invalid or tampered license information shall never grant access to protected business operations. At the same time, licensing failures shall not result in deletion or modification of the user's accounting records.
+
+The licensing system shall be covered by automated tests. Tests shall verify successful license verification, invalid signatures, expired licenses, future licenses, periodic validation, offline operation, offline expiration, clock rollback detection, corrupted local license state, device authorization, renewal after expiration, and restoration of accounting data without restoring obsolete licensing state. Licensing behavior shall be deterministic and independently testable without requiring the accounting domain to communicate directly with the licensing backend.

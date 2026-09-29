@@ -1,0 +1,121 @@
+# AI Development Rules
+
+This is a contract, not a suggestion. Every AI agent working on this repository
+must read this file before modifying code. It is derived from
+`Rewritten_Business_Application_Architecture.txt` sections 43-44 and
+`process.txt` section 16.
+
+## Layer boundaries
+
+```
+presentation  ->  application  ->  domain
+                                   ^
+                                   |
+                             infrastructure
+```
+
+Dependencies point inward only. The domain depends on nothing.
+
+## NEVER
+
+- Put accounting logic in UI or presentation code.
+- Write SQL, or reference a table name, in presentation code.
+- Let presentation code touch SQLite, drift, or any database type.
+- Directly modify journal balances or account balances.
+- Delete a posted financial transaction.
+- Delete an inventory movement.
+- Bypass the accounting engine.
+- Change the database schema without a migration.
+- Change accounting behaviour without adding or updating tests.
+- Make a cloud call mandatory for normal accounting operations.
+- Change a test merely to make it pass.
+- Invent an unspecified accounting rule.
+- Implement an ambiguous requirement without asking.
+- Perform unrelated refactoring during a feature task.
+- Modify more architectural layers than the task requires.
+- Use `double` or `num` to represent a monetary amount. Use `Money`.
+- Introduce a dependency with a commercial, paid, or non-permissive licence
+  without explicit written approval. See "Dependency policy" below.
+- Put licensing, authentication, or device-binding logic in a business domain.
+- Restore licence, subscription, session, or device state from a business
+  database backup.
+- Conclude a fiscal year before the server has confirmed archival of the
+  completed SQLite file.
+- Delete or discard a previous fiscal-year database before archival is confirmed.
+- Write to a historical fiscal-year database. Historical years are read-only.
+
+## ALWAYS
+
+- Route every business action through a use case in
+  `lib/src/application/`.
+- Make every business operation a single atomic database transaction.
+- Represent money with the `Money` value object from
+  `lib/src/domain/shared/money.dart`.
+- Record an inventory movement for every stock change, with a reason and a
+  reference.
+- Derive reports from accounting data. Never store a report total.
+- Make a draft document editable, and a posted document immutable. Corrections
+  use credit notes, debit notes, reversals, or compensating movements.
+- Reset the invoice serial only when an invoice is actually issued, never when a
+  draft is created.
+- Validate that a transaction date belongs to the active fiscal year before
+  posting it.
+- Reject an unbalanced journal.
+- Write a failing test before implementing financial behaviour.
+- Commit in small, reviewable units.
+- Ask when a requirement is ambiguous. Stopping to ask is cheaper than guessing
+  at an accounting rule.
+
+## The three kinds of passing
+
+These are different and must not be confused.
+
+1. **Code compiles.** `flutter analyze` succeeds. This proves nothing about
+   accounting correctness.
+2. **Automated tests pass.** Better, but a test can itself encode a wrong
+   expectation.
+3. **The accounting scenario is independently verified.** You calculated the
+   expected result by hand from the accounting rules, the application agrees,
+   and the journal balances.
+
+Only (3) closes a gate. Never advance a gate on (1).
+
+## Dependency policy
+
+The project is committed to zero licensing cost. Every dependency must be MIT,
+BSD-3, Apache-2.0, or an equivalently permissive licence.
+
+Explicitly rejected, despite being common search results:
+
+| Package | Why rejected |
+| --- | --- |
+| `syncfusion_flutter_datagrid`, `syncfusion_flutter_charts` | Commercial licence. The most common result for a Flutter data grid, and a trap. |
+| Any Avalonia Accelerate / Pro component | Commercial, per-seat. Not in this repo, recorded so it is not reintroduced. |
+
+Approved core dependencies, all permissive:
+
+| Package | Licence | Purpose |
+| --- | --- | --- |
+| `drift`, `drift_dev`, `sqlite3_flutter_libs` | MIT | SQLite, type-safe queries, migrations |
+| `pluto_grid` | MIT | Dense desktop data grid |
+| `fl_chart` | MIT | Restrained charts |
+| `go_router` | BSD-3 | Navigation |
+| `flutter_secure_storage` | BSD-3 | OS-protected token and licence storage |
+
+Before adding any package, verify its licence and record it here.
+
+## Task sizing
+
+A good task is bounded:
+
+> Implement the `CreateExpense` use case. Do not modify the UI, the database
+> schema, sync, or fiscal-year logic. Create the journal entry through the
+> accounting engine. Add tests for cash expense, bank expense, and a zero
+> amount. Run the full suite. Do not modify existing tests unless the documented
+> requirement changed.
+
+A bad task:
+
+> Build the accounting module.
+
+Never let one change touch many unrelated layers at once.

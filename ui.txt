@@ -1,0 +1,1134 @@
+Yes. I’d make this a **design-system specification**, not just a mood-board description. The Windows 7/8 influence should be used selectively for desktop behavior and structure, while **Data Newspaper** becomes the main visual identity.
+
+The architecture already treats the UI as a replaceable presentation layer, so these choices should stay inside the UI layer and not affect accounting/domain rules. 
+
+# UI DESIGN SYSTEM
+
+## Windows 7/8 Desktop + Data Newspaper
+
+### 1. Design Direction
+
+The application shall use a **professional desktop interface inspired by Windows 7 and Windows 8**, combined with a **Data Newspaper** visual language.
+
+The result should feel like mature professional business software rather than:
+
+* a modern AI dashboard
+* a generic SaaS application
+* a mobile application enlarged onto a desktop
+* an old-fashioned accounting program
+* a futuristic interface
+
+The design target is:
+
+> **Windows 7/8 desktop usability + Windows 8 visual clarity + newspaper information hierarchy + modern typography and spacing.**
+
+The application should look approximately like software that could have existed during the Windows 7/8 era but has continued to receive visual improvements through the 2020s.
+
+---
+
+# 2. Core Visual Philosophy
+
+The interface should prioritize:
+
+1. Information
+2. Readability
+3. Fast navigation
+4. Data density
+5. Clear hierarchy
+6. Keyboard and mouse efficiency
+7. Professional appearance
+8. Consistency
+
+Decorative UI should never compete with business information.
+
+The application is a business system containing accounting, invoicing, customers, suppliers, inventory, purchases, payments and reporting. Therefore, **data is the visual content**.
+
+The UI should make users feel that they are operating a serious desktop business system.
+
+---
+
+# 3. Windows 7 Influence
+
+Windows 7 should primarily influence the application's **desktop behavior**, not be copied literally.
+
+Use Windows 7 principles for:
+
+### Window behavior
+
+* conventional desktop windows
+* predictable dialogs
+* familiar minimize/maximize/close behavior
+* resizable windows
+* clear focus states
+* context menus
+* keyboard navigation
+* conventional confirmation dialogs
+* status bars
+* toolbars
+* compact command areas
+
+### Controls
+
+Controls should feel familiar to desktop users:
+
+* buttons
+* checkboxes
+* radio buttons
+* dropdowns
+* text fields
+* date pickers
+* tabs
+* lists
+* trees
+* tables
+* context menus
+
+Avoid replacing every conventional control with a custom modern component.
+
+The user should not have to learn a new interaction model just to enter an invoice.
+
+---
+
+# 4. Windows 8 Influence
+
+Windows 8 should influence the **visual organization and typography**.
+
+Use:
+
+* flat geometry
+* strong typography
+* rectangular navigation items
+* large section labels
+* clear color accents
+* simple icons
+* minimal decorative shadows
+* information grouped into strong visual blocks
+* clean alignment
+* high contrast between important information and secondary information
+
+Windows 8 tile design should **not** be copied literally.
+
+Do not turn the entire application into a collection of giant tiles.
+
+Instead, use the idea of:
+
+> **large visual blocks for important information.**
+
+For example:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ SALES                                                        │
+│                                                             │
+│ Rs 1,284,500                                                │
+│ This fiscal year                                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The block is informative rather than decorative.
+
+---
+
+# 5. Data Newspaper Design Language
+
+The primary visual identity shall come from the concept of a **Data Newspaper**.
+
+A Data Newspaper treats business information similarly to how a serious newspaper treats information:
+
+* strong headlines
+* clear sections
+* dense information
+* hierarchy
+* columns
+* dividers
+* typography
+* numbers
+* summaries
+* tables
+* small supporting labels
+* visual rhythm
+
+The interface should feel like:
+
+> **A financial newspaper that happens to be an interactive desktop application.**
+
+---
+
+# 6. Newspaper Hierarchy
+
+Every screen should have a strong information hierarchy.
+
+Example:
+
+```text
+ACCOUNTING
+────────────────────────────────────────────────────────────
+
+Financial Position
+29 September 2026
+
+┌────────────────────┐  ┌────────────────────┐
+│ TOTAL ASSETS       │  │ TOTAL LIABILITIES │
+│ Rs 8,420,000       │  │ Rs 2,180,000       │
+└────────────────────┘  └────────────────────┘
+
+────────────────────────────────────────────────────────────
+
+Recent Transactions
+
+Date        Description              Debit       Credit
+────────────────────────────────────────────────────────────
+29 Sep      Office Rent              25,000
+28 Sep      Customer Payment                       80,000
+28 Sep      Inventory Purchase       45,000
+27 Sep      Sales Revenue                         120,000
+
+────────────────────────────────────────────────────────────
+```
+
+The hierarchy should come primarily from:
+
+* typography
+* spacing
+* alignment
+* borders
+* rules
+* section labels
+
+rather than cards and shadows.
+
+---
+
+# 7. Typography
+
+Typography is one of the most important parts of the design.
+
+Use a modern sans-serif UI font for normal application text.
+
+Recommended characteristics:
+
+* highly readable
+* compact
+* excellent numeric rendering
+* clear distinction between similar characters
+* good support for multiple languages
+
+Headings should be noticeably stronger than body text.
+
+### Suggested hierarchy
+
+```text
+Page title
+32–36 px
+
+Major section
+22–26 px
+
+Section heading
+16–20 px
+
+Normal UI text
+13–15 px
+
+Secondary information
+11–13 px
+
+Table data
+12–14 px
+```
+
+Exact sizes may change depending on platform and display scaling.
+
+Do not make every heading huge.
+
+Newspaper-style hierarchy should come from **relative importance**, not oversized text everywhere.
+
+---
+
+# 8. Numbers
+
+Numbers are extremely important in this application.
+
+Financial values should be visually stable and easy to scan.
+
+Use:
+
+* right alignment for monetary values
+* consistent decimal formatting
+* consistent currency placement
+* tabular numerals where supported
+* clear negative-value formatting
+* consistent thousands separators
+
+Example:
+
+```text
+Sales Revenue             Rs 1,250,000
+Operating Expenses          Rs 420,000
+Gross Profit                Rs 830,000
+Accounts Receivable         Rs 185,500
+```
+
+Do not center financial numbers.
+
+---
+
+# 9. Color System
+
+The color system should be restrained.
+
+Use a neutral base:
+
+* white
+* warm white
+* light gray
+* medium gray
+* dark gray
+* near-black
+
+Then use a limited accent palette.
+
+Example:
+
+```text
+Primary Accent
+Blue
+
+Positive
+Green
+
+Warning
+Amber
+
+Error
+Red
+
+Information
+Blue
+
+Neutral
+Gray
+```
+
+Colors should communicate meaning.
+
+Do not use a different bright color for every section.
+
+---
+
+# 10. Newspaper Rules and Dividers
+
+Horizontal rules are an important part of the design.
+
+Use thin lines to separate:
+
+* sections
+* table headers
+* summaries
+* totals
+* transaction groups
+* report sections
+
+Example:
+
+```text
+SALES
+────────────────────────────────────────────────────
+
+MONTHLY SUMMARY
+
+January       Rs 120,000
+February      Rs 145,000
+March         Rs 168,000
+
+────────────────────────────────────────────────────
+
+TOTAL         Rs 433,000
+```
+
+The lines should be subtle.
+
+Avoid excessive boxes around everything.
+
+---
+
+# 11. Cards
+
+Cards should **not** be the default layout primitive.
+
+Use cards only when they provide meaningful grouping.
+
+Good:
+
+```text
+┌─────────────────────────────────────┐
+│ ACCOUNTS RECEIVABLE                 │
+│                                     │
+│ Rs 185,500                           │
+│ 14 outstanding invoices             │
+└─────────────────────────────────────┘
+```
+
+Avoid:
+
+```text
+┌───────┐ ┌───────┐ ┌───────┐
+│ $$$   │ │ $$$   │ │ $$$   │
+└───────┘ └───────┘ └───────┘
+```
+
+for every piece of information.
+
+The application should not become a collection of generic SaaS cards.
+
+---
+
+# 12. Navigation
+
+Use a traditional desktop navigation structure.
+
+Recommended:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Application Name                         User / Book / Year │
+├───────────────┬─────────────────────────────────────────────┤
+│               │                                             │
+│ Dashboard     │                                             │
+│ Accounting    │                                             │
+│ Sales         │                                             │
+│ Purchases     │              WORKSPACE                      │
+│ Inventory     │                                             │
+│ Customers     │                                             │
+│ Suppliers     │                                             │
+│ Payments      │                                             │
+│ Reports       │                                             │
+│               │                                             │
+│ Settings      │                                             │
+│               │                                             │
+└───────────────┴─────────────────────────────────────────────┘
+```
+
+The navigation should remain stable.
+
+Do not hide the entire application inside a hamburger menu.
+
+Desktop users should be able to see where they are.
+
+---
+
+# 13. Navigation Sections
+
+Primary navigation should follow the application's business domains.
+
+Suggested order:
+
+### Overview
+
+* Dashboard
+
+### Accounting
+
+* Journal
+* Chart of Accounts
+* General Ledger
+* Trial Balance
+
+### Sales
+
+* Invoices
+* Sales
+* Customers
+* Receivables
+
+### Purchases
+
+* Purchases
+* Suppliers
+* Payables
+
+### Inventory
+
+* Products
+* Stock
+* Stock Movements
+
+### Payments
+
+* Receipts
+* Payments
+* Transfers
+
+### Reports
+
+* Profit & Loss
+* Balance Sheet
+* Cash Flow
+* Sales Reports
+* Inventory Reports
+* Tax Reports
+
+### System
+
+* Settings
+* Backup
+* Sync
+* Fiscal Year
+
+---
+
+# 14. Dashboard
+
+The dashboard should NOT look like a typical startup SaaS dashboard.
+
+Avoid:
+
+* giant colorful cards
+* gradients
+* illustrations
+* AI assistant panels
+* decorative charts everywhere
+* excessive rounded containers
+
+Instead, make it a **business newspaper front page**.
+
+Example:
+
+```text
+BUSINESS OVERVIEW
+29 SEPTEMBER 2026
+Fiscal Year 2026/27
+
+────────────────────────────────────────────────────────────
+
+REVENUE                    EXPENSES
+Rs 1,284,500               Rs 742,300
+
+NET PROFIT                 CASH
+Rs 542,200                 Rs 318,450
+
+────────────────────────────────────────────────────────────
+
+SALES                         RECEIVABLES
+
+Today      Rs 48,500          Outstanding  Rs 185,500
+This week  Rs 210,000         Overdue       Rs 42,000
+This month Rs 685,000
+
+────────────────────────────────────────────────────────────
+
+RECENT BUSINESS ACTIVITY
+
+29 Sep   Invoice #1042       ABC Traders       Rs 45,000
+29 Sep   Payment              XYZ Store         Rs 20,000
+28 Sep   Purchase #221        Supplier Ltd      Rs 32,500
+28 Sep   Expense              Office Rent       Rs 25,000
+
+────────────────────────────────────────────────────────────
+```
+
+This is the **Data Newspaper** concept.
+
+---
+
+# 15. Tables
+
+Tables are one of the most important UI components.
+
+They should be:
+
+* dense
+* readable
+* sortable
+* filterable
+* keyboard accessible
+* resizable
+* selectable
+* exportable where appropriate
+
+Example:
+
+```text
+INVOICES
+
+Filter: [ Customer... ] [ Status ▼ ] [ Date ▼ ]
+
+────────────────────────────────────────────────────────────
+Invoice      Customer          Date        Status      Amount
+────────────────────────────────────────────────────────────
+INV-1042     ABC Traders       29 Sep      Unpaid      45,000
+INV-1041     XYZ Store         28 Sep      Paid        82,500
+INV-1040     Nepal Supply      27 Sep      Partial     32,000
+────────────────────────────────────────────────────────────
+```
+
+Rows should not be excessively tall.
+
+Professional users should be able to see substantial amounts of information at once.
+
+---
+
+# 16. Forms
+
+Forms should feel like traditional professional desktop forms.
+
+Example:
+
+```text
+NEW EXPENSE
+
+Date             [ 29/09/2026 ]
+
+Expense Account  [ Office Expenses       ▼ ]
+
+Payment Account  [ Bank Account          ▼ ]
+
+Amount           [ Rs 25,000              ]
+
+Description      [ Monthly office rent    ]
+
+Reference        [                         ]
+
+────────────────────────────────────────────
+
+                    [ Cancel ] [ Save ]
+```
+
+Use clear labels.
+
+Avoid placeholder-only forms where labels disappear when the user starts typing.
+
+---
+
+# 17. Invoice Editor
+
+The invoice editor should use a document-oriented layout.
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ INVOICE #1042                                                │
+│                                                             │
+│ Customer: ABC Traders                    Date: 29 Sep 2026  │
+│                                                             │
+│ Item                 Qty       Rate              Amount      │
+│ ─────────────────────────────────────────────────────────── │
+│ Product A             2        5,000             10,000      │
+│ Product B             5        2,500             12,500      │
+│                                                             │
+│                                             Subtotal 22,500 │
+│                                             Tax       2,250 │
+│                                             TOTAL    24,750 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+This should feel closer to a **professional document editor** than an e-commerce checkout page.
+
+---
+
+# 18. Accounting Screens
+
+Accounting screens should be the densest part of the application.
+
+For example:
+
+```text
+GENERAL JOURNAL
+
+Date        Account                  Debit        Credit
+────────────────────────────────────────────────────────────
+29 Sep      Office Expense           25,000
+29 Sep      Bank Account                          25,000
+
+28 Sep      Accounts Receivable      45,000
+28 Sep      Sales Revenue                         45,000
+────────────────────────────────────────────────────────────
+```
+
+Use newspaper-style typography and rules.
+
+Accounting data should look authoritative and precise.
+
+---
+
+# 19. Reports
+
+Reports should be treated like **financial publications**.
+
+Example:
+
+```text
+PROFIT & LOSS STATEMENT
+For the period 01 Jul 2026 – 29 Sep 2026
+
+REVENUE
+Sales Revenue                              1,284,500
+Other Income                                  35,000
+────────────────────────────────────────────────────────
+Total Revenue                              1,319,500
+
+EXPENSES
+Cost of Goods Sold                           420,000
+Operating Expenses                           322,300
+────────────────────────────────────────────────────────
+Total Expenses                              742,300
+
+NET PROFIT                                  577,200
+```
+
+The report should rely on strong typography, alignment and rules.
+
+Charts should support the report rather than dominate it.
+
+---
+
+# 20. Charts
+
+Charts should be restrained.
+
+Prefer:
+
+* line charts
+* bar charts
+* simple comparison charts
+* small trend indicators
+
+Avoid:
+
+* decorative 3D charts
+* excessive gradients
+* giant donut charts
+* charts without useful data
+* charts used merely to make the dashboard look modern
+
+The underlying accounting data is more important than visualization.
+
+---
+
+# 21. Icons
+
+Icons should be:
+
+* simple
+* geometric
+* consistent
+* recognizable
+* relatively small
+
+Use icons to reinforce meaning, not as decoration.
+
+Good:
+
+```text
+▣ Accounting
+▤ Sales
+▥ Purchases
+□ Inventory
+◉ Customers
+```
+
+The exact icon set should be consistent throughout the application.
+
+Avoid mixing:
+
+* filled icons
+* outline icons
+* colorful emoji
+* different icon families
+
+---
+
+# 22. Borders and Shadows
+
+Use borders more than shadows.
+
+Preferred:
+
+```text
+────────────────────────────
+```
+
+rather than:
+
+```text
+╭──────────────────────────╮
+│                          │
+╰──────────────────────────╯
+```
+
+Use subtle shadows only when an element needs to appear above another surface.
+
+Dialogs, menus and popovers may use modest elevation.
+
+Normal application content should remain mostly flat.
+
+---
+
+# 23. Corner Radius
+
+Use small corner radii.
+
+Recommended:
+
+* 0px for some data/report elements
+* 2–4px for controls
+* 4–6px for containers
+* 6–8px maximum for prominent elements
+
+Avoid extremely rounded cards.
+
+The application should not look like a mobile banking app.
+
+---
+
+# 24. Density
+
+The application should support a **comfortable density** and optionally a **compact density**.
+
+Compact mode should allow professional users to see more:
+
+```text
+┌────────────────────────────────────────────────────┐
+│ Invoice   Customer       Date       Amount   Status │
+├────────────────────────────────────────────────────┤
+│ INV-1042  ABC Traders    29 Sep     45,000   Unpaid │
+│ INV-1041  XYZ Store      28 Sep     82,500   Paid   │
+│ INV-1040  Nepal Supply   27 Sep     32,000   Partial│
+└────────────────────────────────────────────────────┘
+```
+
+Do not waste vertical space purely for aesthetic reasons.
+
+---
+
+# 25. Status Indicators
+
+Status should be visually obvious but restrained.
+
+Example:
+
+```text
+PAID       ●
+UNPAID     ●
+PARTIAL    ●
+OVERDUE    ●
+DRAFT      ●
+CANCELLED  ●
+```
+
+Color may be used, but status should not depend only on color.
+
+Use text labels as well.
+
+---
+
+# 26. Fiscal Year
+
+The current fiscal year should always be visible somewhere in the application.
+
+Example:
+
+```text
+Business: ABC Traders
+Fiscal Year: 2026/27
+Database: Current
+```
+
+The user should never accidentally confuse historical fiscal-year data with the current working database.
+
+Historical years can appear in a year selector:
+
+```text
+FISCAL YEAR
+
+● 2026/27    Current
+○ 2025/26    Archived
+○ 2024/25    Archived
+○ 2023/24    Archived
+```
+
+---
+
+# 27. Offline Status
+
+Because the application is offline-first, connectivity should have a quiet but visible indicator.
+
+Example:
+
+```text
+● Offline
+```
+
+or:
+
+```text
+● Local
+```
+
+When connected:
+
+```text
+● Online
+Last backup: 29 Sep 2026 09:42
+```
+
+Do not allow internet status to dominate the application.
+
+Normal accounting operations must remain usable without internet.
+
+The architecture defines the local application and SQLite database as the primary business system, with cloud services primarily supporting identity, backup, synchronization and recovery. 
+
+---
+
+# 28. Desktop Status Bar
+
+A status bar can provide useful persistent information.
+
+Example:
+
+```text
+────────────────────────────────────────────────────────────
+Fiscal Year 2026/27 | Local Database | Offline | Last Backup 09:42
+```
+
+This is one place where the Windows 7 desktop influence is especially appropriate.
+
+---
+
+# 29. Context Menus
+
+Right-click should be useful.
+
+For an invoice:
+
+```text
+Open
+Edit
+Duplicate
+Record Payment
+Print
+Export
+View Accounting Entry
+View Customer
+────────────────
+Cancel Invoice
+```
+
+Context menus should contain actions relevant to the selected object.
+
+---
+
+# 30. Keyboard-first Operation
+
+The application should support keyboard-heavy workflows.
+
+Examples:
+
+```text
+Ctrl + N       New
+Ctrl + S       Save
+Ctrl + F       Search
+Ctrl + P       Print
+Ctrl + E       Edit
+Esc            Close / Cancel
+Enter          Confirm
+F2             Edit selected record
+Delete         Delete where permitted
+```
+
+The exact shortcut set should be documented centrally.
+
+---
+
+# 31. Search
+
+Search should be a first-class desktop feature.
+
+Users should be able to search:
+
+* customers
+* suppliers
+* invoices
+* products
+* transactions
+* journal entries
+* payments
+* documents
+
+Search results should be dense and immediately actionable.
+
+Example:
+
+```text
+SEARCH: ABC
+
+Customers
+  ABC Traders
+
+Invoices
+  INV-1042    ABC Traders    Rs 45,000
+
+Transactions
+  29 Sep      ABC Traders    Rs 45,000
+```
+
+---
+
+# 32. Data Newspaper + Windows 7/8 Combination
+
+The two influences have different responsibilities.
+
+### Windows 7
+
+Provides:
+
+* desktop conventions
+* dialogs
+* menus
+* context menus
+* status bars
+* familiar controls
+* keyboard behavior
+
+### Windows 8
+
+Provides:
+
+* flat geometry
+* strong typography
+* rectangular visual blocks
+* clear information hierarchy
+* restrained visual decoration
+
+### Data Newspaper
+
+Provides:
+
+* editorial hierarchy
+* section headers
+* rules/dividers
+* dense data
+* strong numerical presentation
+* columns
+* report-like layouts
+* information-first composition
+
+### Modern refinement
+
+Provides:
+
+* improved typography
+* better spacing
+* accessible contrast
+* high-DPI support
+* subtle animation
+* responsive layouts
+* polished icons
+* modern rendering
+
+The final result should not look like Windows 7, Windows 8, or a newspaper literally.
+
+It should look like a **modern professional application influenced by all three**.
+
+---
+
+# 33. Things Explicitly to Avoid
+
+The design system should explicitly reject the following as default patterns:
+
+* generic SaaS dashboards
+* excessive rounded cards
+* huge empty spaces
+* glassmorphism everywhere
+* excessive gradients
+* giant hero sections
+* AI chatbot panels
+* floating assistant buttons
+* excessive animation
+* excessive shadows
+* giant colorful statistics
+* mobile-first layouts
+* excessive hamburger navigation
+* decorative illustrations
+* emoji as primary icons
+* excessive use of bright colors
+* excessive use of dark mode as the identity
+* copying Windows 7 literally
+* copying Windows 8 tiles literally
+
+---
+
+# 34. Dark Theme
+
+Dark mode may be supported, but it should be a secondary theme.
+
+The Data Newspaper concept should remain recognizable in both themes.
+
+Light:
+
+```text
+White / warm white
+Dark text
+Gray rules
+Blue accent
+```
+
+Dark:
+
+```text
+Dark charcoal
+Light text
+Dark-gray rules
+Blue accent
+```
+
+Do not turn dark mode into a neon cyberpunk interface.
+
+---
+
+# 35. Design Goal
+
+The final visual impression should be:
+
+> **Professional desktop accounting software with the clarity of Windows 8, the usability conventions of Windows 7, and the information hierarchy of a financial newspaper.**
+
+It should feel:
+
+* trustworthy
+* serious
+* efficient
+* information-rich
+* distinctive
+* familiar
+* professional
+* stable
+
+Most importantly:
+
+> **The interface should look like software built for people who work with business data all day, not software designed to look impressive in a screenshot.**
+
+# 36. Implementation Principle
+
+The visual design belongs entirely to the presentation layer.
+
+It must not introduce direct access from UI components to SQLite or business data.
+
+The architectural flow remains:
+
+```text
+UI
+ ↓
+Application / Use Cases
+ ↓
+Domain
+ ↓
+Infrastructure
+ ↓
+SQLite
+```
+
+The UI is therefore free to evolve from Windows 7/8 + Data Newspaper into another visual style later without changing the accounting engine, domain rules, database rules or synchronization architecture.
+
+This follows the architecture's principle that the UI is a replaceable presentation layer while accounting, data integrity, SQLite persistence and business rules remain independent. 
+
+This gives you a fairly specific design language that an AI coding agent can actually implement consistently, rather than just saying "make it Windows 8-ish."

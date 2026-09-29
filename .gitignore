@@ -1,0 +1,60 @@
+# Root .gitignore
+# Nested .gitignore files in backend/ and desktop/ handle their own tooling.
+# This file covers repository-wide concerns.
+
+# --- Accounting data: must never be committed ---
+# This repository builds a financial application. A .db file is a real
+# business database containing the user's financial records. Committing one
+# leaks customer data, supplier data, and money figures into version history,
+# where deleting it later does not remove it.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+accounting-FY-*.db
+# Desktop backup snapshots produced by backup/restore
+*.db.bak
+*.db.backup
+/backups/
+/desktop/backups/
+
+# --- Licence and secret material ---
+# The backend private signing key must never enter version control.
+*.pem
+*.key
+!backend/storage/*.key.example
+.env
+.env.*
+!.env.example
+
+# --- OS and editor ---
+.DS_Store
+Thumbs.db
+desktop.db
+*.swp
+*~
+.vscode/
+!.vscode/extensions.json
+.idea/
+.idea
+*.iml
+
+# --- AI agent tooling state ---
+# Local agent/worktree bookkeeping, not part of the project.
+.kilo/
+
+# --- Build output (belt and braces; desktop/.gitignore also covers /build/) ---
+**/build/
+**/node_modules/
+*.log
+
+# --- Local scratch ---
+*.tmp
+*.bak
+scratch/
+tmp/
