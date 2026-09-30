@@ -14,6 +14,7 @@ running Shrawan to Ashadh.
 | `backend/` | Laravel 12 API. Identity, books, fiscal-year metadata, sync, backup, restore, licensing, admin. |
 | `desktop/` | Flutter app for Windows, macOS, and Linux. The primary business system. |
 | `docs/` | Architecture, the AI development contract, and Architecture Decision Records. |
+| `docs/INVENTORY_EXPLAINED.md` | **Plain-language explainer** for inventory costing: what the methods mean with real numbers, what Nepali rules allow, and what this application does. Written for a non-accountant. |
 | `AGENTS.md` | Entry point for any AI agent. Read first. |
 | `PROGRESS.md` | Handoff state and the next task. |
 | `*.txt` | The three original specifications. These are the source of truth. |
@@ -23,7 +24,9 @@ running Shrawan to Ashadh.
 If you are a developer or an AI agent, in this order:
 
 1. `AGENTS.md`
-2. `PROGRESS.md`
+2. `PROGRESS.md` — read **section 7** in full. It holds the accumulated
+   discoveries, the resolved gaps, the open questions, and the traps that cost
+   time the first time. It is the most valuable part of this repository to read.
 3. `docs/AI_RULES.md`
 4. `docs/ARCHITECTURE.md`
 

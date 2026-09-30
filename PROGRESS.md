@@ -2,8 +2,10 @@
 
 **Last updated:** 2026-09-29
 **Project:** financeapp
-**Current gate:** 1 — Domain model
-**Gate status:** In progress. Not passed. Gate 1 is not closed.
+**Current gate:** 3 — SQLite persistence and atomicity
+**Gate status:** Complete. Accounts and journal entries persist to SQLite, an
+append is atomic, and the database independently rejects corrupt rows. The
+in-memory accounting engine is no longer the only place the books exist.
 
 > If you are an AI agent picking up this repository, read this file first, then
 > `docs/AI_RULES.md`, then `docs/ARCHITECTURE.md`. Do not start work before you
@@ -32,6 +34,7 @@ disconnected.
 | `ui.txt` | **The design system.** Windows 7/8 desktop behaviour plus Data Newspaper visuals. Presentation layer only. |
 | `docs/AI_RULES.md` | Hard prohibitions and obligations. A contract, not advice. |
 | `docs/ARCHITECTURE.md` | Condensed architecture and the reasoning behind each technology choice. |
+| `docs/INVENTORY_EXPLAINED.md` | **Plain-language accounting explainer.** What the costing methods mean with real numbers, what Nepali rules appear to allow, what this application does, and what it does not do yet. Written for a non-accountant. Read it before touching inventory, costing, COGS, or stock. |
 | `docs/decisions/*.md` | Architecture Decision Records. Read before touching a subsystem they govern. |
 
 The three root `.txt` files were written before any code existed. They are more
@@ -45,11 +48,18 @@ finsoftware/
 ├── desktop/              Flutter app (Dart, BSD-3)
 │   ├── lib/src/
 │   │   ├── domain/       Pure business rules. Imports nothing from other layers.
-│   │   ├── application/  Use cases, commands, queries, transaction orchestration.
+│   │   │   ├── accounting/  Money-adjacent: accounts, journal, ledger, chart of accounts.
+│   │   │   ├── reporting/   Trial balance, general ledger.
+│   │   │   ├── fiscal/      Bikram Sambat calendar and fiscal years.
+│   │   │   ├── billing/     Document types, numbers, numbering port.
+│   │   │   └── shared/      Money, unit of work.
+│   │   ├── application/  Use cases. PostJournalEntry exists.
 │   │   ├── infrastructure/ SQLite, filesystem, sync, licensing, crypto.
-│   │   └── presentation/ Flutter UI.
+│   │   └── presentation/ Flutter UI. Still empty.
+│   ├── drift_schemas/    Schema snapshots. Committed, needed by migration tests.
 │   └── test/
-│       ├── domain/  application/  infrastructure/  helpers/
+│       ├── domain/  application/  infrastructure/
+│       └── generated/    Drift migration-test helpers. Committed, not build output.
 ├── docs/                 Architecture, rules, ADRs
 └── PROGRESS.md           This file.
 ```
@@ -70,7 +80,6 @@ Directory folders under `lib/src/` and `test/` were created empty. Only
 - Eight ADRs, one design system, one rules contract, one architecture summary.
 
 ### 4.2 The `Money` value object — done
-
 `desktop/lib/src/domain/shared/money.dart`, with 20 passing tests in
 `desktop/test/domain/money_test.dart`.
 
@@ -97,62 +106,771 @@ Two bugs were found and fixed during this task, both by the test suite rather
 than by inspection. They are recorded in section 7 because they illustrate the
 working method this project requires.
 
+### 4.3 The double-entry accounting engine — done
+
+Five files in `desktop/lib/src/domain/accounting/`, with 35 passing tests in
+`desktop/test/domain/accounting_test.dart`. Total suite: 56 tests.
+
+| File | Contents |
+| --- | --- |
+| `account_type.dart` | `AccountType` (asset, liability, equity, income, expense) and `NormalBalance` (debit, credit). Assets and expenses are debit-normal; liabilities, equity, and income are credit-normal. Also classifies accounts as balance-sheet or profit-and-loss. |
+| `account.dart` | `Account` with id, code, name, and type. Equality is by **id only**, so renaming an account cannot break existing journal references. An account never stores a balance. |
+| `journal_line.dart` | `JournalLine`, constructible only via `.debit()` or `.credit()` with a strictly positive amount. |
+| `journal_entry.dart` | `JournalEntry`, which enforces the balance invariant in its constructor and is immutable. `reverse()` produces the cancelling entry. `UnbalancedJournalException` carries both totals. |
+| `ledger.dart` | `Ledger`, a read model. Balances are derived from posted lines and never stored. |
+
+How the key invariants are enforced:
+
+- **Every journal balances.** Enforced in the `JournalEntry` constructor. An
+  unbalanced entry cannot be constructed, so it cannot be persisted or reported.
+  There is no "create, then fix" path.
+- **A line is a debit or a credit, never both and never neither.** Enforced by
+  construction, not validation. The two factory constructors each demand exactly
+  one positive amount, so the illegal states are unrepresentable.
+- **Amounts are always positive.** A reduction is the opposite side of the
+  entry, or a reversal. Negative line amounts are rejected, which prevents the
+  sign-convention bugs that make a ledger silently wrong.
+- **Posted entries are immutable.** Lines are wrapped in `List.unmodifiable`,
+  and the source list is copied, so it cannot be mutated afterwards.
+- **Corrections preserve history.** `reverse()` creates a new entry that
+  references the original's id. The original is never touched.
+- **Balances are derived.** `Ledger` computes them from the journal, so a
+  balance cannot drift from the entries that produced it.
+
+Verification performed, independent of the engine: the worked example from the
+architecture specification was computed by hand, and a test asserts both the
+individual balances and the accounting equation. Bank 115,000; Inventory
+18,000; Payable 30,000; Equity 100,000; profit 3,000. Assets 133,000 equals
+liabilities plus equity 133,000.
+
+### 4.4 SQLite persistence — done
+
+Schema, repositories, and 23 passing tests in
+`desktop/test/infrastructure/persistence_test.dart`.
+
+| File | Contents |
+| --- | --- |
+| `lib/src/infrastructure/database/tables.dart` | The three tables: `accounts`, `journal_entries`, `journal_lines`. |
+| `lib/src/infrastructure/database/app_database.dart` | The drift database, schema version, migration strategy, and the `PRAGMA foreign_keys = ON` that makes the constraints real. |
+| `lib/src/infrastructure/database/mappers.dart` | `Account` to row and back, in one place. |
+| `lib/src/infrastructure/database/sqlite_native.dart` | Native SQLite wiring that works in a plain Dart VM, with no Flutter plugin imports. |
+| `lib/src/infrastructure/database/connection.dart` | The application-side opener. Separated so `path_provider` is not pulled into VM tests. |
+| `lib/src/infrastructure/database/drift_account_repository.dart` | Implements the `AccountRepository` port. |
+| `lib/src/infrastructure/database/drift_journal_repository.dart` | Implements the `JournalRepository` port. |
+| `lib/src/domain/accounting/account_repository.dart` | The port, owned by the domain. |
+| `lib/src/domain/accounting/journal_repository.dart` | The port, owned by the domain. |
+
+Where the guarantees live:
+
+- **Money is an INTEGER column.** `debit_minor_units` and `credit_minor_units`
+  are integers. A test queries the database's own `pragma_table_info` and asserts
+  the column type, so a future edit to `REAL` fails the build rather than silently
+  corrupting amounts.
+- **The database is a second line of defence.** `journal_lines` carries CHECK
+  constraints that reject a line with both sides non-zero, neither side non-zero,
+  or a negative amount. Foreign keys from lines to accounts and to their entry are
+  enforced by SQLite itself, after an explicit `PRAGMA foreign_keys = ON`.
+  Application code is not the only thing standing between a bug and bad books.
+- **An append is one transaction.** A test deliberately fails a two-line entry
+  partway through and then asserts that neither the header nor the first line
+  survived. Without the transaction, the header and one line would persist and the
+  books would be corrupt beyond repair.
+- **A posted entry cannot be overwritten.** Re-appending an existing id fails on
+  the primary key rather than replacing the original, which is what "posted
+  records are immutable" means in practice.
+- **Reloading re-checks the balance.** Reading an entry back constructs a real
+  `JournalEntry`, so a corrupt row set throws rather than returning a
+  plausible-looking entry.
+- **Amounts round-trip exactly.** Rs 1,284,500.07 is stored as 128450007 minor
+  units and comes back byte-identical, including across a close and reopen of the
+  file.
+
+### 4.5 Unit of work: atomic business operations — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/shared/unit_of_work.dart` | The `UnitOfWork` port. |
+| `lib/src/infrastructure/database/drift_unit_of_work.dart` | The drift implementation. |
+| `test/infrastructure/unit_of_work_test.dart` | 9 tests. |
+
+A business operation is now atomic across repositories, not just within one. The
+test that matters writes a revenue entry successfully and then fails while
+writing the cost-of-sale entry, and asserts that **neither** survives. Without
+this, the revenue would have been committed alone, leaving an invoice with income
+and no cost, and overstated profit for the period.
+
+Nesting is covered because use cases will call each other: a repository's own
+internal transaction joins the outer one rather than committing independently,
+and a nested `run` rolls back with its parent.
+
+### 4.6 Financial reports — done (Gate 4)
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/reporting/trial_balance.dart` | `TrialBalance`, `TrialBalanceRow`, `UnbalancedTrialBalanceException`, and the shared `entriesWithin` date filter. |
+| `lib/src/domain/reporting/general_ledger.dart` | `GeneralLedger`, `GeneralLedgerLine`. |
+| `test/domain/reporting_test.dart` | 21 tests, pure domain, no database. |
+| `test/infrastructure/reporting_integration_test.dart` | 4 tests proving the same numbers come back out of SQLite. |
+
+Both reports are **derived from the journal and never stored**, as the
+architecture requires.
+
+**Trial balance.** Every account with activity, with debit and credit totals
+separately from a balance reported in the account's natural direction. Positive
+means "grew the way this account is supposed to grow", so a liability reads as
+money owed and an expense as money spent, rather than as negative numbers. It
+proves itself: `isBalanced` states whether debits equal credits, and
+`assertBalanced()` turns that into a hard failure so a caller cannot present an
+unbalanced book as though it were fine.
+
+**General ledger.** Every posting to one account in date order with a running
+balance. When a range starts mid-history, earlier postings are not listed but are
+carried in as `openingBalance` instead of being dropped, so the running balance
+stays correct and reconciles.
+
+**Verified independently, and cross-checked.** The worked example from the
+specification is used again, with hand-computed expectations. A test asserts that
+the general ledger closing balance and the trial balance row for the same account
+agree, across every account. These are two independent derivations of the same
+number, and a test that they match is worth more than either one alone.
+
+**The same numbers survive a restart.** The integration test writes the scenario
+through the repositories inside one unit of work, reads it back, builds both
+reports, then closes and reopens the database file and asserts every balance is
+identical.
+
+
+
+### 4.7 Fiscal calendar and the application layer — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/fiscal/bs_calendar.dart` | `BsCalendar`, `BsDate`, `BsYearOutOfRangeException`. **The only file that imports `bikram_sambat`.** |
+| `lib/src/domain/fiscal/fiscal_year.dart` | `FiscalYear`, a pure value object: label plus inclusive start and end dates. |
+| `lib/src/domain/fiscal/nepali_fiscal_calendar.dart` | `NepaliFiscalCalendar`, which owns the rule that a fiscal year runs from 1 Shrawan to the end of Ashadh. |
+| `lib/src/application/post_journal_entry.dart` | The first use case. `PostJournalEntry`, with `PostJournalEntryOutcome`, `JournalEntryPosted`, `JournalEntryRejected`. |
+| `test/domain/fiscal_test.dart` | 24 tests. |
+| `test/application/post_journal_entry_test.dart` | 12 tests. |
+
+**The Bikram Sambat calendar.** ADR 009 covers the choice: `bikram_sambat`, MIT,
+pure Dart, covering BS 1969 to 2200. It is isolated behind `BsCalendar` so the
+dependency can be swapped in one file. Verified against published anchors —
+1 Shrawan 2082 equals 17 July 2025, which is the day Nepal's FY 2082/83 actually
+began — and asserted in the tests, so a package update that shifts the calendar
+fails the build instead of silently moving a fiscal boundary.
+
+**The fiscal year rule lives in exactly one place.** Nepal's fiscal year runs
+from 1 Shrawan (BS month 4) to the last day of Ashadh (BS month 3) of the
+following BS year, which is why the label has two numbers: `2082` becomes
+`FY 2082/83`. `FiscalYear` itself knows none of this; it is told its range. It
+also compares **dates, not instants**, so a transaction posted at 15:45 on the
+final day of the year is inside it. Comparing raw timestamps would reject it,
+and that is the single easiest mistake to make in this area.
+
+**The first use case closes gap 7.9.** `PostJournalEntry` validates the date
+against the active fiscal year *before* opening anything, so a refused posting
+writes nothing at all and has nothing to roll back. The write runs inside
+`UnitOfWork`, so when this grows to also post cost of goods sold and a stock
+movement, all of it is one atomic operation.
+
+A refusal is a **result, not an exception**. A user entering a date outside the
+current year is normal input, not a malfunction, and signalling it with an
+exception would push callers into catching it to show a message, which hides real
+failures. `JournalEntryRejected` carries a user-facing message naming the fiscal
+year.
+
+Verified boundaries: the first day and the last day are both accepted, one day
+before and one day after are both refused, an afternoon on the last day is
+accepted, and a refusal leaves previously committed entries untouched.
+
+### 4.8 The chart of accounts — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/accounting/chart_of_accounts.dart` | `ChartOfAccounts`: 19 accounts across all five types, with lookup by code and by id. |
+| `test/domain/chart_of_accounts_test.dart` | 13 tests, pure domain. |
+| `test/infrastructure/chart_of_accounts_persistence_test.dart` | 7 tests against the database. |
+
+Nineteen accounts across assets (`1xxx`), liabilities (`2xxx`), equity (`3xxx`),
+income (`4xxx`), and expenses (`5xxx`). Every code is four digits and its first
+digit matches its account type.
+
+**Ids are permanent; codes are not.** Each account has a hand-written literal
+`id` such as `acct-bank` and a separate human-facing `code` such as `1010`.
+Journal lines reference accounts by **id**, so renumbering the chart is a display
+change that cannot corrupt history, while an id that changed would silently
+repoint every historical posting at a different account — and the books would
+still balance while being wrong. A test asserts every id is unique, every code is
+unique, and no id is derived from its code.
+
+**The chart is proven by posting a real cycle through it.** The worked example is
+posted against these accounts rather than against test-local ones, and produces
+the hand-computed balances, a trial balance that balances at 167,000, and an
+accounting equation that holds. A separate test posts against accounts that were
+**read back out of the database**, which is what proves the permanent ids and the
+foreign keys line up: a posting against an id that failed to round-trip would be
+rejected by the database.
+
+Seeding is idempotent, so running it twice does not fail on the unique account
+code.
+
+### 4.9 Document numbering, and the first schema migration — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/billing/document_type.dart` | `DocumentType`: invoice, credit note, debit note, each with its own prefix. |
+| `lib/src/domain/billing/document_number.dart` | `DocumentNumber`, formatted as `INV-2082-83-1042`. |
+| `lib/src/domain/billing/document_number_sequence.dart` | The allocation port. |
+| `lib/src/infrastructure/database/drift_document_number_sequence.dart` | The SQLite implementation. |
+| `lib/src/infrastructure/database/tables.dart` | New `document_sequences` table. |
+| `drift_schemas/`, `test/generated/` | Schema snapshots and the migration-test helpers. **These must be committed.** |
+
+Implements ADR 005. Numbers are sequential within a fiscal year **and** document
+type, each sequence restarts at 1 in a new fiscal year, and the number is built
+from three independent facts so it is auditable: the type prefix, the fiscal year
+from the year's label, and the position in that year's sequence.
+
+**The rule that mattered most: a draft does not consume a serial.** This is
+enforced in two places, not one. `peekNext` returns what the next number *would*
+be without writing anything, so showing a draft its number cannot burn it; and a
+row is only created in `document_sequences` when a document is actually issued,
+so an abandoned draft leaves no trace at the storage level either. Tests assert
+both, including that peeking five times still yields sequence 1 and that peeking
+writes no row.
+
+**Allocation composes with the unit of work.** Allocation runs inside a
+transaction that nests inside the caller's. A test issues a document, then fails
+the surrounding operation, and asserts the sequence row rolled back to zero and
+that the retry receives the *same* number — so a failed issuance leaves no
+unexplained gap in the numbering. A second test proves a rollback does not
+disturb earlier committed allocations.
+
+**Schema version 1 to 2, with a real migration.** `document_sequences` is added,
+and nothing is dropped or recreated. The migration is verified two ways:
+
+- Drift schema snapshots were dumped for v1 and v2, and `SchemaVerifier` validates
+  that a v1 database migrates to a schema matching the v2 snapshot.
+- A v1-shaped fixture is written with **raw SQL** — exactly what the previous
+  release would have produced — and the tests then assert the old chart of
+  accounts, the posted journal entry, its two lines, the posting date, and the
+  amounts all survive the upgrade intact. One test then allocates a document
+  number on the upgraded database, because a migration that validates but does
+  not work is only a shape.
+
+### 4.10 Issuing a sales invoice — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/billing/invoice_line.dart` | `InvoiceLine`: description, whole quantity, unit price. |
+| `lib/src/domain/billing/invoice.dart` | `Invoice`: derived subtotal, VAT, and total. Standard VAT rate 13%, held in basis points. |
+| `lib/src/application/issue_invoice.dart` | `IssueInvoice`, plus `IssueInvoiceOutcome`, `InvoiceIssued`, `InvoiceRejected`. |
+| `test/domain/invoice_test.dart` | 19 tests. |
+| `test/application/issue_invoice_test.dart` | 13 tests. |
+
+The double entry for a VAT sale:
+
+```
+Dr  1030 Accounts Receivable   total including VAT
+Cr  4010 Sales Revenue         subtotal
+Cr  2020 VAT Payable           VAT amount
+```
+
+**Every total is derived, never stored and never passed in.** A stored total is a
+second source of truth that can disagree with the lines it summarises.
+
+**VAT is charged on the combined subtotal, not per line.** Charging per line would
+round each line separately and drift from the correct total, so the amount posted
+would not match the return filed with the tax authority. Verified by hand: Rs 1,000
+at 13% is 100,000 paisa subtotal, 13,000 paisa VAT, 113,000 paisa total. A
+rounding test covers the half-up case, because truncation would understate tax
+owed — a real-world problem, not a cosmetic one.
+
+**Issuance is one atomic operation.** The date is validated before anything is
+opened, so a refused invoice writes no journal entry, no lines, and no sequence
+row. Allocation and posting then happen inside a single unit of work.
+
+**The composition test that matters, and it passes:** a posting failure does not
+consume a serial. The journal entry id is derived from the invoice id
+(`JE-INV-INV-A`), so re-issuing an already-issued invoice is refused by the
+primary key. A test asserts the sequence stays at 1, that the next *different*
+invoice receives 2 with no gap, and that the sequence value agrees with the number
+of journal entries — the journal and the counter cannot drift apart.
+
+### 4.11 Customers, and the second schema migration — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/billing/customer.dart` | `Customer`: id, name, optional PAN, phone, address. |
+| `lib/src/domain/billing/customer_repository.dart` | The port. |
+| `lib/src/infrastructure/database/drift_customer_repository.dart` | The SQLite implementation. |
+| `lib/src/infrastructure/database/mappers.dart` | Customer mapping added. |
+| `lib/src/infrastructure/database/tables.dart` | New `customers` table. |
+| `test/domain/customer_test.dart` | 8 tests. |
+| `test/infrastructure/customer_persistence_test.dart` | 7 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v3, 8 tests. |
+
+**A blank optional field is stored as `null`, never as an empty string.** "Not
+provided" gets exactly one representation, because storing both `null` and `''`
+would make every later query test two cases and eventually miss one. Tested at
+both the domain and storage layers.
+
+**Customer identity is the id, not the name.** A test renames a customer while
+keeping the id and asserts equality, because renaming must not break the invoices
+and journal entries that reference them.
+
+**`IssueInvoice` now refuses an unknown customer**, and the check runs *inside*
+the transaction so the read that proves the customer exists and the writes that
+reference them cannot be separated by a change in between. A refusal writes no
+journal entry, no lines, and no sequence row.
+
+The test that mattered: an invoice for a nonexistent customer is refused, the
+sequence is still 0, the customer is then created, and the same invoice receives
+**`INV-2082-83-0001`** — so the refusal burnt no serial.
+
+**Migration v2 to v3.** The `customers` table is added, and the migration is
+stepwise: each step is guarded by its own version, so a v1 database runs *both*
+steps rather than only the last. Tests cover v1 to v3 in one open, v2 to v3 with
+existing accounts, journal entries, dates, amounts, and a document sequence all
+intact, and that the upgraded database can create a customer and allocate a
+number.
+
+### 4.12 Issued invoices as records, and the third schema migration — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/billing/issued_invoice.dart` | `IssuedInvoice`: the invoice plus its number and the journal entry that records it. |
+| `lib/src/domain/billing/invoice_repository.dart` | The port. |
+| `lib/src/infrastructure/database/drift_invoice_repository.dart` | The SQLite implementation. |
+| `lib/src/infrastructure/database/tables.dart` | New `invoices` and `invoice_lines` tables. |
+| `lib/src/domain/fiscal/nepali_fiscal_calendar.dart` | `fromLabel`, the inverse of `labelForYear`, so a stored label rebuilds a whole fiscal year. |
+| `lib/src/domain/billing/document_type.dart` | `fromPrefix`, so a stored number's type is read rather than assumed. |
+| `test/infrastructure/invoice_persistence_test.dart` | 20 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v4, 12 tests. |
+
+An invoice is now a record, not merely the journal entry it produced. It can be
+listed, listed by customer, and reprinted with its lines.
+
+**`IssueInvoice` writes three things in one unit of work:** the serial, the
+journal entry, and the document record. The journal entry is written first
+because the invoice holds a foreign key to it.
+
+**The schema enforces the relationships.** `invoices.customer_id` references
+`customers` and `invoices.journal_entry_id` references `journal_entries`. An
+invoice therefore cannot exist without its accounting, and cannot be attached to
+a customer who does not exist. That closes the second half of 7.13.
+
+**Only the fiscal year label is stored.** `NepaliFiscalCalendar.fromLabel` turns
+it back into a whole fiscal year, because the label already determines the year's
+start and end. Storing the dates as well would duplicate a fact that can then
+drift. A malformed label throws rather than guessing a year.
+
+**The VAT rate is stored** rather than inferred. Without it a reloaded invoice
+could not reproduce its own VAT, and working the rate back out of the stored
+subtotal and VAT amount would be lossy and impossible for a zero-rated invoice.
+
+**Migration v3 to v4** adds both tables. The step ordering matters and is
+commented: invoices reference customers and journal entries, so those tables must
+already exist. A v1 database still reaches v4 by running all three steps.
+
+### 4.13 Payments received, and the fourth schema migration — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/billing/payment.dart` | `Payment`: id, invoice, date, amount, and the account the money arrived in. |
+| `lib/src/domain/billing/invoice_balance.dart` | `InvoiceBalance`: total, received, outstanding. Always derived. |
+| `lib/src/domain/billing/payment_repository.dart` | The port. |
+| `lib/src/infrastructure/database/drift_payment_repository.dart` | The SQLite implementation. |
+| `lib/src/infrastructure/database/tables.dart` | New `payments` table. |
+| `lib/src/application/record_payment.dart` | `RecordPayment`, `RecordPaymentOutcome`, `PaymentRecorded`, `PaymentRejected`. |
+| `test/domain/payment_test.dart` | 12 tests. |
+| `test/application/record_payment_test.dart` | 22 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v5, 16 tests. |
+
+This is what finally settles a receivable. Until a payment is recorded, an issued
+invoice leaves the receivable outstanding forever.
+
+```
+Dr  <bank or cash>             amount received
+Cr  1030 Accounts Receivable   amount received
+```
+
+**The outstanding balance is derived, never stored.** `InvoiceBalance.of` computes
+it from the invoice total and the payments recorded against it. A running balance
+kept on the invoice would be a second source of truth that can disagree with the
+payments that produced it, and the disagreement would be silent. A test proves the
+balance is reconstructible after closing and reopening the database, precisely
+because nothing about it is persisted.
+
+**An overpayment is refused, and the boundary is tested both ways.** A payment for
+exactly the outstanding amount is accepted; one paisa more is refused with nothing
+written. That is the case where an off-by-one either lets a customer pay more than
+they owe or blocks a legitimate final settlement.
+
+**The overpayment check cannot race.** The outstanding balance is read and the
+payment is written inside the same transaction, so two payments cannot both be
+validated against a balance that only one of them should have been allowed to
+consume. That is not merely unlikely — it is closed.
+
+**A payment cannot be double-counted.** The journal entry id is derived from the
+payment id, so reusing a payment id is refused by the primary key rather than
+silently counting twice against the invoice.
+
+**Receiving into a non-balance-sheet account is rejected at construction.** Money
+does not arrive in a revenue account; a payment must land in Bank or Cash, or the
+double entry is nonsense.
+
+**Migration v4 to v5** adds `payments`, referencing `invoices` and `accounts`. A
+v1 database still reaches v5 by running all four steps.
+
+### 4.14 Credit notes, and the fifth schema migration — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/billing/credit_note.dart` | `CreditNote`: id, the invoice being credited, date, lines, VAT rate. Totals derived, mirroring `Invoice`. |
+| `lib/src/domain/billing/issued_credit_note.dart` | `IssuedCreditNote`: the credit note plus its number and the entry that reverses the sale. |
+| `lib/src/domain/billing/credit_note_repository.dart` | The port. |
+| `lib/src/infrastructure/database/drift_credit_note_repository.dart` | The SQLite implementation. |
+| `lib/src/application/issue_credit_note.dart` | `IssueCreditNote` and its outcome types. |
+| `test/domain/credit_note_test.dart` | 18 tests. |
+| `test/application/issue_credit_note_test.dart` | 22 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v6, 20 tests. |
+
+**This closes the last gap ADR 005 left open.** A posted invoice could not be
+corrected at all before this; a customer returning goods had no supported path.
+Credit notes are now that path, and they are the *only* one, because the invoice
+itself is still never edited.
+
+The posting reverses the sale:
+
+```
+Dr  4010 Sales Revenue         credited subtotal
+Dr  2020 VAT Payable           credited VAT
+Cr  1030 Accounts Receivable   credited total
+```
+
+**The ceiling is the uncredited amount, not the outstanding balance.** This is a
+deliberate and slightly surprising choice. An invoice can be credited *after* it
+has been paid, in which case the business owes the customer a refund. Bounding
+the credit note by what is still owed would make that ordinary case impossible.
+So `InvoiceBalance` now carries both:
+
+- `outstanding` — total minus payments **and** credits, which **can go negative**,
+  meaning a refund is due. `isRefundDue` and `refundDue` make that explicit.
+- `uncredited` — total minus credits only, which is the ceiling for the next
+  credit note.
+
+**Credit notes use their own `CRN` sequence.** Issuing three invoices and then one
+credit note produces `INV-2082-83-0003` and `CRN-2082-83-0001`. Tested.
+
+**`RecordPayment` had to change too.** It now takes a `CreditNoteRepository`,
+because without it a customer could pay the full original amount after the
+invoice had been partly credited and the payment would be accepted even though it
+exceeds what is actually owed. Two tests cover it: a payment beyond the
+post-credit remainder is refused, and a fully credited invoice cannot be paid at
+all.
+
+**Migration v5 to v6** adds `credit_notes` and `credit_note_lines`. A v1 database
+still reaches v6 by running all five steps, and a v5 database with accounts, a
+customer, an invoice, a payment, and a document sequence migrates with all of it
+intact.
+
+### 4.15 Profit & Loss — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/reporting/profit_and_loss.dart` | `ProfitAndLoss`, `ProfitAndLossLine`. |
+| `test/domain/profit_and_loss_test.dart` | 16 tests. |
+| `test/infrastructure/reporting_integration_test.dart` | 3 more tests, reading from the database. |
+
+Derived from the journal and never stored, like the other reports.
+
+**Income and expenses only.** Balance sheet accounts — assets, liabilities,
+equity — appear nowhere, even if they had activity in the period, and even if one
+is supplied in the chart. A test asserts all four balance sheet codes are absent,
+because including them is the classic way a profit and loss statement goes wrong.
+
+**A loss is reported as a positive loss, not a negative profit.** The signed
+figure is `netResult`, but the useful accessors are `profit` (positive or zero)
+and `loss` (positive or zero), so a bad period reads as "Loss: Rs 5,000" rather
+than a double negative somebody misreads. `isProfit` / `isLoss` / `isBreakEven`
+say which case applies.
+
+**Every account is read in its own natural direction.** Income is credit-normal
+and expenses debit-normal, so both totals come out positive instead of one being a
+negative sum. A test asserts the expense total is positive specifically.
+
+**Cross-checked against the trial balance.** The profit this report derives must
+equal income minus expenses computed independently from `TrialBalance` rows. Two
+different derivations of the same number agreeing is worth more than either alone.
+
+Hand-computed on the worked example: income 2,000,000 paisa, expenses 1,700,000,
+**profit 300,000**.
+
+### 4.16 Balance Sheet — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/reporting/balance_sheet.dart` | `BalanceSheet`, `BalanceSheetLine`, `UnbalancedBalanceSheetException`. |
+| `test/domain/balance_sheet_test.dart` | 17 tests. |
+| `test/infrastructure/reporting_integration_test.dart` | 3 more tests, reading from the database. |
+
+Derived, never stored.
+
+**The line that makes it balance.** Equity has to include the result earned so
+far, or assets cannot equal liabilities plus equity. There is no year-end closing
+entry that moves profit into equity, so the report folds the result in as its own
+clearly named line, `currentResult`, kept separate from `equityAccountsTotal`.
+Without it the sheet simply does not balance, and the temptation would be to fudge
+something.
+
+**Why it takes `to` and not `from`.** A balance sheet shows a position at a point
+in time, unlike the other reports which cover a span. It also matters
+arithmetically: slicing the result with a `from` would leave the equation
+unbalanced against equity that has no prior-year residue to absorb it. And because
+ADR 002 gives one database per fiscal year, "so far" already means the fiscal year
+to date, so a `from` would be redundant as well as wrong.
+
+**The equation is proven across many shapes, not just the worked example.** Five
+different transaction sets are asserted to balance: opening balances only, a
+loss-making period, a period with no income at all, one including a credit note,
+and a credit purchase with no sales. If the equation failed for any of them there
+would be a real bug.
+
+Hand-computed on the worked example: assets **133,000**, liabilities 30,000,
+equity accounts 100,000, result 3,000, total equity **103,000**, and
+liabilities plus equity **133,000**.
+
+**Cross-checked three ways.** Assets equal liabilities plus equity, the result
+line equals `ProfitAndLoss.netResult` for the same data, and the same holds when
+read back from a real database rather than in memory. Three statements agreeing
+about one book is worth more than any of them alone.
+
+### 4.17 Products and inventory movements — partially done (Gate 6 opened)
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/inventory/product.dart` | `Product`: id, name, sale price, stock-tracking flag. **No cost field, deliberately.** |
+| `lib/src/domain/inventory/inventory_movement.dart` | `MovementReason` (the nine reasons from specification section 14) and `InventoryMovement`. |
+| `lib/src/domain/inventory/product_stock.dart` | `ProductStock`: derived quantity, value, cost per unit. `NegativeStockException`. |
+| `lib/src/domain/inventory/inventory_repository.dart` | The port. |
+| `lib/src/infrastructure/database/drift_inventory_repository.dart` | The SQLite implementation. |
+| `lib/src/infrastructure/database/tables.dart` | New `products` and `inventory_movements` tables. |
+| `test/domain/inventory_test.dart` | 28 tests. |
+| `test/infrastructure/inventory_persistence_test.dart` | 17 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v7, 24 tests. |
+
+**Value-first, as ADR 004 requires.** A movement's quantity and value are both
+signed and always point the same way, enforced by a database CHECK as well as by
+the domain. That single decision is what makes quantity on hand and value on hand
+each a plain sum of the rows, so the inventory account reconciles **by
+construction** rather than by careful bookkeeping. There is no cost column on the
+product, and the cost per unit is derived from the value.
+
+**Hand-computed on the explainer's example:** buy 10 at Rs 100, then 10 at
+Rs 120 → quantity 20, value Rs 2,200, derived cost Rs 110. Issue 10 → Rs 1,100
+leaves, and the remaining Rs 1,100 is **exactly** the original less what left.
+
+**Issuing the whole holding leaves exactly zero value, not stray paisa.** There is
+a test for a 3-unit holding worth Rs 1,000, where the unit cost divides awkwardly.
+`valueOfIssue` takes the whole remaining value when clearing the holding, rather
+than multiplying a rounded unit cost by three.
+
+**Negative stock is blocked, and the block is transactional.** The check and the
+write happen inside one transaction, so two issues cannot both be validated
+against a quantity only one of them should have been allowed to take. A refused
+issue writes **no movement row at all**, verified by asserting the movement count
+is unchanged. The check is against the total of all movements, not a position as
+at the movement's date — ADR 004 explains why.
+
+**Still missing from Gate 6, and this matters:** movements do **not post to the
+ledger**. A purchase should `Dr 1040 Inventory / Cr 2010 Accounts Payable` and a
+sale `Dr 5020 Cost of Goods Sold / Cr 1040 Inventory`, and no such posting happens
+yet. Specification RULE 5 requires it. **Gate 6 cannot close without this**, nor
+without the write-down to the lower of cost and net realisable value that ADR 004
+already flags.
+
+### 4.18 Posting inventory movements to the ledger — done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/application/post_inventory_movement.dart` | `PostInventoryMovement` and its outcome types, with the account mapping as one documented table. |
+| `lib/src/domain/accounting/chart_of_accounts.dart` | New account `5070 Inventory Adjustments`. |
+| `lib/src/infrastructure/database/tables.dart` | `inventory_movements.journal_entry_id`, a nullable foreign key to `journal_entries`. |
+| `test/application/post_inventory_movement_test.dart` | 18 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v8, 28 tests. |
+
+This closes the gap recorded when inventory was opened: movements used to change
+the stock on the shelf without touching the books, which specification RULE 5
+forbids. The stock and the ledger are now tied together.
+
+**The account mapping is one table, not scattered code**, because it *is* the
+accounting policy and needs to be readable in one place:
+
+| reason | direction | debit | credit |
+| --- | --- | --- | --- |
+| opening stock | receipt | 1040 Inventory | 3010 Owner's Equity |
+| purchase | receipt | 1040 Inventory | 2010 Accounts Payable |
+| purchase return | issue | 2010 Accounts Payable | 1040 Inventory |
+| sale | issue | 5020 Cost of Goods Sold | 1040 Inventory |
+| sale return | receipt | 1040 Inventory | 5020 Cost of Goods Sold |
+| adjustment, return in/out | either | 1040 Inventory or 5070 | the other |
+| transfer | — | **refused** | — |
+
+**The test that matters, and it passes:** after buying 10 at Rs 100, 10 at Rs 120,
+then issuing 10, **the inventory account balance in the trial balance equals the
+derived stock value, exactly Rs 1,100**. That equality is the whole point of
+value-first tracking, and it is asserted rather than assumed.
+
+**A transfer is refused rather than given a plausible-looking entry.** Locations
+are not modelled, so a transfer has nothing to move between and no entry that
+would mean anything. Returning `null` from the mapping becomes a refusal with an
+explanation, rather than a silent guess.
+
+**A refusal rolls back the entry too.** The posting writes the entry first, then
+applies the movement. An out-of-stock issue is caught by `applyMovement` inside
+the same transaction, so the entry written moments earlier is rolled back with it.
+A test asserts both the movement count and the entry count are unchanged.
+
+**Only posted movements reach the ledger, and that is deliberate.** The migration
+gives pre-existing movements a `null` entry rather than inventing one, because a
+fabricated entry would be a lie in the books. A migration test asserts the old row
+keeps its `null` while a new movement gets its entry.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
 
-- Chart of accounts, the journal, or the double-entry accounting engine.
-- Any use case. `application/` is empty.
-- Any database schema, migration, or repository. `infrastructure/` is empty.
-- Expenses, invoices, customers, suppliers, products, inventory, payments.
-- Financial reports.
-- Any Flutter UI beyond the generated `main.dart` counter app.
-- Any backend API, model, or migration beyond stock Laravel.
+- **Customers as records.** Done. See 4.11.
+- **Invoices as records.** Done. See 4.12.
+- **Payments received.** Done. See 4.13. A receivable can now be settled.
+- **Credit notes.** Done. See 4.14. A posted invoice can now be corrected, which
+  is the only correction path ADR 005 permits.
+- **Debit notes.** `DocumentType.debitNote` and its `DBN` sequence exist and are
+  unused. A debit note *increases* what a customer owes, so it is needed for
+  under-billing. Not started.
+- **Refunds.** `InvoiceBalance.isRefundDue` reports when the business owes a
+  customer money, but there is no supported way to pay them back. Only reachable
+  by fully paying then crediting an invoice.
+- Ageing of receivables, statements of account, and any collection reporting.
+- **Customer id generation.** The caller supplies a customer id. How a new one is
+  generated is undecided, and it matters because ids must not collide if two
+  installations ever sync. Needed before the UI can create a customer. See
+  section 7.16.
+- **Inventory, stock, and COGS.** Products, movements, derived value-first stock,
+  and posting to the ledger all work. **Still missing: the write-down to the lower
+  of cost and net realisable value**, which ADR 004 and IAS 2 both require, and
+  which Gate 6 cannot close without. It is the next task.
+- **Locations and transfers.** `MovementReason.transfer` exists in the
+  specification's list but is refused, because locations are not modelled and a
+  transfer has nothing to move between. Adding locations is a separate feature.
+- **Suppliers and purchases as documents.** Stock can be received, but there is no
+  purchase order, supplier bill, or supplier record. `2010 Accounts Payable` is
+  credited without a document behind it.
+- **Products.** The entity and stock tracking exist. Nothing yet links a product
+  to an invoice line, so selling does not move stock automatically.
+- Cash Flow and every other report beyond the four above.
+- Any Flutter UI. `lib/main.dart` is still the generated counter app, and the
+  licences screen MIT attribution requires does not exist.
+- Any backend API, model, or migration beyond stock Laravel. See section 5.1.
 - Authentication, licensing, sync, backup, restore, fiscal-year lifecycle.
+
+### 5.1 Backend findings from reading the scaffolding
+
+Discovered by reading the generated backend, not previously recorded. These are
+all pre-existing Laravel defaults, not defects introduced by this project, but
+each one must be resolved before backend work starts.
+
+| Finding | Required action |
+| --- | --- |
+| `DB_CONNECTION=sqlite` in both `.env` and `.env.example`, and `sqlite` is the default in `config/database.php` | The architecture mandates **PostgreSQL** for the cloud. A `pgsql` connection exists in the config but is not selected. Switch `DB_CONNECTION` and configure credentials. |
+| No `routes/api.php`, and `bootstrap/app.php` registers only `web`, `commands`, and `health` | Register `api:` routing. The API surface does not exist yet. |
+| No Sanctum or Passport installed | Authentication, 7-day sessions, and device registration have no implementation path. Sanctum is the natural fit for a first-party desktop client. |
+| `APP_NAME=Laravel` | Change to `financeapp`. |
+| Laravel 13 uses PHP attributes on models: `#[Fillable([...])]`, `#[Hidden([...])]` | **Convention trap.** Write the attribute style, not the older `$fillable` / `$hidden` properties. See `backend/app/Models/User.php`. |
+| Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `composer test` is the configured command. |
+| Skeleton ships Vite, Tailwind, `resources/views/welcome.blade.php`, and `routes/web.php` returning a view | Dead weight for an API-only backend. Needs a deliberate decision, not an accidental one. |
+| `backend/database/database.sqlite` exists as a real file | Confirmed gitignored. Do not commit it. |
+| `backend/database/migrations/0001_01_01_000000_create_users_table.php` already creates `users`, `password_reset_tokens`, and `sessions` | Build on these rather than recreating them. |
+
+### 5.2 Desktop toolchain findings
+
+| Finding | Impact |
+| --- | --- |
+| **Flutter was upgraded from 3.24.5 to 3.47.5** (Dart 3.5.4 to 3.13.4) | Resolved. `drift` is back on the current release (2.31.0) and the old pin is gone. See section 7.8. |
+| **Visual Studio is now installed** (Visual Studio Build Tools 2026 18.10.2) and `flutter doctor` reports `[√] Visual Studio - develop Windows apps` | Resolved. The "Desktop development with C++" workload is present. |
+| **Windows Developer Mode was enabled by the owner, and `flutter build windows` now succeeds**, producing `build\windows\x64\runner\Debug\financeapp.exe`. | Resolved. The build and the `sqlite3_flutter_libs` plugin link both work. Running the binary shows the generated counter app, which is expected until the UI gate. Rebuilt and verified again after the schema v2 migration. |
+| The Android SDK path contains spaces, which `flutter doctor` flags | Irrelevant for a Windows/macOS/Linux desktop product. Ignore unless Android is ever targeted. |
+| `sqlite3_flutter_libs` is a Flutter plugin and does not load in `flutter test` | Tests still fall back to `winsqlite3.dll` via `open.overrideFor` in `sqlite_native.dart`. Working, and now recorded as intentional. |
 - `pubspec.yaml` still has no dependencies. The approved list is in
   `docs/AI_RULES.md`.
 
 ## 6. Next task
 
-This is the next bounded task, ready to hand to an agent verbatim. Do not skip
-ahead of it.
+This is the next bounded task, ready to hand to an agent verbatim.
 
-> **Implement the double-entry accounting engine: accounts, journal entries, and
-> journal lines.**
+> **Write inventory down to the lower of cost and net realisable value.**
 >
-> Scope: `desktop/lib/src/domain/accounting/` only, plus its tests in
-> `desktop/test/domain/`.
+> **Read `docs/INVENTORY_EXPLAINED.md` and ADR 004 first.** ADR 004 lists this as
+> follow-on decision 2, and both it and IAS 2 require it. **Gate 6 cannot close
+> without it.**
 >
-> Do not modify: the UI, `pubspec.yaml`, the database schema, sync, licensing,
-> fiscal-year logic, `infrastructure/`, or any existing test.
+> Scope: a new `desktop/lib/src/application/write_down_inventory.dart`, an
+> optional `netRealisableValue` on `Product` (or a separate valuation record), a
+> migration, and tests.
+>
+> Do not modify: the accounting engine, the reporting layer, the billing domain,
+> `ProductStock`, the inventory posting use case, the UI, sync, or licensing. Do
+> not modify any existing test, except where a required constructor argument
+> changes, in which case update the call site and weaken no assertion.
+>
+> **The rule, in plain terms.** Stock must be carried at whichever is **lower**:
+> what it cost, or what it can now be sold for less the cost of selling it. If you
+> paid Rs 100 for something now only worth Rs 80, you must recognise the Rs 20 loss
+> **now**, not when you eventually sell it. See `docs/INVENTORY_EXPLAINED.md` for
+> the full explanation.
+>
+> **This requires a schema migration.** Decide and document the shape: either a
+> `netRealisableValueMinorUnits` column on `products`, or a
+> `inventory_write_downs` table recording each write-down with its date, reason,
+> and entry. **Prefer recording write-downs as movements**, so the stock value and
+> the ledger keep agreeing by construction — a write-down that bypassed the
+> movement ledger would break the equality the previous task established.
 >
 > Required behaviour:
-> - An `Account` with a type: asset, liability, equity, income, expense. A
->   balance is derived, never stored as an independently editable field.
-> - A `JournalEntry` with id, date, description, reference, and lines.
-> - A `JournalLine` with account, debit, and credit. A line carries either a
->   debit or a credit, never both, and never neither.
-> - A `Journal` that refuses to post an unbalanced entry. `sum(debits)` must
->   equal `sum(credits)` or construction throws.
-> - All amounts use the existing `Money` type. Do not introduce `double` or `num`.
-> - A posted journal entry is immutable. Corrections go through a reversing
->   entry, which creates the opposite effect and preserves the original.
 >
-> Tests to add:
-> - Every posted journal balances.
-> - An unbalanced journal is rejected.
-> - A line with both a debit and a credit is rejected.
-> - A line with neither is rejected.
-> - A reversing entry has the exact opposite effect of the original and leaves
->   the original intact.
-> - Debits and credits on a single account roll up to the correct balance with
->   the correct sign for each account type.
-> - Floating point is never used: a test asserts that an amount of 0.1 plus 0.2
->   is exactly 0.30.
+> 1. `WriteDownInventory`, a use case that, in **one unit of work**:
+>    - refuses a date outside the active fiscal year, writing nothing;
+>    - refuses an unknown product, writing nothing;
+>    - refuses a write-down that would take the stock value **below zero**, and
+>      refuses a non-positive amount, writing nothing;
+>    - posts `Dr 5070 Inventory Adjustments / Cr 1040 Inventory` for the write-down
+>      amount;
+>    - records the reduction as an inventory movement of reason `adjustment`, so
+>      the quantity is untouched where only value fell, or the quantity falls where
+>      stock is scrapped — **state which you chose and why**;
+>    - returns the new stock position.
+> 2. **Write-down does not mean writing stock off.** A write-down reduces value
+>    while keeping the goods. Disposing of them is a separate movement. Do not
+>    conflate the two.
 >
-> Run `flutter test` and report the full result. Do not modify an existing test
-> unless a documented requirement has changed. If a requirement is ambiguous,
-> stop and ask.
+> Tests to add, computing every figure **by hand**:
+>
+> - Buy 10 units for Rs 1,000. Cost per unit Rs 100. Write the value down to
+>   Rs 800, so the unit value becomes Rs 80, and the inventory account in the
+>   trial balance reads **exactly Rs 800**.
+> - The loss of Rs 200 appears in the profit and loss statement as an expense,
+>   and the inventory account and `ProductStock.value` still agree.
+> - Writing down to a value **at or above** current cost is refused, and nothing
+>   is written. Test the boundary: down to exactly cost is refused, one paisa
+>   below is accepted.
+> - A write-down larger than the current value is refused and writes nothing.
+> - Writing down an empty holding is refused and writes nothing.
+> - The trial balance balances after a write-down.
+> - **The migration test:** the current database's data survives, and the upgraded
+>   database can write stock down.
+>
+> Run `flutter test` and `flutter analyze` and report both. The full suite must
+> stay green, including the existing 476 tests.
 
 ## 7. Decisions and discoveries that affect future work
 
@@ -190,20 +908,415 @@ question, not a verdict. Ask whether the code is wrong or the expectation is
 wrong, and resolve it from the accounting rules. Never edit an expectation purely
 to get green.
 
-### 7.4 Two questions are blocked on you
+### 7.4 Inventory costing and negative stock — RESOLVED
 
-Both are recorded in `docs/decisions/004-inventory-costing-method.md` and both
-must be answered by the product owner before Gate 6.
+**Decided by the product owner on 2026-09-29.** Recorded in ADR 004, with a
+plain-language version in `docs/INVENTORY_EXPLAINED.md`.
 
-- **Which inventory costing method?** Moving weighted average, periodic weighted
-  average, FIFO, or specific identification. This determines COGS, which
-  determines gross profit and the balance sheet. The specification explicitly
-  forbids an agent from choosing silently.
-- **What happens on a negative inventory sale?** Block it, allow stock to go
-  negative, or warn and allow. This interacts with the costing decision, because
-  selling stock that does not exist has no defined cost.
+- **Costing method: moving weighted average.** It is permitted under IAS 2 and
+  the Nepali standard that mirrors it, and it matches the product model the
+  specification already defines — one `cost` field per product, not cost layers.
+  FIFO would be more faithful to physical flow but needs layers, partial-layer
+  consumption, and layer logic for purchase returns, which the specification's own
+  end-to-end test includes.
+- **Negative stock: blocked.** A sale that would take stock below zero is refused
+  and nothing is written. With weighted average, selling stock you do not have has
+  **no defined cost**, so allowing it forces a guess, and a guessed COGS is a wrong
+  gross profit in two fiscal years at once.
 
-**If inventory work is requested while these are open, stop and ask.**
+**The implementation rule that makes it work, and is easy to miss:** store the
+running inventory **value** as authoritative and derive cost per unit from it.
+Storing a rounded average cost and multiplying by quantity lets the inventory
+account drift out of reconciliation silently within weeks.
+
+**Four follow-on decisions this does NOT settle**, recorded in ADR 004 so they are
+not mistaken for done: whether a stock *adjustment* may go negative; writing down
+inventory to the lower of cost and net realisable value, which IAS 2 and NAS 2
+require and which is **not implemented**; purchase returns; and how opening stock
+is entered during onboarding.
+
+**If inventory work is requested, read ADR 004 and `docs/INVENTORY_EXPLAINED.md`
+first.** Do not implement write-downs or adjustments without a decision on those,
+and do not treat Gate 6 as complete until write-downs exist.
+
+### 7.5 Design choices made in the accounting engine
+
+Recorded so they are not accidentally reverted.
+
+- **Balances are always derived, never stored.** `Account` has no balance field
+  on purpose. A stored balance is a second source of truth that can disagree
+  with the journal.
+- **Equality of `Account` is by id only.** Renaming or recoding an account must
+  not invalidate the journal lines that reference it.
+- **Illegal line states are unrepresentable, not validated.** There is no
+  constructor that takes both a debit and a credit, so no test is needed to
+  reject one; the code cannot express it.
+- **Negative amounts are rejected at the line level.** This forces every
+  reduction to be modelled as the opposite side or a reversal, which is what
+  keeps the debit/credit columns meaningful.
+- **`Ledger` returns balances in the account's natural direction.** A positive
+  asset balance means value held; a positive income balance means revenue
+  earned. A bank account can still legitimately go negative.
+- **`JournalEntry` does not validate the fiscal year of its date.** That
+  requires the fiscal calendar and the active database, and belongs in the
+  posting use case, not in the journal. Section 27 of the specification requires
+  this check before posting, so it must be added in the application layer.
+
+### 7.6 A note on the working method that produced this
+
+The accounting tests were written first and failed to compile, because the files
+they referenced did not exist. That is the intended red state. The engine was
+then written and the suite went green without any test being weakened. Every
+expectation in `accounting_test.dart` was derived from the accounting rules or
+hand-computed from the worked example, never from what the code happened to
+return.
+
+### 7.7 Cross-aggregate transactions — RESOLVED
+
+This was a genuine gap: the transaction boundary used to be a single journal
+entry, so an operation spanning several repositories could not be atomic.
+
+**Fixed.** `UnitOfWork` is now a port owned by the domain
+(`domain/shared/unit_of_work.dart`) with a drift implementation
+(`infrastructure/database/drift_unit_of_work.dart`). A use case wraps its work in
+`run` and gets all-or-nothing semantics across every repository sharing the same
+database.
+
+Nine tests in `test/infrastructure/unit_of_work_test.dart` prove it, including
+the case that mattered: a revenue entry written successfully, followed by a COGS
+entry that fails, must leave **neither** behind. Without the boundary the revenue
+would survive with no cost of sale and the period's profit would be overstated.
+Also covered: account writes rolling back alongside journal writes, a
+repository's own internal transaction composing with the outer one, nested units
+of work joining rather than committing independently, and the original error
+reaching the caller rather than being swallowed.
+
+Gates 5 and 6 are no longer blocked by this.
+
+### 7.8 The Flutter SDK — RESOLVED
+
+Flutter was upgraded from **3.24.5 to 3.47.5** (Dart 3.5.4 to 3.13.4) with the
+project owner's approval. `drift` is back on the current release (2.31.0), the
+old pin and its explanatory comment are gone, and `build_runner` regenerated
+cleanly.
+
+The upgrade immediately paid for itself by exposing a latent bug, described in
+section 7.14, that the old toolchain had been hiding.
+
+**New prerequisite it revealed:** Visual Studio with the "Desktop development
+with C++" workload is required to build or run the Windows desktop app. Tests are
+unaffected. See section 5.2.
+
+### 7.9 The fiscal-year posting guard — RESOLVED
+
+Specification section 27 requires that a transaction be rejected when its date
+falls outside the active fiscal year. It belongs in a **posting use case**, not in
+`JournalEntry` (which would need the fiscal calendar and break domain purity) and
+not in the repository (which would make the check easy to bypass).
+
+Closed by `PostJournalEntry` in `application/post_journal_entry.dart`. The guard
+runs before anything is opened, so a refused posting writes nothing and has
+nothing to roll back, and it cannot be bypassed because it sits at the only
+boundary a business operation goes through.
+
+Refusal is a result rather than an exception: a date outside the active year is
+normal user input, not a malfunction. Twelve tests cover it, including both
+inclusive boundary dates, an afternoon on the final day, and that a refusal
+leaves previously committed entries intact.
+
+### 7.10 Bikram Sambat calendar — RESOLVED
+
+Closed by ADR 009. `bikram_sambat` 1.2.0, MIT, pure Dart, no transitive
+dependencies, covering BS 1969 to 2200. It is isolated behind
+`domain/fiscal/bs_calendar.dart`, which is the only file that imports it.
+
+Verified against published anchors — 1 Shrawan 2082 equals 17 July 2025 — and
+those anchors are asserted in the tests, so a package update that moved the
+calendar would fail the build rather than silently shift a fiscal boundary.
+
+**A real defect was found and fixed here.** Measuring a year, or the final month
+of a year, requires the *following* year's data, so the last year in the table is
+not fully usable. The first implementation leaked a `RangeError` from inside the
+third-party package instead of failing with a domain error. `latestUsableYear`
+(2199) now makes the boundary explicit, and a test asserts both that the final
+year is refused and that failing case produces a clear domain error.
+
+**The licence condition is satisfied.** MIT requires retaining the copyright
+notice. Flutter aggregates dependency licences and exposes them through
+`showLicensePage`, so the application must provide a reachable licences screen.
+That is a requirement of the UI gate, now recorded in `docs/AI_RULES.md`, not an
+afterthought.
+
+### 7.11 Gates 5 and 6 are structurally unblocked
+
+Cross-aggregate transactions (7.7) and the fiscal-year posting guard (7.9) are both
+done, and the calendar Gate 8 needs now exists (7.10, ADR 009). What remains
+before Billing can start is the **chart of accounts**, which is the next task,
+because no account definitions exist yet and every use case needs them.
+
+Inventory (Gate 6) additionally waits on **ADR 004**, which is still open and
+requires the product owner to choose a costing method and a policy for negative
+stock. If inventory work is requested while ADR 004 is open, stop and ask.
+
+### 7.12 An issued invoice is not a record — RESOLVED
+
+An issued invoice used to exist only as a journal entry, which was enough for the
+ledger but not for Billing: invoices could not be listed, reprinted, or marked as
+paid, and the receivable could not be broken down by customer.
+
+Closed by the `invoices` and `invoice_lines` tables and an `InvoiceRepository`.
+`IssueInvoice` now writes all three in **one unit of work**: the serial, the
+journal entry, and the document record. All three commit together or none does,
+so a numbered invoice always has a record and an entry behind it.
+
+The document record is what makes an invoice reprintable. A journal line records
+an account and an amount, not what was sold, so the description, quantity, and
+unit price had nowhere else to live.
+
+**The schema enforces the links.** `invoices.customer_id` is a foreign key to
+`customers` and `invoices.journal_entry_id` is a foreign key to
+`journal_entries`, so an invoice cannot exist without its accounting and cannot
+be attached to a customer who does not exist. That closes the remaining half of
+7.13.
+
+**The atomicity test.** A pre-existing invoice holds number `0001` while the
+document sequence still reads 0. Issuing a new invoice therefore allocates
+sequence 1, writes its journal entry successfully, and then fails on the unique
+document number. The test asserts the journal entry rolled back, only the
+pre-existing entry remains, no orphan lines survive, and **the sequence is back
+to 0** — so the failed attempt burnt no serial.
+
+**Totals: stored, but recomputation stays authoritative.** The three total columns
+are a denormalisation for listing and printing. `Invoice` still derives them, and
+a test asserts the stored values equal the recomputed ones plus that they are
+internally consistent, so the two cannot silently diverge.
+
+### 7.13 The customer on an invoice — RESOLVED
+
+`Invoice.customerId` used to be a plain string that nothing validated, so a typo
+produced a perfectly balanced journal entry with an uncollectable receivable
+attached to nobody.
+
+Closed by the `customers` table and a check inside the issuing transaction.
+`IssueInvoice` now refuses an invoice whose customer does not exist, and because
+the check runs inside the unit of work, the read that proves the customer exists
+cannot be separated from the writes that reference them by a change in between.
+
+**One part is still open.** There is no foreign key from an invoice to a customer,
+because there is no invoice table yet. Once invoices are stored (7.12) the
+database itself should enforce it, rather than only the application.
+
+
+
+### 7.14 The upgrade exposed a silent data-integrity bug, and it is worth reading
+
+Upgrading Flutter was not a cosmetic change. It surfaced a defect that the old
+toolchain had been concealing, and the way it was concealed is the lesson.
+
+**What was wrong.** Under drift 2.23 the three foreign-key tests passed. Under
+drift 2.31, after regenerating, they failed because the inserts *succeeded*:
+foreign keys had stopped being enforced. Two independent faults were stacked:
+
+1. **drift's `.references()` helper produced nothing.** In drift 2.31 the method
+   body is effectively a no-op marker in this code path. The generated columns
+   carried no `defaultConstraints`, and the `CREATE TABLE` for `journal_lines`
+   had **no `REFERENCES` clause at all**. Nothing warned about it. The fix is to
+   declare the keys explicitly in `customConstraints`, which is what drift's own
+   fixtures do.
+2. **`PRAGMA foreign_keys = ON` was in the wrong place.** It is per-connection
+   state, not a property of the database file. Setting it once in
+   `MigrationStrategy.beforeOpen` worked when one connection served everything,
+   and silently stopped working once the executor opened connections per
+   operation. The fix is drift's `setup` hook, which runs for **every**
+   connection.
+
+**Why it matters.** Either fault alone disables the database as a second line of
+defence, which the architecture explicitly relies on. The failure mode is the
+worst kind: the tests that were supposed to catch it were the tests that went
+quiet. A constraint that is not enforced does not throw, so nothing looks broken.
+Only an explicit assertion catches it.
+
+**The permanent guards, so this cannot recur silently:**
+
+- `test/infrastructure/persistence_test.dart` asserts `PRAGMA foreign_keys`
+  returns `1` on the connection doing the writes.
+- A second test asserts `journal_lines` actually **declares** foreign keys, by
+  querying `PRAGMA foreign_key_list`. Enforcement and declaration are asserted
+  separately because they failed separately.
+- The money-column type is asserted via `pragma_table_info`, guarding against a
+  silent change to `REAL`.
+
+**The general lesson for anyone working here.** When upgrading a dependency that
+touches the database, do not trust a green suite. Re-derive the schema and check
+what is actually in it. Three tests went from passing to failing silently, and
+the only reason it was caught is that the suite was run after the upgrade instead
+of assuming it would still pass.
+
+### 7.15 A recurring pattern: the expectation is wrong more often than the code
+
+Five times now a test failure has turned out to be a mistake in the test, not in
+the production code:
+
+1. A `Money` test asserted that `0.1 + 0.2` gives 300 paisa. The correct answer
+   is 30 paisa. The code was right.
+2. A unit-of-work test asserted entries come back as `JE-REV` then `JE-COGS`.
+   `all()` orders by date then id, and both entries share a date, so `JE-COGS`
+   sorts first. The code was right; the test was asserting an order it did not
+   care about and now asserts membership instead.
+3. An invoice-persistence test asserted a total of 113,000 paisa for a line of
+   **2 x Rs 300**. That is Rs 600, so the correct total is 67,800. The expectation
+   had been copied from the Rs 1,000 case without redoing the arithmetic. The code
+   was right.
+4. A credit-note test credited invoice `INV-1` after the fixture had issued
+   `INV-A`, `INV-B`, and `INV-C`, so it was correctly refused as an unknown
+   invoice. And a "refusal writes nothing" test asserted the whole
+   `document_sequences` table was empty, when issuing the *invoice* had
+   legitimately created an `invoice` row. Both were test errors; the second was
+   fixed by asserting specifically that no **creditNote** row exists.
+
+All five were resolved by working out the true answer from the rules, never by
+editing the number until it went green. Expect this to keep happening: with a
+test-first discipline, a fair share of red tests are the test's fault. That is the
+process working, not failing.
+
+**The third one has an extra lesson.** The wrong expectation was a *copy* of an
+earlier correct one. Copying a number between tests is how an expectation stops
+being independently derived, and it is exactly the habit the "work it out by hand"
+rule exists to prevent. Recompute for each case, even when it looks like the same
+shape as the last one.
+
+**The fourth has its own lesson.** An assertion should be as narrow as the claim
+it is making. "A refusal writes nothing" was really "the refusal consumed no
+serial", and asserting on the whole table made the test wrong about a *different*
+fact. Narrow assertions fail for the reason they were written.
+
+**The fifth has its own lesson too.** A convenience factory that takes a positive
+number and negates it internally is easy to call wrongly, and the mistake is
+invisible at the call site, because a negative sign *looks* like the direction you
+want. Read the factory's contract before passing a sign.
+
+
+
+### 7.16 OPEN QUESTION: how a new record's id is generated
+
+Account ids are literals in the chart of accounts and customer ids are supplied by
+the caller, so nothing in the project generates an id yet. The UI will have to,
+and the choice matters:
+
+- Ids must not collide **between installations** once sync is implemented
+  (ADR 007). An incrementing counter per device would collide immediately.
+- Ids are referenced by journal entries and, soon, invoice records, so they must
+  be stable forever once used.
+- Guessing one now and changing it later would mean migrating every foreign key
+  that points at a record.
+
+The obvious candidate is a UUID, which needs either the `uuid` package or a small
+generated-from-`Random.secure` helper. Either is acceptable under the permissive
+licence rule in `docs/AI_RULES.md`, but it should be a deliberate decision with
+its own ADR rather than something picked incidentally by whoever writes the first
+form.
+
+**Needed before the UI creates any record.** Not needed for the next task, which
+takes its ids from the caller.
+
+### 7.17 Migration mechanics that bite, learned the hard way
+
+Three traps hit while adding one nullable column. All three are general, and all
+three produce failures that look unrelated to their cause.
+
+**1. `createTable` writes the table's *current* definition, not its historical
+one.** When a migration creates a table that a later step also alters, the create
+path already produces the newest shape, and the later alter then fails with
+"duplicate column name". The fix is to make the steps exclusive rather than
+sequential:
+
+```dart
+if (from < 7) {
+  await m.createTable(inventoryMovements);   // already carries the v8 column
+} else if (from < 8) {
+  await m.alterTable(...);                   // only when the table pre-exists
+}
+```
+
+**2. SQLite cannot add a foreign key with `ALTER TABLE ADD COLUMN`.** A column
+added that way carries no constraint, so the table silently ends up missing one
+that the schema snapshot expects. `SchemaVerifier` catches it as *"Expected the
+table to have 6 table constraints, it actually has 5"*, which is a confusing
+message for "your foreign key was not created". The fix is a **table rebuild**
+with drift's `TableMigration`, which recreates the table and copies the rows.
+`TableMigration` is marked experimental by drift, so it needs an
+`// ignore: experimental_member_use` **on the line above the constructor**, not
+above the `alterTable` call. A rebuild also needs a `columnTransformer` supplying
+a value for any genuinely new column, or it tries to `SELECT` a column the old
+table does not have.
+
+**3. Only the current schema version is a valid migration target.** A test that
+migrates to an *intermediate* version cannot pass once the code has moved on,
+because `createTable` produces the current shape. Twenty-one such assertions
+existed and were all pointed at the current version. The scenario each test
+describes — upgrading *from* an old version — is still meaningful; the *target*
+must be current.
+
+The general lesson: **a green migration suite is only green for the version it was
+written against.** Every schema change should re-run the whole migration suite,
+and a failure in an old version's test is usually the *new* step's fault.
+
+
+
+### 7.18 Drift and workflow mechanics that cost time to discover
+
+Small things, none of them architectural, all of them things that were hit for
+real and would otherwise be rediscovered. Kept here rather than in
+`docs/AI_RULES.md` because they are mechanics, not rules.
+
+**Schema snapshots contain no companion classes.** `drift_dev schema generate`
+produces table definitions and a database class, but no `...Companion` types. A
+migration fixture therefore cannot insert with `insert(SomeCompanion.insert(...))`.
+Write the old-shape rows with **raw SQL** instead. That is also a better fixture:
+it is exactly the SQL the previous release would have produced, not the current
+code's idea of it.
+
+**`drift_dev/api/migrations.dart` is deprecated.** Import
+`package:drift_dev/api/migrations_native.dart` instead, or the analyzer reports
+`deprecated_member_use`.
+
+**Regeneration order matters.** After changing `tables.dart` or
+`app_database.dart`, run these in this order, not another one:
+
+1. `dart run build_runner build --delete-conflicting-outputs` — regenerates
+   `app_database.g.dart`.
+2. `dart run drift_dev schema dump lib/src/infrastructure/database/app_database.dart drift_schemas/`
+   — writes a snapshot for the **new** version.
+3. `dart run drift_dev schema generate drift_schemas/ test/generated/` — rebuilds
+   the migration-test helpers.
+
+Skipping step 2 leaves the newest snapshot missing, and the migration tests then
+fail with a missing schema version. Running step 3 before step 1 produces helpers
+for a schema that does not exist yet.
+
+**`part` files do not inherit transitive imports.** `app_database.g.dart` is a
+`part of app_database.dart`, so any type the generated code references must be
+imported by `app_database.dart` itself, not only by `tables.dart`. `AccountType`
+caught this once already.
+
+**A file that uses `Value(...)` needs an explicit drift import.** Files that only
+import `app_database.dart` get the generated table and companion classes, but not
+`Value`, because imports are not re-exported.
+
+**Run `dart format lib test` before finishing.** The analyzer flags
+`prefer_const_constructors`, `unnecessary_brace_in_string_interps`, and similar on
+otherwise-correct code, and a clean `flutter analyze` is part of the definition of
+done.
+
+**When a use case gains a required dependency, updating test call sites is
+legitimate; weakening an assertion is not.** This came up when `IssueInvoice`
+gained a `CustomerRepository`: twelve call sites needed a new argument and a
+seeded customer. The right response is to add the argument and **re-check that
+every existing assertion still holds on its own merits** — the hand-computed VAT
+amounts were unchanged, and the tests assert that. The prohibited move is
+loosening a matcher or deleting an expectation so the suite goes green.
+
+
 
 ## 8. Commands
 
@@ -212,10 +1325,19 @@ Run from the repository root unless stated otherwise.
 ```bash
 # Desktop
 cd desktop
+dart format lib test            # run before finishing; keep the diff reviewable
 flutter test                    # full suite. Must be green before any commit.
 flutter test test/domain        # domain layer only
 flutter analyze                 # must be clean
 flutter run -d windows          # run the app
+flutter build windows --debug   # build without running
+
+# After changing tables.dart or app_database.dart
+dart run build_runner build --delete-conflicting-outputs
+
+# Schema snapshots, required whenever the schema version changes
+dart run drift_dev schema dump lib/src/infrastructure/database/app_database.dart drift_schemas/
+dart run drift_dev schema generate drift_schemas/ test/generated/
 
 # Backend
 cd backend
@@ -224,8 +1346,13 @@ php artisan migrate
 php artisan serve
 ```
 
-Toolchain present on this machine: PHP 8.4.17, Composer 2.8.5, Flutter (recent
-stable), Node 20.18.0, .NET 8.0.402. Git is installed but no commits have been
+`drift_schemas/` and `test/generated/` are committed, not build output. If the
+migration tests report a missing schema version, the snapshots are out of date
+and need regenerating with the two commands above.
+
+Toolchain present on this machine: PHP 8.4.17, Composer 2.8.5,
+**Flutter 3.47.5 / Dart 3.13.4 (see section 7.8)**, Node 20.18.0, .NET 8.0.402.
+Git is installed but no commits have been
 made; version control is the project owner's responsibility at present.
 
 ## 9. Gate tracker
@@ -235,19 +1362,48 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 
 | Gate | Content | Status |
 | --- | --- | --- |
-| 1 | Domain model | In progress. `Money` done. Accounting engine not started. |
-| 2 | Double-entry accounting engine | Not started |
-| 3 | SQLite persistence and atomicity | Not started |
-| 4 | Financial reports | Not started |
-| 5 | Billing | Not started |
-| 6 | Inventory and COGS | Blocked on ADR 004 |
-| 7 | Complete offline workflow | Not started |
-| 8 | Fiscal-year conclusion and archival | Not started |
-| 9 | Cloud backup and restore | Not started |
+| 1 | Domain model | Accounting, reporting, fiscal, chart of accounts, and document numbering complete. Customer and inventory domains not started. |
+| 2 | Double-entry accounting engine | Complete and tested. |
+| 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork` and six schema migrations (v1 through v6). |
+| 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, and Balance Sheet complete.** Cash Flow and the rest are not started. |
+| 5 | Billing | **Complete for the core cycle.** Numbering, invoices, customers, invoice records, payments, and credit notes all work: a receivable can be raised, settled, and corrected. Debit notes and refunds are not started; see section 5. |
+| 6 | Inventory and COGS | **In progress.** Products, movements, derived value-first stock, and posting to the ledger all work. **Still missing: the write-down to the lower of cost and net realisable value**, which ADR 004 and IAS 2 require and which is the next task. Locations and transfers are not modelled. |
+| 7 | Complete offline workflow | Not started. The Windows build works; `main.dart` is still the counter app. Must include a licences screen for MIT attribution. |
+| 8 | Fiscal-year conclusion and archival | Not started. The calendar it needs exists (ADR 009). |
+| 9 | Cloud backup and restore | Not started. The backend is untouched since the scaffold; see 5.1. |
 | 10 | Production and real-world scenarios | Not started |
+
+**Test suite:** 476 tests, all passing. `flutter analyze` reports no issues.
+The newest files are `test/application/post_inventory_movement_test.dart` (18) and
+the migration suite is now 28.
+
+**Build status:** `flutter build windows --debug` succeeds and produces
+`financeapp.exe`.
+
+**Generated files that must be committed:** `drift_schemas/` (the schema
+snapshots) and `test/generated/` (the migration-test helpers). They are not
+build output; deleting them breaks the migration tests.
 
 ## 10. Change log
 
 | Date | Change |
 | --- | --- |
-| 2026-09-29 | Read all three specifications. Chose Flutter over the TBD desktop framework; recorded as ADR 008. Scaffolded Laravel `backend/` and Flutter `desktop/`. Created the layered directory structure. Implemented the `Money` value object with 20 passing tests, fixing two bugs found by the tests. Wrote `docs/AI_RULES.md`, `docs/ARCHITECTURE.md`, and ADRs 001-008. Created this file. |
+| 2026-09-29 | Read all three specifications. Chose Flutter over the TBD desktop framework; recorded as ADR 008. Scaffolded Laravel `backend/` and Flutter `desktop/`. Created the layered directory structure. Implemented the `Money` value object with 20 tests, fixing two bugs the tests caught. Wrote `docs/AI_RULES.md`, `docs/ARCHITECTURE.md`, and ADRs 001-008. Created this file. |
+| 2026-09-29 | Read the full Laravel and Flutter scaffolding. Recorded the backend gaps in section 5.1. |
+| 2026-09-29 | Implemented the double-entry accounting engine in five domain files with 36 tests. Verified the worked example by hand and asserted the accounting equation. Suite 56 tests. |
+| 2026-09-29 | Implemented Gate 3: drift schema, domain-owned repository ports, drift repositories, and persistence tests covering round-trip, exact money storage, an INTEGER column assertion, atomic rollback, and constraint rejections. Suite 79 tests. |
+| 2026-09-29 | With owner approval, upgraded Flutter 3.24.5 to 3.47.5 and Dart 3.5.4 to 3.13.4. Unpinned `drift` back to 2.31.0 and regenerated. The upgrade exposed a silent foreign-key failure; fixed by declaring FKs explicitly in `customConstraints` and moving the pragma to a per-connection `setup` hook, with two new tests that assert enforcement and declaration independently. Recorded in section 7.14. |
+| 2026-09-29 | Implemented `UnitOfWork`, closing gap 7.7. Nine tests prove an operation spanning several repositories is all-or-nothing. Suite 90 tests. |
+| 2026-09-29 | Implemented Gate 4: `TrialBalance` and `GeneralLedger`, both derived and never stored, with 21 domain tests and 4 integration tests. Suite 115 tests. |
+| 2026-09-29 | Implemented the fiscal calendar and the application layer. Selected `bikram_sambat` (MIT, pure Dart, BS 1969-2200) after rejecting `nepali_calendar` for an unknown licence; recorded as ADR 009. Built `BsCalendar`, `FiscalYear`, and `NepaliFiscalCalendar` with 24 tests, and `PostJournalEntry` with 12 tests, closing gaps 7.9 and 7.10. Found and fixed a real boundary defect in year-length measurement. Suite 151 tests. |
+| 2026-09-29 | Owner installed Visual Studio Build Tools and enabled Windows Developer Mode; `flutter build windows` now succeeds. Implemented the chart of accounts, 19 accounts with permanent literal ids kept separate from human-facing codes, 13 domain tests and 7 persistence tests. Suite 171 tests. |
+| 2026-09-29 | Implemented document numbering per ADR 005, with 16 domain tests, 15 persistence tests, and 7 migration tests. Added the `document_sequences` table and the first schema migration, v1 to v2, verified with drift schema snapshots and v1-shaped raw-SQL fixtures proving existing accounts, journal entries, dates, and amounts survive the upgrade. Established that allocation composes with the unit of work, so a failed issuance does not consume a serial and leaves no gap. Rebuilt the Windows app to confirm the migration did not break the build. Suite 209 tests. |
+| 2026-09-29 | Implemented invoice issuance end to end, with 19 domain tests and 13 application tests: derived subtotal, VAT and total with no stored totals, VAT charged on the combined subtotal at 13% held in basis points, and the three-line posting Dr 1030 / Cr 4010 / Cr 2020. Verified the composition property that matters: a posting failure does not consume a serial, because the journal entry id is derived from the invoice id and a duplicate is refused by the primary key. Recorded two Billing gaps: an issued invoice is not yet a stored record (7.12), and the customer on an invoice is an unvalidated string (7.13). Suite 241 tests. |
+| 2026-09-29 | Implemented customers with the second schema migration, v2 to v3. Eight domain tests and seven persistence tests, plus migration tests extended to cover v3, including v1 two-step upgrades and v2 data surviving with a document sequence that must not restart. `IssueInvoice` now refuses an unknown customer with the check inside the transaction, and a refusal burns no serial. Recorded the undecided customer id generation strategy as an open question (7.16). Suite 260 tests. |
+| 2026-09-29 | Implemented issued invoices as records with the third schema migration, v3 to v4. Added `invoices` and `invoice_lines`, an `InvoiceRepository`, and `IssuedInvoice`. `IssueInvoice` now writes the serial, the journal entry, and the document record in one unit of work. The schema enforces the links with foreign keys to `customers` and `journal_entries`. Added `NepaliFiscalCalendar.fromLabel` so only the fiscal year label is stored, and `DocumentType.fromPrefix`. Twenty persistence tests including the atomicity case where the journal entry is written and then the invoice insert fails on the unique number, asserting the entry rolled back and the serial was not consumed. Suite 284 tests. |
+| 2026-09-29 | Implemented payments received with the fourth schema migration, v4 to v5. Added `payments`, a `PaymentRepository`, `InvoiceBalance`, and `RecordPayment`. The outstanding balance is derived and never stored, so it cannot drift from the payments that produced it. The overpayment check runs inside the same transaction as the write, closing the race rather than making it unlikely. The boundary is tested both ways: exactly the outstanding amount is accepted, one paisa more is refused with nothing written. Twenty-two application tests, twelve domain tests, and migration tests extended to v5. Rebuilt the Windows app. Suite 322 tests. |
+| 2026-09-29 | Owner decided ADR 004: **moving weighted average** costing, and **negative stock blocked**. The decision had been open since the first session and was the last thing gating Gate 6. Wrote `docs/INVENTORY_EXPLAINED.md`, a plain-language explainer with worked numbers for all four methods, an honest account of what Nepali standards appear to allow (FIFO and weighted average permitted, LIFO not, lower of cost and net realisable value required) with explicit caveats that it is unverified and not tax advice, and a clear list of what the application does not do yet. Referenced it from `AGENTS.md`, `README.md`, and section 2 so it is actually found. Recorded four follow-on decisions in ADR 004 rather than letting them be mistaken for done. |
+| 2026-09-29 | Implemented the Profit & Loss report with 16 domain tests and 3 integration tests. Income and expenses only, with balance sheet accounts excluded even when supplied in a chart. Every account read in its own natural direction, so both totals are positive. A loss is reported as a positive `loss` rather than a negative `profit`, so a bad period does not read as a double negative. Cross-checked against `TrialBalance` by deriving the same profit two independent ways. Hand-computed on the worked example: income 2,000,000, expenses 1,700,000, profit 300,000. |
+| 2026-09-29 | Implemented the Balance Sheet with 17 domain tests and 3 integration tests, completing the core report set. Equity folds in the period result as its own line, because there is no year-end closing entry and without it the sheet cannot balance. Takes `to` and not `from`, because a balance sheet is a position at a point in time. The accounting equation is asserted across five different transaction shapes, and cross-checked three ways against `ProfitAndLoss` and `TrialBalance` both in memory and from a real database. Hand-computed: assets 133,000, liabilities 30,000, equity 103,000. |
+| 2026-09-29 | Opened Gate 6 with products and inventory movements, using the fifth migration v6 to v7. `Product` has **no cost column**, because ADR 004 requires the running inventory value to be authoritative and the cost per unit to be derived from it. Movement quantity and value are both signed and must point the same way, enforced by the domain *and* a database CHECK, which is what makes quantity and value each a plain sum of the rows. `ProductStock` derives quantity, value, and cost per unit; `valueOfIssue` takes the whole remaining value when clearing a holding so it leaves exactly zero rather than stray paisa. Negative stock is blocked inside the same transaction as the write, and a refused issue writes no row at all. 28 domain tests, 17 persistence tests. |
+| 2026-09-29 | Posted inventory movements to the ledger with migration v7 to v8, closing the gap that specification RULE 5 forbids. `PostInventoryMovement` maps each movement reason and direction to accounts from **one documented table**, adds the `5070 Inventory Adjustments` account, and links each movement to its entry with a foreign key. A transfer is refused rather than given a plausible-looking entry, because locations are not modelled. The test that matters passes: after buying at two prices and issuing half, the inventory account in the trial balance equals the derived stock value, exactly Rs 1,100. The migration gives pre-existing movements a `null` entry rather than fabricating one. Hit three migration traps and recorded them in section 7.17: `createTable` writes the current shape not the historical one; SQLite cannot add a foreign key with `ALTER TABLE ADD COLUMN`, so the column change needed a table rebuild; and intermediate schema versions are not valid migration targets. Recorded a fifth instance of the recurring "the test was wrong" pattern. Suite 476 tests. Next task set to the inventory write-down. |

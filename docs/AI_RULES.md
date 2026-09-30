@@ -96,13 +96,30 @@ Approved core dependencies, all permissive:
 
 | Package | Licence | Purpose |
 | --- | --- | --- |
-| `drift`, `drift_dev`, `sqlite3_flutter_libs` | MIT | SQLite, type-safe queries, migrations |
+| `drift` (pinned `>=2.18.0 <2.24.0`) | MIT | SQLite, type-safe queries, migrations |
+| `drift_dev`, `build_runner` (dev) | MIT | Code generation for drift |
+| `sqlite3` | MIT | Native SQLite bindings, imported directly by `sqlite_native.dart` |
+| `sqlite3_flutter_libs` | MIT | Bundles SQLite into the shipped application |
+| `path`, `path_provider` | MIT / BSD-3 | Database file location |
 | `pluto_grid` | MIT | Dense desktop data grid |
 | `fl_chart` | MIT | Restrained charts |
 | `go_router` | BSD-3 | Navigation |
 | `flutter_secure_storage` | BSD-3 | OS-protected token and licence storage |
+| `bikram_sambat` | MIT | Bikram Sambat to Gregorian date conversion. **Only `domain/fiscal/bs_calendar.dart` may import it.** See ADR 009. |
 
-Before adding any package, verify its licence and record it here.
+**`bikram_sambat` is MIT and must stay isolated.** It is used in the domain
+layer, which is only acceptable because it is a pure-computation, dependency-free
+Dart package with no I/O and no Flutter coupling. The single-import rule in ADR
+009 is what keeps it replaceable. MIT requires retaining the copyright notice, so
+the application must expose a reachable licences screen (Flutter's
+`showLicensePage` covers this).
+
+Declare a package you import directly, even when it arrives transitively. The
+analyzer enforces this with `depend_on_referenced_packages`, and it is correct to.
+
+Before adding any package, verify its licence and record it here. An **unknown**
+licence is not a permissive licence: `nepali_calendar` was rejected on exactly
+that basis. Do not adopt a package whose licence you cannot read.
 
 ## Task sizing
 

@@ -75,8 +75,7 @@ class Money implements Comparable<Money> {
   Money abs() => Money.minor(minorUnits.abs(), currency);
 
   /// Multiplies by a whole quantity, such as an invoice line quantity.
-  Money times(int quantity) =>
-      Money.minor(minorUnits * quantity, currency);
+  Money times(int quantity) => Money.minor(minorUnits * quantity, currency);
 
   /// Treats this amount as a unit price and multiplies by a fractional quantity
   /// expressed as `numerator / denominator`.
@@ -184,7 +183,8 @@ class Money implements Comparable<Money> {
   /// `Rs -1,250.00` rather than `-Rs 1,250.00`.
   String format({String symbol = 'Rs'}) {
     final isNegativeAmount = minorUnits < 0;
-    final digits = minorUnits.abs().toString().padLeft(minorUnitDigits + 1, '0');
+    final digits =
+        minorUnits.abs().toString().padLeft(minorUnitDigits + 1, '0');
     final whole = digits.substring(0, digits.length - minorUnitDigits);
     final fraction = digits.substring(digits.length - minorUnitDigits);
     final grouped = whole.replaceAllMapped(
