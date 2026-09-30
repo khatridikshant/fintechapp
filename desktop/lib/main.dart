@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'src/domain/fiscal/nepali_fiscal_calendar.dart';
-import 'src/presentation/app_services.dart';
+import 'src/domain/shared/book_upload.dart';
+import 'src/domain/shared/book_upload_service.dart';
 import 'src/infrastructure/database/file_books_session.dart';
+import 'src/infrastructure/sync/http_backup_uploader.dart';
+import 'src/presentation/app_services.dart';
 import 'src/presentation/finance_app.dart';
 
 /// financeapp — offline-first business software for small Nepali businesses.
@@ -40,11 +46,88 @@ Future<void> main() async {
     );
 
     runApp(
-      FinanceApp(services: AppServices().forSession(session)),
+      FinanceApp(
+        services: AppServices(
+          upload: _uploadsFrom(Platform.environment, supportDirectory),
+        ).forSession(session),
+      ),
     );
   } catch (error) {
     runApp(StartupFailureApp(error: error));
   }
+}
+
+/// Builds the upload capability from the environment, or returns null.
+///
+/// **This is a stopgap, and it is deliberately obvious about that.** The
+/// specification requires the account session to be established by signing in
+/// and the token to be kept in protected operating-system storage
+/// (`flutter_secure_storage`). Neither exists yet, so until the sign-in screen
+/// does, a session can be supplied through the environment:
+///
+/// ```
+/// FINANCEAPP_SERVER=http://127.0.0.1:8123
+/// FINANCEAPP_TOKEN=<the token /api/auth/login returned>
+/// FINANCEAPP_BOOK=<the book id /api/auth/register returned>
+/// ```
+///
+/// With none of those set — which is the normal case — uploading stays absent and
+/// the application is exactly as it was: entirely local, needing no network. That
+/// matters, because a desktop application that cannot reach the internet must
+/// still work.
+/// The uploader, or null when no session is configured.
+UploadActions? _uploadsFrom(
+  Map<String, String> environment,
+  Directory supportDirectory,
+) {
+  final server = environment['FINANCEAPP_SERVER']?.trim();
+  final token = environment['FINANCEAPP_TOKEN']?.trim();
+  final bookId = environment['FINANCEAPP_BOOK']?.trim();
+
+  if (server == null ||
+      server.isEmpty ||
+      token == null ||
+      token.isEmpty ||
+      bookId == null ||
+      bookId.isEmpty) {
+    return null;
+  }
+
+  final base = Uri.tryParse(server);
+  if (base == null || !base.hasScheme) return null;
+
+  // **Refuse to send the books in clear text to another machine.** An upload
+  // carries the bearer token and the entire accounting database, so a plain
+  // `http://` URL pointing anywhere other than this machine would put both on the
+  // network in the clear. Loopback is allowed because it never leaves the
+  // machine and is how the server is run in development.
+  if (!_isSafeServer(base)) return null;
+
+  return HttpBackupUploader(
+    transport: IoHttpTransport(),
+    session: BackendSession(
+      serverBaseUrl: base,
+      token: token,
+      bookId: bookId,
+    ),
+    // Beside the local backups, so the record of what was sent travels with the
+    // snapshots it describes.
+    uploadLogFile: File(
+      p.join(supportDirectory.path, 'backups', 'uploads.json'),
+    ),
+  );
+}
+
+/// Whether a configured server may be sent the books.
+///
+/// HTTPS always, or plain `http` only when the host is this machine. Anything
+/// else would put the token and the whole database on the network readable.
+bool _isSafeServer(Uri server) {
+  if (server.scheme == 'https') return true;
+  if (server.scheme != 'http') return false;
+
+  const loopback = <String>{'localhost', '127.0.0.1', '::1', '[::1]'};
+  return loopback.contains(server.host);
 }
 
 /// Shown when the application cannot open its books.

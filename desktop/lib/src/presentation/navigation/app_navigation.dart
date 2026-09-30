@@ -138,7 +138,12 @@ List<NavigationGroup> buildNavigation(AppServices services) {
           icon: Icons.backup_outlined,
           route: services.backup == null
               ? null
-              : (context) => BackupScreen(service: services.backup!),
+              : (context) => BackupScreen(
+                    service: services.backup!,
+                    // Null when the desktop is not signed in. The screen still
+                    // works; it just cannot send anything off the machine.
+                    uploads: services.upload,
+                  ),
         ),
         NavigationItem(title: 'Sync', icon: Icons.sync_outlined),
         NavigationItem(title: 'Fiscal Year', icon: Icons.event_outlined),

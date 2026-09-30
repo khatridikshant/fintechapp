@@ -1,5 +1,5 @@
 name: financeapp
-description: "A new Flutter project."
+description: "Offline-first desktop accounting, billing, and inventory for small businesses. Nepal-focused: NPR, Bikram Sambat fiscal years, one SQLite database per year."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

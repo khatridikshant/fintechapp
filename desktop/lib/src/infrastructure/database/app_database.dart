@@ -7,6 +7,14 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
+/// The schema version this application writes.
+///
+/// A top-level constant rather than a literal inside the getter, because more
+/// than one place has to know it: the database declares it to drift, and the
+/// backup upload declares it to the server. Two copies of the number would drift
+/// apart, and the server uses it to decide how to read the snapshot.
+const int currentSchemaVersion = 9;
+
 /// The local SQLite database for one fiscal year.
 ///
 /// The architecture requires one database per fiscal year, so this class models
@@ -44,7 +52,7 @@ class AppDatabase extends _$AppDatabase {
   ///   8  inventory_movements.journal_entry_id
   ///   9  inventory_movements allows a value-only write-down
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => currentSchemaVersion;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(

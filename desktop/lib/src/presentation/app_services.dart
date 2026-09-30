@@ -2,6 +2,7 @@
 import '../application/build_general_ledger.dart';
 import '../application/build_trial_balance.dart';
 import '../domain/shared/book_backup_service.dart';
+import '../domain/shared/book_upload_service.dart';
 
 /// What the presentation layer is allowed to reach.
 ///
@@ -17,6 +18,7 @@ class AppServices {
     this.generalLedger,
     this.backup,
     this.session,
+    this.upload,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -32,15 +34,26 @@ class AppServices {
   /// switcher. Concluded years open **read-only**.
   final BooksSession? session;
 
+  /// Sending a verified backup to the server.
+  ///
+  /// Null when the desktop is not signed in. Taking a backup works without this;
+  /// it is the off-machine copy that needs a session, so its absence must never
+  /// affect anything else.
+  final UploadActions? upload;
+
   /// Every use case for the selected year, rebuilt from [session].
   ///
   /// The loaders all belong to one year's books, so switching year replaces all
   /// of them at once rather than patching any single one. The session is the
   /// single source of what is open.
+  ///
+  /// [upload] is carried through unchanged: it is about a session with the
+  /// server, not about which year's books are open.
   AppServices forSession(BooksSession session) => AppServices(
         trialBalance: session.trialBalance,
         generalLedger: session.generalLedger,
         backup: session.backup,
         session: session,
+        upload: upload,
       );
 }

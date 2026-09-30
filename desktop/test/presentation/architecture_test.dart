@@ -95,6 +95,12 @@ void main() {
         // `BookYear`, `BackupRun`, and `BackupFailure`: the screen has to name
         // the fiscal years it found and report which ones it could not cover.
         'domain/shared/book_year.dart',
+        // The Backup screen reports the outcome of an upload and when each
+        // year's books were last on the server, so it needs the result and
+        // record value types and the read-only upload interface. Sending is
+        // behaviour and still goes through the port.
+        'domain/shared/book_upload.dart',
+        'domain/shared/book_upload_service.dart',
         'domain/accounting/account.dart',
         'domain/reporting/general_ledger.dart',
       };
