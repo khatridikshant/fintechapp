@@ -2,6 +2,21 @@
 
 **Status:** Accepted
 
+**Implementation status:** the **upload path is built and proven on both sides.**
+The desktop snapshots with `VACUUM INTO`, verifies, computes SHA-256, reads the
+server's revision sequence, and sends; the server authenticates, checks book
+ownership, verifies the bytes four ways (header, size, checksum,
+`integrity_check`), checks the expected revision, and stores the file with its
+metadata in PostgreSQL. Reading the sequence before sending means a `409` is a
+genuine conflict — another installation storing a revision in between — rather
+than a routine outcome.
+
+**Not built:** restore (no download endpoint, no desktop restore-from-server
+path, so the off-machine copy is currently write-only) and sign-in (the token is
+supplied by hand). Access is per-installation and single-user as V1 intends;
+there is no merge algorithm and none is needed while one book has one active
+installation.
+
 ## Context
 Sync must not corrupt a correct local database. An accounting file that is
 half-synced, truncated, or mismatched is worse than no backup at all.

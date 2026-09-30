@@ -1,58 +1,93 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# financeapp — backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+The Laravel 13 API. It holds the cloud responsibilities the specification assigns
+to the server: **identity, books, backup metadata, licensing, and (later) sync and
+restore.** It is never on the path of a normal business operation — the desktop
+application must work with this service completely unreachable.
 
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Running it
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Set `DB_PASSWORD` in `.env`, then create the database and migrate:
 
-## Contributing
+```bash
+createdb -U postgres financeapp
+php artisan migrate
+php artisan serve
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+PostgreSQL is the configured database. **The test suite does not need it** — the
+feature tests run on an isolated in-memory SQLite database, which is Laravel's own
+convention, so `php artisan test` passes with no PostgreSQL installed.
 
-## Code of Conduct
+## Testing
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan test     # expect: all green
+./vendor/bin/pint    # formatting; run before committing
+```
 
-## Security Vulnerabilities
+## API
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+All routes are in `routes/api.php`.
 
-## License
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | none | Create an account, its one book, and a token |
+| POST | `/api/auth/login` | none | Issue a token |
+| GET | `/api/auth/me` | token | Who is signed in, and their books |
+| POST | `/api/auth/logout` | token | Revoke **this** token only |
+| POST | `/api/books/{book}/backup-revisions` | token | Upload a verified snapshot |
+| GET | `/api/books/{book}/backup-revisions` | token | List what is stored, newest first |
+| GET | `/api/backup-revisions/{revision}` | token | Metadata for one revision |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+`register` and `login` are the **only** unauthenticated routes, and they must stay
+outside the `auth:sanctum` group: no token can be obtained without them.
+
+### The rule that governs uploads
+
+**An unverified upload is never treated as a valid backup.** The upload is checked
+four times, cheapest and safest first — SQLite magic header, declared size,
+declared SHA-256, then SQLite's own `integrity_check` — and the first failure
+stores nothing: no file, no row. There is deliberately no "uploaded but not yet
+checked" state, because that row would be a backup the desktop might report as
+stored.
+
+The integrity check runs **last** on purpose: opening a received file with SQLite
+means parsing data from outside, so it happens only after the file is known to be
+a database whose checksum matches what a trusted client declared, and it is opened
+read-only.
+
+A revision that does not follow the latest is a **conflict (HTTP 409)**, not a
+silent overwrite.
+
+## Layout
+
+```
+app/Http/Controllers/Api/   AuthController, BackupRevisionController
+app/Services/               BackupUploadVerifier — the four-step verification chain
+app/Models/                 User, Book, BackupRevision
+routes/api.php              All API routes
+tests/Feature/              AuthenticationTest, BackupUploadTest
+```
+
+Laravel 13 puts model configuration in **PHP attributes** (`#[Fillable([...])]`,
+`#[Hidden([...])]`), not the older `$fillable` / `$hidden` properties. Follow the
+existing models.
+
+## Not built yet
+
+- **Licensing.** A backend-signed licence authorisation with expiry, a device
+  binding, and an offline public-key check. Deliberately separate from the token
+  endpoints above, which are authentication only.
+- **Download and restore.** There is no endpoint that returns a stored snapshot, so
+  the desktop cannot restore from the cloud.
+- **Sync.** Not started.
+
+See `../PROGRESS.md` for the current state and `../docs/` for the architecture and
+the development contract.

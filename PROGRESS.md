@@ -1083,6 +1083,235 @@ needs no external database.
 has none, and one would be misleading: a revision is an immutable record, and a
 change means a new revision.
 
+### 4.27 PostgreSQL live, and token issuance
+
+**Two blockers closed in one task**, because neither was useful alone: a database
+that cannot be reached cannot be tested against, and a token that cannot be issued
+makes every authenticated route unreachable.
+
+| File | Contents |
+| --- | --- |
+| `backend/.env` | `DB_PASSWORD` set. The owner supplied the password. |
+| `backend/app/Http/Controllers/Api/AuthController.php` | `register`, `login`, `logout`, `me`. |
+| `backend/routes/api.php` | Four identity routes, two of them deliberately outside the guard. |
+| `backend/database/factories/UserFactory.php` | A `withPassword` state. |
+| `backend/tests/Feature/AuthenticationTest.php` | 18 tests. |
+
+**The database now exists and the migrations ran against it.** `financeapp`, UTF-8,
+PostgreSQL 17.4. `DB_PASSWORD` was empty, which produced a confusing
+`FATAL: database "financeapp" does not exist` only *after* authentication
+succeeded — the missing password and the missing database had the same symptom from
+the outside, and it was worth separating them in order rather than guessing. The
+password lives in `.env`, which `backend/.gitignore` excludes, so it cannot be
+committed by accident.
+
+**The only two unauthenticated routes in the API are `register` and `login`.** They
+have to sit outside the `auth:sanctum` group: no token can be obtained without one
+of them, so guarding them would make every route unreachable. The comment in
+`routes/api.php` says so, because it looks like a mistake otherwise.
+
+**Registration creates the account's one book** (ADR 003). Without it the desktop
+has nothing to upload a backup against, and the next task would be blocked on a
+missing book rather than on its own work.
+
+**An unknown email and a wrong password fail identically.** A different response
+would let a caller discover which addresses have accounts, so both raise the same
+refusal and a test asserts the statuses match.
+
+**Logout revokes only the token used**, so signing out of the office desktop does
+not sign the user out of the laptop. There is a test for it.
+
+**This is token issuance, not licensing, and the distinction is deliberate.** The
+specification also requires a cryptographically signed licence authorisation
+carrying subscription status, expiry, a device binding, and a private-key
+signature that the desktop verifies offline against a public key. None of that is
+here, and a half-built licence check that *looks* authoritative is worse than none,
+so it is named as its own task rather than approximated.
+
+**Verified against the real stack, not only the in-memory tests.** A throwaway
+script walked the whole path over HTTP against live PostgreSQL: register, login,
+`me`, a genuine SQLite snapshot uploaded with its real checksum and size, then
+four refusals — duplicate email, weak password, wrong password, no token, bad
+checksum, stale revision, and a file that is not a database. All fourteen checks
+behaved as required, and **one revision remained stored after all the refusals**,
+which is the property that matters: no partial or unverified artefact survives.
+
+### 4.28 The desktop sends a verified backup to the server
+
+**The other half of 4.26, and the first time anything has actually crossed the
+wire.** The server could receive a snapshot and had been tested, but no desktop
+could reach it. This closes that, and it is the change that finally puts a backup
+somewhere other than the disk it came from.
+
+| File | Contents |
+| --- | --- |
+| `desktop/lib/src/domain/shared/book_upload.dart` | `BackendSession`, `UploadStatus`, `UploadResult`, `UploadRecord`, `UploadException`. |
+| `desktop/lib/src/domain/shared/book_upload_service.dart` | The `UploadActions` port. |
+| `desktop/lib/src/infrastructure/sync/http_backup_uploader.dart` | `HttpBackupUploader`, the `HttpTransport` seam, and `IoHttpTransport`. |
+| `desktop/lib/src/presentation/screens/backup_screen.dart` | The "Send to the server" button and the per-year sent state. |
+| `desktop/test/infrastructure/http_backup_upload_test.dart` | 26 tests. |
+| `desktop/test/presentation/backup_screen_test.dart` | 8 new widget tests, 22 total. |
+| `desktop/tool/live_upload_check.dart` | 6 checks against a running server. |
+
+**The local backup is never touched, whatever happens.** Not on success, not on a
+refusal, not on a conflict, not when the server cannot be reached. The snapshot
+is opened for reading and its bytes are sent; nothing writes to it. This is the
+invariant the whole feature rests on: the local copy is the only one the business
+has until the server confirms it holds the bytes, so an upload that lost it would
+turn a good backup into no backup. Every refusal test asserts the file is
+byte-identical afterwards.
+
+**A result is a success only when the server said so.** `UploadStatus.uploaded` is
+returned only for a `201` carrying a revision number. A `201` whose body cannot be
+read is **not** a success, because the point of the answer is to confirm what was
+stored and an answer that does not do that has confirmed nothing.
+
+**The declared checksum and size are recomputed from the file, not taken from the
+`BookBackup`.** The server checks them against the bytes it receives, so sending a
+checksum recorded when the backup was taken would turn a harmless later change
+into a confusing refusal.
+
+**The revision sequence is read from the server before each upload.** The server
+refuses a revision that does not follow the latest, so guessing would fail on the
+first upload after a reinstall. The uploader asks what is stored, **filters to the
+fiscal year being sent**, and sends one more. Filtering matters: counting another
+year's revisions would make a new year start at the wrong number.
+
+**A conflict is reported, not retried.** A `409` becomes `UploadStatus.conflict`
+with its own wording. Retrying would either fail again or overwrite another
+installation's snapshot.
+
+**Offline is a normal condition, not a failure.** A connection error and a server
+error status both become `UploadStatus.unreachable`, because for the user they are
+one thing: nothing was stored, the books are unchanged, try again later. The
+specification requires a desktop that cannot reach the internet to keep working,
+and this is the only part of the application that needs a server at all.
+
+**`dart:io` rather than an HTTP package.** `package:http` is not in the approved
+list, and the SDK's `HttpClient` covers this in about forty lines. The upload adds
+**no dependency at all** — which the dependency policy in `docs/AI_RULES.md`
+requires to be a deliberate, recorded choice.
+
+**Two findings, both worth recording.**
+
+1. **A test of mine was wrong, not the code.** The live check asserted that
+   re-uploading the same snapshot returns a conflict. It does not, and it should
+   not: the uploader re-reads the sequence first, so a second upload from the same
+   installation legitimately becomes the next revision. A `409` is for the
+   different case where *another* installation stored a revision between the read
+   and the write. The expectation was corrected. Reproducing that race against a
+   live server would be a timing test, so conflict mapping stays covered by the
+   unit tests where the race can be staged deterministically.
+2. **Mutation testing caught a test that measured the wrong thing.** Removing the
+   fiscal-year filter from the revision logic left all 26 unit tests passing,
+   because the test asserted the revision the *fake* echoed rather than the one
+   the uploader *declared*. The fake replies with whatever a test scripts, so the
+   assertion was testing the fake. It now reads the `revision` field out of the
+   multipart body. This is the same class of defect as 7.15 and 7.21, and it was
+   found only by deliberately breaking the code and checking that a test failed.
+
+**Verified against the real stack.** The unit tests replace the transport, which
+leaves the actual socket and the multipart encoding as it goes on the wire
+unverified. `tool/live_upload_check.dart` closes that gap: six checks against a
+running Laravel server and the live PostgreSQL database, using the real
+`IoHttpTransport`. It registers a throwaway account each run so it starts from a
+book with no revisions and can assert exact numbers. All six passed, and the rows
+were then read back out of PostgreSQL to confirm they were really stored.
+`flutter test` skips it by name, so the suite stays hermetic.
+
+**Not yet usable by a real user without help.** The token comes from environment
+variables, because there is no sign-in screen and the specification's protected
+operating-system storage for tokens is not built. With nothing set — the normal
+case — uploading is absent and the application is exactly as local as before. See
+section 6.
+
+### 4.29 A code review of 4.27–4.28, and twelve fixes
+
+**A review of the uncommitted work found twelve issues in it; all twelve are
+fixed, and every fix was mutation-tested.** The two that mattered most were in
+code written the same day, which is the argument for reviewing before committing
+rather than after.
+
+**The most serious was in the upload: it never checked that the snapshot it was
+sending was still the one that had been verified.** `BookBackup.checksum` records
+what the file was when the backup was taken, and the uploader ignored it. The
+server's checksum check only proves the bytes survived the trip, so a file
+corrupted or edited after the backup would have been uploaded, accepted, and
+**reported to the user as a safe off-machine backup**. The uploader now recomputes
+the checksum by streaming the file and refuses when it no longer matches the
+recorded value or size, returning a new `UploadStatus.unverified` and sending
+nothing. The task specification had asked for a snapshot "already verified
+locally"; that step was simply missing.
+
+**The second was a 500 on ordinary input.** Registration validated
+`unique:users,email` against the address as typed but stored it lower-cased, so
+registering `SITA@Example.COM` after `sita@example.com` passed the uniqueness check
+and then collided with the unique index. Normalisation now happens **before**
+validation, so the rule and the stored value see the same string. There is a test
+for the case variant, which the original duplicate-email test did not cover.
+
+**The Backup screen overstated what it had achieved.** `_describeUploads` counted
+only the years it attempted, so a two-year business with one unbacked-up year was
+told *"Sent 1 of 1 fiscal year… Every year is now stored off this computer"* — while
+the unprotected-years warning sat above it saying the opposite. The denominator is
+now the total year count, and a year with no backup is named in the summary.
+
+**The public auth routes had no rate limit.** `bootstrap/app.php` leaves
+`withMiddleware` empty, and the framework only puts `throttle:api` on the `api`
+group when `throttleApi()` is called — verified in
+`Middleware.php:495`, not assumed. `register` and `login` therefore accepted
+unlimited requests: unbounded account creation, unrestricted credential guessing,
+and bcrypt CPU exhaustion. Both now carry `throttle:6,1`.
+
+**One of the new tests could not fail.** The schema-version assertion was
+`contains('9')`, which the snapshot's own generated bytes already satisfied, so it
+would have passed even if the field were absent — the same defect 7.21 records,
+repeated. It now reads the declared value out of the request and compares it to
+`currentSchemaVersion`, and the fake transport's own fixture uses the constant
+rather than a second copy of the number.
+
+**The rest:**
+
+- **Login leaked account existence through timing.** `if (! $user || ! Hash::check(...))`
+  short-circuits, so an unknown address answered without paying bcrypt. The
+  comparison now runs against a dummy hash regardless. **A finding inside the
+  finding:** the first fix used a hand-written bcrypt-looking literal, which would
+  have been worse than useless — measured, `password_verify` against a malformed
+  hash returns in **0.04 ms** against **191 ms** for a real one, so it would have
+  kept the short-circuit's speed while looking fixed. A real hash is now used, and
+  the measurement is what caught it.
+- **Registration no longer says the email is taken**, which would have handed back
+  the information login deliberately withholds. Full non-enumeration would need an
+  email-verification flow; that is recorded as out of scope rather than pretended.
+- **The upload refuses a plaintext remote server.** An `http://` base URL pointing
+  anywhere but loopback would put the token and the entire accounting database on
+  the network readable. `https` is required, with `http` allowed only for
+  `localhost`, `127.0.0.1`, and `::1`.
+- **The upload no longer copies the file three or four times.** `readAsBytes`,
+  then `BytesBuilder`, then `takeBytes` meant peak memory of several times the file
+  size. The transport now takes an ordered list of byte segments and sets
+  `contentLength`, so the snapshot is passed by reference, and the checksum is
+  computed by streaming the file **in a separate isolate** — so a large year
+  neither blocks the interface nor exists in memory twice.
+- **One `HttpClient` for the transport, not one per request.** The pool is now
+  reused across the two calls per year instead of a fresh TCP and TLS handshake
+  each time.
+- **`UploadResult.localBackupIsIntact` was removed.** A constant-`true` getter with
+  no callers, which is the same dead surface 7.21's lesson warns about.
+
+**Every fix was mutation-tested, and three of the four new tests initially failed
+to catch their own regression** — the same trap as 7.21, found the same way. The
+rate-limit and normalisation tests passed with their fixes reverted because those
+mutations had not applied (CRLF mismatch in the mutation script); re-applied
+properly, both fail without their fix. The verification guard and the coverage
+denominator were each confirmed to fail when reverted. **The lesson is sharper than
+7.21's: a mutation that does not apply looks exactly like a test that works.**
+
+**Verified:** 660 Dart tests, 35 Laravel tests (97 assertions), `flutter analyze`
+clean, Pint clean, Windows build succeeds, and the six live checks against the real
+Laravel server and PostgreSQL still pass — which also proves the new
+length-delimited segmented body is accepted by the server's multipart parser.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -1125,22 +1354,33 @@ Everything else. Specifically, none of the following exist:
 - **The backend.** Not "any" — Sanctum, PostgreSQL configuration, `books` and
   `backup_revisions`, the upload verification chain, and store/index/show routes
   exist and are tested. See 4.26.
-- **Uploading a backup off the machine.** The server half exists; the desktop has
-  no `UploadBackup` port, no implementation, and no button. **Nothing has actually
-  crossed the wire.** This is the next task.
-- **Restore from the cloud.** The server can store and list revisions but has no
-  download endpoint, and the desktop has no restore-from-server path. A backup that
-  cannot be fetched is not a backup.
-- **Identity.** Sanctum is installed and the upload routes are authenticated, but
-  there is no login, registration, or token-issuing endpoint, so **no client can
-  obtain a token**, and the desktop has no way to authenticate. This blocks every
-  remaining end-to-end path.
-- **The PostgreSQL password is unknown.** The server is configured for PostgreSQL
-  and PostgreSQL 17 is running, but `DB_PASSWORD` is empty in `backend/.env` and
-  the install-time password was never recorded. The test suite is unaffected — it
-  runs on in-memory SQLite — but the server **cannot be started against a real
-  database** until the owner supplies the password. This is the one thing blocking
-  a live end-to-end run, and it needs an owner decision.
+- **Uploading a backup off the machine.** Done for the mechanics. See 4.28. The
+  desktop verifies a snapshot, authenticates, sends it, and reports a refusal, a
+  conflict, or an unreachable server distinctly, without ever touching the local
+  copy. **Still missing: a way for a real user to sign in.** The token has to be
+  supplied through environment variables today, so the feature works and is tested
+  but is not yet usable by a customer. That is the next task.
+- **Restore from the cloud.** The server can store and list revisions but has **no
+  download endpoint**, and the desktop has no restore-from-server path. A backup
+  that cannot be fetched is not a backup, so this is the other half of Gate 9.
+- **Protected token storage.** The specification requires the token to live in
+  protected operating-system storage (`flutter_secure_storage` is the approved
+  package). Nothing is stored anywhere yet, which is why the token arrives from
+  the environment.
+- **Identity.** Sanctum is installed, the upload routes are authenticated, and
+  **token issuance works**: `register`, `login`, `logout`, and `me`, tested and
+  verified end to end against live PostgreSQL. The desktop **uses** a token for
+  uploads. See 4.27 and 4.28. **Still missing: any desktop sign-in screen**, so a
+  token can only be obtained by hand, and the licensing system the specification
+  requires is not started.
+- **Licensing.** Not started, and it is a larger capability than authentication.
+  The specification requires a backend-signed licence authorisation carrying the
+  license id, user id, book id, status, expiry, issue date, next validation time,
+  and license revision, optionally bound to a registered device — signed with a
+  **private** key the desktop never holds and verified with a **public** key it
+  carries, so an expired licence can be detected with no internet connection. Also
+  `subscriptions` and `registered_desktop_installations`. The token endpoints here
+  are deliberately **not** presented as licensing. See section 6.
 - **Sync, licensing, and device registration.** Not started. Sync in particular
   depends on the id-generation question in 7.16.
 - **Retention.** The specification and Nepali law require records to be kept for
@@ -1155,9 +1395,9 @@ finished code.
 
 | Finding | Status |
 | --- | --- |
-| `DB_CONNECTION=sqlite` in both `.env` and `.env.example`, and `sqlite` is the default in `config/database.php` | **Resolved.** Switched to `pgsql`. See 4.26. **The password is still unknown — see section 5.** |
+| `DB_CONNECTION=sqlite` in both `.env` and `.env.example`, and `sqlite` is the default in `config/database.php` | **Resolved.** Switched to `pgsql`, and the `financeapp` database now exists with all six migrations applied. See 4.26 and 4.27. The password is in `backend/.env`, which is gitignored. |
 | No `routes/api.php`, and `bootstrap/app.php` registers only `web`, `commands`, and `health` | **Resolved.** `api:` routing registered, `routes/api.php` created. |
-| No Sanctum or Passport installed | **Resolved.** `laravel/sanctum` v4.3 installed, and the upload routes are protected. **Token issuance is still not implemented — see section 5.** |
+| No Sanctum or Passport installed | **Resolved.** `laravel/sanctum` v4.3 installed, the upload routes are protected, and **token issuance now works** — `register`, `login`, `logout`, `me`. See 4.27. **Licensing is still not implemented; see section 5.** |
 | `APP_NAME=Laravel` | **Resolved.** Now `financeapp`. |
 | Laravel 13 uses PHP attributes on models: `#[Fillable([...])]`, `#[Hidden([...])]` | **Convention trap.** Write the attribute style, not the older `$fillable` / `$hidden` properties. See `backend/app/Models/User.php`. The new models follow it. |
 | Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `php artisan test` is the command that passes; 13 tests. |
@@ -1186,54 +1426,62 @@ finished code.
 
 This is the next bounded task, ready to hand to an agent verbatim.
 
-> **Send a verified backup to the server.**
+> **Let a real user sign in, so uploading does not need environment variables.**
 >
-> The server half exists and is tested (4.26). This is the desktop half, and it is
-> what finally puts a backup somewhere other than the disk it came from.
+> Uploading works and is tested (4.28), but the only way to give the desktop a
+> token today is to set `FINANCEAPP_SERVER`, `FINANCEAPP_TOKEN`, and
+> `FINANCEAPP_BOOK` by hand. That is fine for a developer and useless for a
+> customer. This task closes the gap between "the feature works" and "a business
+> can use it".
 >
 > Do not modify: the accounting engine, the reporting layer, the billing or
-> inventory domains, the server-side controller, or any screen beyond the Backup
-> screen. Do not weaken any test.
+> inventory domains, the `UploadActions` port or its implementation, the
+> server-side controllers, or any screen other than the Settings and Backup
+> screens. Do not weaken any test. **Do not install Laravel Boost.**
 >
 > Required behaviour:
 >
-> 1. An `UploadBackup` **port** in the domain, with a Laravel-backed
->    implementation in `infrastructure/`. It sends a snapshot that has **already
->    been verified locally** by the existing backup service, together with the
->    checksum, size, and fiscal-year label the server will verify against. **Do
->    not create a second kind of backup** — the local verified snapshot is the
->    thing that gets uploaded.
-> 2. A `BookIdentity` concept, because the endpoint is
->    `/books/{book}/backup-revisions` and the desktop must know which book it is
->    uploading to. Where that id comes from connects to the open question in 7.16:
->    ids must not collide across installations. **If it needs an owner decision,
->    stop and ask.**
-> 3. A button on the Backup screen that uploads, and a statement of when the last
->    upload succeeded. **Until this works against a real server the screen must
->    still say a local backup does not survive losing the machine, because that
->    remains true.**
-> 4. **A failed upload must not claim success**, and must not delete or alter the
->    local backup. The local copy is the fallback until the server has confirmed it
->    holds the bytes.
-> 5. The revision number continues the sequence the server expects. A conflict
->    must be reported as a conflict, not retried blindly.
+> 1. A **sign-in screen** that takes a server address, an email, and a password,
+>    and calls `POST /api/auth/login`. It must handle the three answers the server
+>    actually gives: a token with a book id, a `422` for bad credentials, and no
+>    answer at all when offline. The specification requires the desktop to work
+>    with the server unreachable, so a failed sign-in must leave the application
+>    fully usable offline.
+> 2. **The token goes into protected operating-system storage**, not a database
+>    and not a plain file. `flutter_secure_storage` (BSD-3) is the approved
+>    package for this in `docs/AI_RULES.md`; adding it is a dependency decision and
+>    must be recorded there and in the licence list. **The password is never
+>    stored.**
+> 3. A **sign-out** that revokes the token on the server (`POST /api/auth/logout`)
+>    and clears it locally, and that works even if the server cannot be reached —
+>    signing out must never depend on the network.
+> 4. The composition root (`main.dart`) builds the session from stored state
+>    rather than the environment. **The environment-variable stopgap must still
+>    work**, because `tool/live_upload_check.dart` and the developer workflow rely
+>    on it.
+> 5. The Backup screen says which account is signed in, or that none is, and the
+>    "Send to the server" button follows from that rather than from a null check.
 >
 > Tests to add:
 >
-> - The port is called with the snapshot's real checksum, size, and fiscal-year
->   label — read from the file, not passed in by the test.
-> - A rejected upload is reported, and the local backup file is byte-identical
->   afterwards.
-> - A server conflict is surfaced rather than silently retried.
-> - The screen shows the last successful upload time.
-> - With no server reachable, the upload fails cleanly and the local backup is
->   untouched. **A desktop application that cannot reach the internet must still
->   work**, per the specification.
+> - A successful sign-in stores the token, the book id, and the server address,
+>   and the stored values are what the uploader is given.
+> - A `422` is reported as wrong credentials and stores nothing.
+> - An unreachable server is reported as such and stores nothing, and the rest of
+>   the application still works.
+> - **The password is never written to storage** — assert on the stored map, not
+>   on the screen.
+> - Sign-out clears the stored token, and still clears it when the server cannot
+>   be reached.
+> - A revoked or expired token discovered at upload time is reported as "sign in
+>   again" rather than as a failed backup. `401` currently maps to `unreachable`
+>   in `_interpret`; decide deliberately whether that is still right once sign-in
+>   exists, and record the reasoning.
 > - The architecture guards still pass, including the `export` check added in 7.21.
 >
 > Report `flutter test`, `flutter analyze`, `php artisan test`, and
 > `flutter build windows --debug`. The Dart suite must stay green including the
-> existing 620 tests.
+> existing 660 tests.
 
 ## 7. Decisions and discoveries that affect future work
 
@@ -1781,6 +2029,58 @@ asserted a wrong number into the suite permanently. The cost was highest here,
 where the fixtures are dates: see 7.19 for the same underlying problem in the
 tooling.
 
+### 7.22 A mutation that does not apply looks exactly like a test that works
+
+**This is the most dangerous testing failure mode in this repository, and 7.21 is
+its ancestor.** Deliberately breaking the code and checking that a test fails is
+the only way to know the test is real. The trap is that **the mutation itself can
+silently fail to apply** — and a mutation that did not apply produces the same
+green result as a test that cannot fail.
+
+It happened twice in one round. A mutation was written as a PowerShell
+`String.Replace` whose search text contained `\r\n` (CRLF); the file used LF, so
+nothing was replaced, the suite stayed green, and the conclusion "this test does
+not catch the regression" was **wrong**. Re-applied through the editor, both
+mutations were caught immediately.
+
+Rules this produces:
+
+- **Verify the mutation applied before drawing any conclusion from it.** Read the
+  line back and see the changed text. A string replace that silently matches
+  nothing is indistinguishable from a passing test.
+- Prefer the editor tools for mutations, and revert with them. Do not mutate and
+  revert with in-memory string arithmetic.
+- A green suite after a mutation means "the mutation did not take effect" until
+  proven otherwise.
+
+**The same round produced a second instance of a test that could not fail.** A new
+assertion was `expect(body, contains('9'))` for the schema version — but the
+multipart body contains the snapshot's own generated bytes, and one of them is the
+digit `9`, so the assertion was satisfied by the file content and would have passed
+with the field missing entirely. It now reads the declared value out of the request
+and compares it to `currentSchemaVersion`. This is 7.21's defect repeating within a
+day, which is why the pattern is recorded here and not just the instance.
+
+### 7.23 A hand-written hash literal is not a hash
+
+Fixing a login timing leak needs a **real** bcrypt hash to compare against, so that
+the unknown-account branch and the wrong-password branch cost the same. The first
+attempt used a plausible-looking bcrypt string assembled by hand. It would have
+been worse than no fix, because it *looks* correct: `password_verify` against a
+malformed hash returns immediately instead of doing the work, so the unknown-account
+branch would have stayed fast while the code appeared to have fixed the leak.
+
+Measured before trusting it:
+
+```
+known user, wrong password : 3837.4 ms for 20   (~191 ms each)
+unknown user, dummy hash   : 3817.2 ms for 20   (~191 ms each)
+malformed hash             :    0.8 ms for 20   (~0.04 ms each)
+```
+
+Generate the hash and measure it; do not type one. The same reasoning applies to
+any constant whose purpose is to make two code paths equivalent.
+
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.
@@ -1814,9 +2114,9 @@ migration tests report a missing schema version, the snapshots are out of date
 and need regenerating with the two commands above.
 
 Toolchain present on this machine: PHP 8.4.17, Composer 2.8.5,
-**Flutter 3.47.5 / Dart 3.13.4 (see section 7.8)**, Node 20.18.0, .NET 8.0.402.
-Git is installed but no commits have been
-made; version control is the project owner's responsibility at present.
+**Flutter 3.47.5 / Dart 3.13.4 (see section 7.8)**, **PostgreSQL 17.4**,
+Node 20.18.0, .NET 8.0.402. Git is installed and the repository has commits; the
+remote is recorded in `GIT_REPO.md`.
 
 ## 9. Gate tracker
 
@@ -1833,21 +2133,27 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
 | 7 | Complete offline workflow | **Partial.** The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, and Backup screen exist and are wired to real use cases. **Nothing can yet be entered**: there is no form for a customer, product, invoice, or payment, so the business cannot be run through the application. |
 | 8 | Fiscal-year conclusion and archival | **Partial.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
-| 9 | Cloud backup and restore | **Partial.** The server exists and is tested: Sanctum, PostgreSQL, `books`, `backup_revisions`, the four-step verification chain, and store/index/show. **No client can reach it** — there is no token-issuing endpoint, no download endpoint, and no desktop upload path, so nothing has crossed the wire. |
+| 9 | Cloud backup and restore | **Half done.** The server stores and lists verified revisions, and **the desktop now uploads**: it verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path — and **there is no sign-in screen**, so a token must be supplied by hand. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** 620 Dart tests, all passing, and 13 Laravel tests. `flutter analyze`
-reports no issues. `php artisan test` reports
-`{"tests":13,"passed":13,"assertions":35}`. The newest Dart files are
-`test/presentation/backup_screen_test.dart` (10 widget tests) and
-`test/presentation/architecture_test.dart` (layer-boundary guards, now covering
-`export` directives as well as `import`).
+**Test suite:** **660 Dart tests**, all passing, and **35 Laravel tests**, all
+passing with 97 assertions. `flutter analyze` reports no issues. `php artisan test`
+reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean. The newest Dart
+files are `test/infrastructure/http_backup_upload_test.dart` (30 tests) and the
+upload widget tests in `test/presentation/backup_screen_test.dart` (24 total).
+
+**Not part of the suite:** `desktop/tool/live_upload_check.dart` (6 checks against
+a running server). It is deliberately not named `*_test.dart`, so `flutter test`
+does not pick it up and the suite stays hermetic. Run it with
+`FINANCEAPP_SERVER=http://127.0.0.1:8124 flutter test tool/live_upload_check.dart`.
 
 **Build status:** `flutter build windows --debug` succeeds and produces
 `financeapp.exe`.
 
-**Blocked on an owner answer:** the PostgreSQL password. See section 5. The test
-suites are unaffected, but no live end-to-end run is possible until it is known.
+**Live status:** PostgreSQL 17.4 holds the `financeapp` database with all six
+migrations applied. The API has been exercised over HTTP against it, and a real
+snapshot uploaded from the desktop's own uploader and read back out of
+PostgreSQL. The password is in `backend/.env`, which is gitignored.
 
 **Generated files that must be committed:** `drift_schemas/` (the schema
 snapshots) and `test/generated/` (the migration-test helpers). They are not
@@ -1885,3 +2191,10 @@ build output; deleting them breaks the migration tests.
 | 2026-09-30 | Implemented opening a concluded fiscal year, read-only -- a specified requirement in three places, including the acceptance test *"Historical year → opens read-only"*, that had not been built. **Read-only is enforced by the database, not the screen**: `PRAGMA query_only` is set through the `setup` hook so every connection the executor opens refuses writes, and a test asserts the exact SQL insertion fails and that the file on disk is untouched. A rule living only in the UI is one any future caller walks past. Read-only does not mean unreadable, and the figures still load. The trading year stays writable, asserted separately: a guard that stopped the business trading would be worse than the problem it solves. Switching year replaces the whole service bundle, because every use case belongs to one year's books. A hidden clock dependency was removed while building this -- the session had been recomputing "the current year" from `DateTime.now()`, which would have made the decision untestable; the trading year is now given, never inferred. Suite 609. |
 | 2026-09-30 | Implemented the backend: Sanctum, PostgreSQL, `books` and `backup_revisions`, the upload verification chain, and store/index/show routes. **An unverified upload is never treated as a valid backup**, enforced as four ordered checks, cheapest-and-safest first: magic header, declared size, declared SHA-256, then SQLite's own `integrity_check`. The first failure stops the upload and nothing is written -- no file, no row. There is deliberately no "uploaded but not yet checked" state, because such a row is a backup the desktop might later report as stored. The integrity check is **last on purpose**: opening a received file with SQLite parses data from outside, so it runs only after the file is known to be a SQLite database whose checksum matches a trusted client, and it is opened read-only. Most of the 11 tests are about **refusal**, since a backup feature is only worth having if it can say no -- including a corrupted database with a valid header and a matching checksum, which only the integrity check catches, and a revision that does not follow the latest, which is a conflict rather than a silent overwrite so two copies cannot clobber each other. The SQLite file is not in the database: `object_key` points at the `backups` disk, so moving to object storage is a config change. A stored revision has no `updated_at`, because the specification's column list has none and a revision is immutable. `APP_NAME` is `financeapp`. Tests run on in-memory SQLite, so no external database is needed. 13 Laravel tests, suite 620 Dart tests, Windows build verified. |
 | 2026-09-30 | **Recovered `PROGRESS.md` from a self-inflicted loss.** Splicing the file by line number in PowerShell destroyed 1,300 lines, because a failed `AddRange` conversion threw *after* the head and tail were computed. Restoring from `git checkout HEAD -- PROGRESS.md` brought back the corruption rather than the text: commit `ae3c63b` already contains five corrupt bytes, because PowerShell 5.1 cannot encode an em dash and `Set-Content` had replaced each with a lone `0x97`. Repaired at the byte level, then sections 4.22 to 4.26 and 7.19 to 7.21 were rewritten by hand. The two lessons are recorded in 7.19 and are the most transferable findings of the session: **never use `Set-Content` on a `.md` file here, and never splice one by line number.** The file is 0 corrupt bytes. |
+| 2026-09-30 | Closed both remaining blockers to a live run. The owner supplied the PostgreSQL password; `DB_PASSWORD` was empty in `backend/.env` and the database itself had never been created, so the two faults presented the *same* symptom from outside — `FATAL: database "financeapp" does not exist` — and only surfaced separately once authentication succeeded. Created `financeapp` (UTF-8, PostgreSQL 17.4) and ran all six migrations against it. Then implemented **token issuance**: `register`, `login`, `logout`, `me`, with 18 tests. `register` and `login` sit **outside** the `auth:sanctum` group, because no token can be obtained without them and guarding them would make every route unreachable. Registration creates the account's one book (ADR 003), without which the desktop has nothing to upload a backup against. An unknown email and a wrong password return the identical response so accounts cannot be enumerated, and logout revokes only the token used. **This is token issuance, not licensing**: the specification's signed licence authorisation with subscription status, expiry, device binding, and an offline public-key check is a separate capability, and a half-built licence check that looks authoritative is worse than none. **One test bug was mine and worth recording** — asserting that a revoked token returns 401 in a second request in the same test method passes or fails on Sanctum's guard memoising the resolved user for the lifetime of the shared application instance, so it tests the framework's caching rather than the feature; the assertion was moved to the stored row, and a separate test proves the guard does read the database. The factory's default password of `'password'` is too short to pass the new registration policy, so a `withPassword` state was added rather than weakening the policy to fit the test. Verified end to end over HTTP against live PostgreSQL: register, login, `me`, a genuine SQLite snapshot uploaded with its real checksum and size, and seven refusals including a bad checksum, a stale revision, and a file that is not a database — **one revision remained stored afterwards**, which is the property that matters. 31 Laravel tests / 77 assertions, Pint clean, 620 Dart tests, Windows build verified. |
+| 2026-09-30 | Corrected stale documentation after reading every markdown file in the repository. **Three documents contradicted the code they described.** `docs/INVENTORY_EXPLAINED.md` still stated that the write-down to net realisable value was **"not implemented"** and that it "must be built before inventory can be called complete" — it was completed in 4.19; ADR 004 carried the same stale follow-on. The root `README.md` said **"PostgreSQL is not needed yet. No migrations have been written"** and that the backend "still defaults to its shipped configuration", and named the backend **Laravel 12** when it is 13. `docs/BACKUP_AND_RETENTION.md` said there is "no server copy" and that cloud backup "needs the backend, which is not built". Also fixed: a **broken table row** in `docs/ARCHITECTURE.md` where two rows were joined by `||` and rendered as one; `docs/AI_RULES.md` listed four packages as approved dependencies without saying that none of them are actually in `pubspec.yaml`; and `PROGRESS.md` claimed "no commits have been made" when there were five. The two stock template files were replaced — `desktop/README.md` ("A new Flutter project") and `backend/README.md` (the Laravel boilerplate) — and `backend/AGENTS.md` and `backend/CLAUDE.md`, which contained only the Laravel Boost bootstrap instructing agents to `composer require laravel/boost`, were replaced with the real instructions plus an explicit **"Do not install Laravel Boost"** note, because the product owner has declined it and the files would otherwise keep telling every future agent to add it. A stale `description` in `pubspec.yaml` was corrected too. |
+| 2026-09-30 | Implemented the desktop half of cloud backup: **a verified snapshot now crosses the wire**. An `UploadActions` port in the domain, `HttpBackupUploader` in infrastructure over `dart:io`'s `HttpClient`, and a "Send to the server" button on the Backup screen. **The local backup is never touched, on any path**, which is the invariant the feature rests on: it is opened for reading and its bytes are sent, and every refusal test asserts the file is byte-identical afterwards. A success is claimed only for a `201` carrying a revision number — a `201` whose body cannot be read is not a success, because the answer exists to confirm what was stored. The declared checksum and size are **recomputed from the file**, not taken from the `BookBackup`, because the server checks them against the bytes it receives. The revision sequence is **read from the server before each upload**, filtered to the fiscal year being sent, so a reinstall does not conflict and a new year starts at 1. A `409` is reported as a conflict and **never retried**; a connection failure and a server error both become `unreachable`, because for the user they are one thing. `dart:io` rather than `package:http`, so the feature adds **no dependency**. 26 infrastructure tests, 8 widget tests, 654 total. |
+| 2026-09-30 | **Mutation-tested the new upload tests, and found one that was measuring the wrong thing.** Removing the fiscal-year filter from the revision logic left all 26 tests passing, because the test asserted the revision the **fake transport echoed** rather than the one the **uploader declared** — the fake replies with whatever a test scripts, so the assertion was testing the fake. The test now reads the `revision` field out of the multipart body, and the same mutation is caught. Four further mutations were checked deliberately (a stale checksum, a conflict reported as success, failures reported as success on the screen, and uploading a year with no local backup); each was caught. This is the same class of defect as 7.15 and 7.21 and was found only by breaking the code on purpose. **A second finding was the live check's own expectation**: it asserted that re-uploading the same snapshot returns a conflict. It does not and should not, because the uploader re-reads the sequence first, so a second upload from the same installation legitimately becomes the next revision; a `409` is for another installation uploading between the read and the write. The expectation was corrected rather than the code. |
+| 2026-09-30 | **Verified the upload against the real stack, because the unit tests replace the transport** and therefore leave the actual socket and the multipart encoding on the wire unverified. Added `tool/live_upload_check.dart`: six checks against a running Laravel server and the live PostgreSQL database using the real `IoHttpTransport`. It registers a throwaway account each run so it starts from a book with no revisions and can assert exact revision numbers — the first version pointed at a book that already had revisions, which made its absolute assertions meaningless. All six passed: a snapshot uploads and is confirmed as revision 1, a re-upload advances to 2, a second fiscal year starts independently at 1, a non-database file is refused with the server's own reason, an unreachable server is reported with the local backup intact, and **a refused upload is not recorded as a local success**. The rows were then read back out of PostgreSQL. `flutter test` skips the file by name, so the suite stays hermetic. |
+| 2026-09-30 | **Reviewed the uncommitted work and fixed all twelve findings.** The two that mattered were written the same day. **The upload never checked that the snapshot was still the verified one**: `BookBackup.checksum` was ignored, so a file corrupted or edited after the backup would have been uploaded, accepted by the server (whose check only covers the trip), and reported as a safe off-machine copy. It now streams a checksum and refuses on mismatch via a new `UploadStatus.unverified`. **Registration returned a 500 on ordinary input**: `unique:users,email` was checked against the address as typed while the lower-cased value was stored, so `SITA@Example.COM` after `sita@example.com` passed the rule and then hit the unique index; normalisation now happens before validation. Also fixed: the Backup screen counted only attempted years and so claimed "every year is now stored off this computer" while a year had no backup at all; the public `register`/`login` routes had **no rate limit** (verified against the framework: the `api` group gets `throttle:api` only when `throttleApi()` is called, and `bootstrap/app.php` leaves it empty) and now carry `throttle:6,1`; and a new test asserted `contains('9')` for the schema version, which the snapshot's own bytes already satisfied, so it **could not fail** — it now compares the declared field to `currentSchemaVersion`. The rest: login leaked account existence through a bcrypt short-circuit; registration confirmed that an email exists, contradicting login's anti-enumeration design; a plaintext remote server was accepted, which would have put the token and the whole database on the network readable; the body was copied three or four times in memory and hashed on the UI isolate; a fresh `HttpClient` per request discarded connection reuse; and `UploadResult.localBackupIsIntact` was dead. 660 Dart tests, 35 Laravel tests / 97 assertions, Pint and analyze clean, Windows build green, and all six live checks against the real server and PostgreSQL still pass. |
+| 2026-09-30 | **Mutation-tested every fix from the review, and caught a failure mode worse than a bad test.** Three of four new tests initially appeared not to catch their own regression — but the mutations had not applied at all: the search strings contained CRLF and the files used LF, so the replace matched nothing and the suite stayed green for the wrong reason. Re-applied through the editor, all of them failed without their fix, as they should. **A mutation that does not apply is indistinguishable from a test that works**, which is now recorded as 7.22 alongside the second instance of a test that could not fail (7.21's defect, repeated within a day). A third discovery: the timing fix's first version used a hand-written bcrypt-looking literal, which would have kept the leak while looking fixed, because `password_verify` against a malformed hash returns in **0.04 ms** against **191 ms** for a real one — measured, not assumed. Recorded as 7.23. |

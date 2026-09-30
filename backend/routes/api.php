@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupRevisionController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,7 +19,32 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// Registration and sign-in. These are the only unauthenticated routes in the
+// whole API, and they must sit outside the guard below: no token can be obtained
+// without one of them, so requiring a token here would make every route
+// unreachable.
+//
+// **They are rate limited, explicitly.** `bootstrap/app.php` leaves
+// `withMiddleware` empty, and the framework only puts `throttle:api` on the `api`
+// group when `throttleApi()` is called, so without this these two routes would
+// accept unlimited requests: unbounded account and book creation, unrestricted
+// credential guessing, and bcrypt CPU exhaustion. Six attempts a minute per
+// client is generous for a person and useless for a script.
+Route::post('/auth/register', [AuthController::class, 'register'])
+    ->middleware('throttle:6,1')
+    ->name('api.auth.register');
+Route::post('/auth/login', [AuthController::class, 'login'])
+    ->middleware('throttle:6,1')
+    ->name('api.auth.login');
+
 Route::middleware('auth:sanctum')->group(function () {
+    // Signed-in identity, and sign-out. `me` exists so the desktop can check a
+    // stored token before relying on it.
+    Route::get('/auth/me', [AuthController::class, 'me'])
+        ->name('api.auth.me');
+    Route::post('/auth/logout', [AuthController::class, 'logout'])
+        ->name('api.auth.logout');
+
     // A verified snapshot of one fiscal year's books, uploaded from the desktop.
     Route::post('/books/{book}/backup-revisions', [BackupRevisionController::class, 'store'])
         ->name('api.backup-revisions.store');

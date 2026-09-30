@@ -111,20 +111,23 @@ that were never recorded at all, which is the case that actually matters.
   which is a separate design.
 - **It does not make the cost correct, only defined.** See Decision 1.
 
-## Follow-on decisions this does not settle
+## Follow-on decisions
 
-Recorded so they are not mistaken for settled:
-
-1. **Stock reductions that are not sales.** Damage, theft, and stock-count
-   corrections need an adjustment movement. Whether an adjustment may take stock
+1. **Stock reductions that are not sales.** Damage, theft, stock-count
+   corrections, and disposal need adjustment movements. Disposal and the
+   write-down are now modelled; whether a *general* adjustment may take stock
    negative is a separate question, and the answer may differ from the sales
-   answer.
-2. **Valuation at the lower of cost and net realisable value.** IAS 2 and NAS 2
-   require inventory to be carried at the lower of cost and net realisable value.
-   Write-downs are not modelled. This must be addressed before Gate 6 can be
-   called complete.
+   answer. Still open.
+2. ~~**Valuation at the lower of cost and net realisable value.**~~ **DONE.** The
+   write-down is implemented: a value-only movement that reduces the carrying
+   amount without changing quantity, posting
+   `Dr 5070 Inventory Adjustments / Cr 1040 Inventory`. It refuses a value at or
+   above the carrying amount, because IAS 2 does not permit inventory to be
+   revalued upwards. Recording it as a movement rather than a side entry is what
+   keeps the inventory account equal to the sum of the movements. See
+   `PROGRESS.md` section 4.19.
 3. **Purchase returns.** Section 29's end-to-end test includes one, and it
-   interacts with the running valuation.
+   interacts with the running valuation. Not built.
 4. **Rounding residue across a period.** Value-first accounting keeps the ledger
    reconciled at all times, but the sum of COGS across many sales will not
    necessarily equal the total value that left inventory unless each posting is

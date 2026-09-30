@@ -190,25 +190,54 @@ creep in with every transaction and the inventory account slowly stops matching
 reality — silently. Tracking the total value instead means the inventory account
 always reconciles, whatever the displayed unit price rounds to.
 
+### 4. Stock that will not sell is written down
+
+This is the **lower of cost and net realisable value** rule from above, and it is
+implemented.
+
+If stock you paid Rs 100 for can now only be sold for Rs 80, you write it down to
+Rs 80 and recognise the Rs 20 loss **now**, rather than waiting until it is sold.
+The application posts:
+
+```
+Dr  5070 Inventory Adjustments   Rs 20
+Cr  1040 Inventory               Rs 20
+```
+
+Three properties of the write-down are worth knowing, because they are what make it
+consistent with the rest of the system:
+
+- **The quantity does not change.** A write-down reduces what the stock is *worth*,
+  not how much of it you hold — the goods are still on the shelf. So the write-down
+  is recorded as its own kind of movement, one that carries a value change with no
+  quantity change.
+- **Stock can never be written *up*.** IAS 2 does not permit inventory to be
+  revalued upwards, so a value at or above the current carrying amount is refused.
+  The boundary is exact: a write-down to one paisa below cost is accepted, and the
+  same amount or above is refused.
+- **It stays a movement, like everything else.** Recording the write-down as an
+  inventory movement rather than a side entry is what keeps the inventory account
+  equal to the sum of the movements by construction, even after a write-down.
+
+Throwing stock away is a *different* operation from writing it down, and has its
+own movement type.
+
 ---
 
 ## What this application does *not* do yet
 
 Being explicit so nobody assumes these are handled:
 
-1. **Writing down stock that will not sell.** The "lower of cost and net
-   realisable value" rule above is **not implemented**. If stock becomes
-   unsaleable, there is currently no supported way to write it down. This must be
-   built before inventory can be called complete.
-2. **Stock reductions that are not sales.** Damage, theft, and stock-count
-   corrections need their own adjustment entries. The rule for whether an
-   adjustment may bring stock to zero or below is a separate decision, still open.
-3. **Purchase returns.** Returning goods to a supplier, and what it does to the
+1. **Stock reductions that are not sales or write-downs.** Damage, theft, and
+   stock-count corrections need an adjustment movement of their own. Disposal is
+   modelled; the rule for whether a general adjustment may bring stock to zero or
+   below is a separate decision, still open.
+2. **Purchase returns.** Returning goods to a supplier, and what it does to the
    running value, is not modelled yet.
-4. **Backdated transactions.** Stock recorded today plus a sale dated months
+3. **Backdated transactions.** Stock recorded today plus a sale dated months
    earlier will still be accepted, and the cost used is today's average rather
    than the average that existed then. Accepted for now; noted as a limitation.
-5. **Onboarding.** A business starting with goods already on the shelf must record
+4. **Onboarding.** A business starting with goods already on the shelf must record
    opening stock first, or every sale is blocked. The mechanism exists
    (`OPENING_STOCK`); making it easy is a UI task.
 

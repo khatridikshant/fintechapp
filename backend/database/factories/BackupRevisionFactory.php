@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\BackupRevision;
 use App\Models\Book;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<\App\Models\BackupRevision>
+ * @extends Factory<BackupRevision>
  */
 class BackupRevisionFactory extends Factory
 {
@@ -37,7 +38,7 @@ class BackupRevisionFactory extends Factory
             'checksum' => hash('sha256', (string) fake()->uuid()),
             'database_version' => 9,
             'revision' => $revision,
-            'archive_status' => \App\Models\BackupRevision::STATUS_ACTIVE,
+            'archive_status' => BackupRevision::STATUS_ACTIVE,
             'created_at' => now(),
             'archived_at' => null,
         ];

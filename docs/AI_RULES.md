@@ -92,20 +92,24 @@ Explicitly rejected, despite being common search results:
 | `syncfusion_flutter_datagrid`, `syncfusion_flutter_charts` | Commercial licence. The most common result for a Flutter data grid, and a trap. |
 | Any Avalonia Accelerate / Pro component | Commercial, per-seat. Not in this repo, recorded so it is not reintroduced. |
 
-Approved core dependencies, all permissive:
+Approved dependencies, all permissive. The **In use** column is not decoration:
+a package listed as approved but not in use is not in `pubspec.yaml`, and adding
+it is a normal dependency decision, not a pre-approved one.
 
-| Package | Licence | Purpose |
-| --- | --- | --- |
-| `drift` | MIT | SQLite, type-safe queries, migrations |
-| `drift_dev`, `build_runner` (dev) | MIT | Code generation for drift |
-| `sqlite3` | MIT | Native SQLite bindings, imported directly by `sqlite_native.dart` |
-| `crypto` | BSD-3 | SHA-256 checksums for verifying backups |
-| `sqlite3_flutter_libs` | MIT | Bundles SQLite into the shipped application |
-| `path`, `path_provider` | MIT / BSD-3 | Database file location |
-| `pluto_grid` | MIT | Dense desktop data grid |
-| `fl_chart` | MIT | Restrained charts |
-| `go_router` | BSD-3 | Navigation |
-| `flutter_secure_storage` | BSD-3 | OS-protected token and licence storage |
+| Package | Licence | Purpose | In use |
+| --- | --- | --- | --- |
+| `drift` | MIT | SQLite, type-safe queries, migrations | **Yes** |
+| `drift_dev`, `build_runner` (dev) | MIT | Code generation for drift | **Yes** |
+| `sqlite3` | MIT | Native SQLite bindings, imported directly by `sqlite_native.dart` | **Yes** |
+| `sqlite3_flutter_libs` | MIT | Bundles SQLite into the shipped application | **Yes** |
+| `path`, `path_provider` | MIT / BSD-3 | Database file location | **Yes** |
+| `crypto` | BSD-3 | SHA-256 checksums for verifying backups | **Yes** |
+| `cupertino_icons` | MIT | Shipped with the Flutter template | **Yes** |
+| `flutter_lints` (dev) | BSD-3 | The lint set | **Yes** |
+| `pluto_grid` | MIT | Dense desktop data grid | No — approved for later |
+| `fl_chart` | MIT | Restrained charts | No — approved for later |
+| `go_router` | BSD-3 | Navigation | No — approved for later |
+| `flutter_secure_storage` | BSD-3 | OS-protected token and licence storage | No — approved for later |
 
 **The Bikram Sambat calendar is deliberately NOT a package.** Its data is kept
 in-tree in `lib/src/domain/fiscal/bs_calendar_data.dart`, because a single

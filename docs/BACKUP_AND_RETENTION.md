@@ -14,8 +14,9 @@ If you read one section, read **"What the application does now"** and then
 The application keeps your books in a single file on your computer — one file per
 fiscal year, for example `accounting-FY-2082-83.db`.
 
-That file is **the books**. There is no server copy. If it is deleted, or
-corrupted, or the disk fails, then:
+That file is **the books**. It is the only copy your business is working from,
+and nothing is automatically sent anywhere else. If it is deleted, or corrupted,
+or the disk fails, then:
 
 - every invoice, payment, expense, and journal entry is gone
 - the trial balance and all reports are gone with it
@@ -150,26 +151,60 @@ An untested backup is not a backup. The test suite takes a backup, changes the
 data, restores, and asserts the original figures came back. A backup that has
 never been restored has only been *assumed* to work.
 
+### 7. It can send the backup to a server
+
+This is the part that gets a copy **off the machine**, and it is built. Once the
+application is signed in, the Backup screen has a **Send to the server** button
+that uploads the newest backup of **every** fiscal year, not only the current one.
+
+Three things about it are worth knowing, because they are what make it safe to
+press:
+
+- **Your local backup is never changed by sending.** Not when it succeeds, not
+  when the server refuses it, not when the server cannot be reached. The file is
+  opened for reading, its bytes are sent, and nothing writes to it. Your local
+  copy stays exactly as it was, which is what makes it safe to try.
+- **It checks the snapshot is still a good one before it sends anything.** Every
+  backup carries a fingerprint of its contents taken when it was made. If the file
+  has changed since — corrupted on disk, or edited — the fingerprint no longer
+  matches, and the application **refuses to send it** and tells you to take a fresh
+  backup. This matters because the server's own check only proves the file arrived
+  intact; it cannot know whether the file was already wrong when it left. Sending a
+  damaged file and being told it was stored safely would be the worst outcome of
+  all.
+- **It only claims success when the server has confirmed it.** A "sent" message
+  means the server verified the snapshot, stored it, and told the application which
+  revision number it gave it. If the answer does not confirm that, the application
+  says the upload did not happen rather than guessing.
+- **Sending does not replace backing up.** These are two separate actions with two
+  separate buttons, and you need both. A backup that has never been sent is still
+  only on this computer.
+
 ---
 
 ## What it still does not do
 
 Being explicit, so none of this is assumed:
 
-1. **No off-machine copy.** Everything above protects against a corrupt or
-   accidentally deleted file. It does **not** protect against the disk failing,
-   the computer being lost or stolen, or a fire. For that, a backup must leave
-   the machine — onto a USB drive, an external disk, or the cloud.
+1. **You cannot sign in yet, so sending is not usable without help.** Everything
+   above protects against a corrupt or accidentally deleted file. It does **not**
+   protect against the disk failing, the computer being lost or stolen, or a fire.
+   For that, a backup must leave the machine — and the application can now do that
+   (see above), but **the sign-in screen is not built**. The token has to be
+   supplied by hand, which is fine for a developer and unusable for a business.
 
-   **This is the remaining gap, and it is the big one.** The application can now
-   produce a verified backup reliably; getting it off the machine is not built
-   yet.
+   **So this is still the gap that matters.** Until signing in exists, treat
+   sending as unavailable and copy the backup folder to a USB drive or an external
+   disk yourself. See Gate 9 in `PROGRESS.md`.
 
 2. **No automatic schedule.** Backups are taken when asked for. A business that
    forgets to press the button has no recent backup.
 
-3. **No cloud backup or restore.** Gate 9 in `PROGRESS.md`. That needs the
-   backend, which is not built.
+3. **You cannot restore *from* the server yet.** The server stores a backup and
+   will tell the application what it holds, but there is no way to fetch one back.
+   So the off-machine copy is currently write-only: it protects the record, but
+   recovering from it needs a step that does not exist. **A backup that cannot be
+   fetched is not a backup**, and this is the other half of Gate 9.
 
 4. **No encryption.** A backup file is readable by anyone who can open it. If a
    USB drive is lost, so are the books.
@@ -181,13 +216,14 @@ Being explicit, so none of this is assumed:
 
 ---
 
-## What you should do until the off-machine gap is closed
+## What you should do until signing in exists
 
 - **Take a backup at the end of every working day**, or at least every week, and
   after any large amount of entry.
-- **Copy the backup folder onto a USB drive or an external disk.** The
-  application cannot do this for you yet, so it is a manual step. Do it anyway —
-  it is the difference between losing a day and losing everything.
+- **Copy the backup folder onto a USB drive or an external disk.** Sending to a
+  server is built but needs a sign-in that does not exist yet, so treat it as
+  unavailable and make the copy yourself. It is the difference between losing a
+  day and losing everything.
 - **Keep the external copy away from the computer**, so that a single incident
   cannot take both.
 - **Never delete the only copy of a closed year.** Once a fiscal year is
@@ -205,6 +241,7 @@ Being explicit, so none of this is assumed:
 | **Checksum** | A short code derived from a file's contents. If even one byte changes, the code changes, so corruption is detectable. |
 | **Integrity check** | SQLite's own test that a database file is valid and not damaged. |
 | **Retention period** | How long the law requires records to be kept. |
+| **Revision** | The server's copy number for one fiscal year's backups. Each upload of a year is the next revision, so an earlier one is never overwritten. |
 
 ---
 

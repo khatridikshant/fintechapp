@@ -42,4 +42,19 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * A user with a known password.
+     *
+     * Login tests need to present a real credential, and the default `'password'`
+     * is too short to satisfy the registration policy, so it cannot be used to
+     * stand in for a passphrase. The model's `hashed` cast does the hashing, so
+     * the plaintext is passed in.
+     */
+    public function withPassword(string $password): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'password' => $password,
+        ]);
+    }
 }

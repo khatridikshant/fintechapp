@@ -39,7 +39,8 @@ completely unreachable.
 | --- | --- | --- | --- |
 | Desktop UI and application runtime | Flutter / Dart | BSD-3 | No paid tier exists. Windows, macOS, Linux. |
 | Local database | SQLite via `drift` | MIT | One database per fiscal year. |
-| Backend | Laravel | MIT | PHP 8.4. || Cloud metadata database | PostgreSQL | PostgreSQL Licence | Metadata only, never SQLite file contents. |
+| Backend | Laravel 13, PHP 8.4 | MIT | Identity, books, backup metadata, licensing. |
+| Cloud metadata database | PostgreSQL | PostgreSQL Licence | Metadata only, never SQLite file contents. |
 | SQLite snapshots | File or object storage | n/a | Actual database files. |
 
 ## Why Flutter

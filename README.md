@@ -11,7 +11,7 @@ running Shrawan to Ashadh.
 
 | Path | What it is |
 | --- | --- |
-| `backend/` | Laravel 12 API. Identity, books, fiscal-year metadata, sync, backup, restore, licensing, admin. |
+| `backend/` | Laravel 13 API. Identity, books, fiscal-year metadata, sync, backup, restore, licensing, admin. |
 | `desktop/` | Flutter app for Windows, macOS, and Linux. The primary business system. |
 | `docs/` | Architecture, the AI development contract, and Architecture Decision Records. |
 | `docs/INVENTORY_EXPLAINED.md` | **Plain-language explainer** for inventory costing: what the methods mean with real numbers, what Nepali rules allow, and what this application does. Written for a non-accountant. |
@@ -47,9 +47,12 @@ cd financeapp
 
 # Backend
 cd backend
-composer install                 # rebuilds vendor/ (8,864 files, not committed)
-cp .env.example .env             # .env is never committed; it holds APP_KEY
+composer install                 # rebuilds vendor/ (not committed)
+cp .env.example .env             # .env is never committed; it holds APP_KEY and the DB password
 php artisan key:generate         # writes a new APP_KEY into .env
+# set DB_PASSWORD in .env, then create the database and migrate:
+createdb -U postgres financeapp
+php artisan migrate
 
 # Desktop
 cd ../desktop
@@ -75,13 +78,16 @@ What is deliberately not committed:
 | `backend/.env` | Contains `APP_KEY`. Never commit it. | `cp .env.example .env` + `key:generate` |
 | `desktop/.dart_tool/`, `build/` | Generated build state. | `flutter pub get` |
 
-**Required local toolchain:** PHP 8.4+ with Composer, Flutter stable, and the
-native build tools for your platform (Visual Studio with the C++ workload on
-Windows, Xcode on macOS, GTK dev headers and clang on Linux).
+**Required local toolchain:** PHP 8.4+ with Composer, Flutter stable, PostgreSQL 17,
+and the native build tools for your platform (Visual Studio with the C++ workload
+on Windows, Xcode on macOS, GTK dev headers and clang on Linux).
 
-**PostgreSQL is not needed yet.** No migrations have been written and the backend
-still defaults to its shipped configuration. You will not hit a database error
-until backend work actually starts.
+**The backend needs PostgreSQL.** It is configured for PostgreSQL, and the API
+(six migrations, authentication, and the backup endpoints) has been run against a
+live PostgreSQL 17 database. You will need a `financeapp` database and a
+`DB_PASSWORD` in `backend/.env`. The **test suite does not need it** — Laravel runs
+its feature tests on an isolated in-memory SQLite database — so `php artisan test`
+passes on a machine with no PostgreSQL at all.
 
 ## Development
 
