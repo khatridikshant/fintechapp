@@ -45,28 +45,41 @@ authoritative than any summary, including this one.
 
 ```
 finsoftware/
-├── backend/              Laravel API (PHP 8.4)
+├── backend/              Laravel 13 API (PHP 8.4). Identity, books, backup metadata.
 ├── desktop/              Flutter app (Dart, BSD-3)
 │   ├── lib/src/
 │   │   ├── domain/       Pure business rules. Imports nothing from other layers.
-│   │   │   ├── accounting/  Money-adjacent: accounts, journal, ledger, chart of accounts.
-│   │   │   ├── reporting/   Trial balance, general ledger.
+│   │   │   ├── accounting/  Accounts, journal, ledger, chart of accounts.
+│   │   │   ├── billing/     Invoices, credit notes, customers, payments.
+│   │   │   ├── inventory/   Movements, valuation, negative-stock rules.
+│   │   │   ├── reporting/   Trial balance, general ledger, P&L, balance sheet.
 │   │   │   ├── fiscal/      Bikram Sambat calendar and fiscal years.
-│   │   │   ├── billing/     Document types, numbers, numbering port.
-│   │   │   └── shared/      Money, unit of work.
-│   │   ├── application/  Use cases. PostJournalEntry exists.
-│   │   ├── infrastructure/ SQLite, filesystem, sync, licensing, crypto.
-│   │   └── presentation/ Flutter UI. Still empty.
+│   │   │   └── shared/      Money, ids, numbering, backup and upload contracts.
+│   │   ├── application/  Use cases: issue_invoice, record_payment,
+│   │   │                 issue_credit_note, post_journal_entry,
+│   │   │                 post_inventory_movement, write_down_inventory,
+│   │   │                 build_trial_balance, build_general_ledger, books_session.
+│   │   ├── infrastructure/  database/ (drift), backup/, sync/ (HTTP upload).
+│   │   │                    crypto/, filesystem/, licensing/ are still empty.
+│   │   └── presentation/  shell, app_services, navigation/, screens/, theme/, widgets/.
 │   ├── drift_schemas/    Schema snapshots. Committed, needed by migration tests.
-│   └── test/
-│       ├── domain/  application/  infrastructure/
-│       └── generated/    Drift migration-test helpers. Committed, not build output.
-├── docs/                 Architecture, rules, ADRs
+│   ├── tool/             live_upload_check.dart — not part of the test suite.
+│   └── test/             lib-mirroring layout, plus generated/ for drift.
+│                         generated/ and drift_schemas/ are committed, not build output.
+├── docs/                 AI_RULES, ARCHITECTURE, plus explainers and decisions/ (ADRs).
+├── NEW_MACHINE.md        Setting the project up on a different device.
+├── GIT_REPO.md           The remote, and the fintechapp / financeapp name difference.
 └── PROGRESS.md           This file.
 ```
 
-Directory folders under `lib/src/` and `test/` were created empty. Only
-`domain/shared/money.dart` has content. The rest is a skeleton.
+**Two corrections to this section, which had gone stale.** It previously said
+`presentation/` was "still empty" and that "only `domain/shared/money.dart` has
+content". Both were false: the presentation layer holds the shell, the navigation,
+the theme, and five screens, and the domain layer is largely built. It also listed
+`domain/` subfolders that are in fact empty directories (`customers/`, `products/`,
+`payments/`, `expenses/`, `suppliers/`) — the concepts live inside `billing/` and
+`inventory/`, except for suppliers and expenses, which do not exist at all. Read the
+code, not this list, when it matters.
 
 ## 4. What has been done
 
@@ -2198,3 +2211,4 @@ build output; deleting them breaks the migration tests.
 | 2026-09-30 | **Verified the upload against the real stack, because the unit tests replace the transport** and therefore leave the actual socket and the multipart encoding on the wire unverified. Added `tool/live_upload_check.dart`: six checks against a running Laravel server and the live PostgreSQL database using the real `IoHttpTransport`. It registers a throwaway account each run so it starts from a book with no revisions and can assert exact revision numbers — the first version pointed at a book that already had revisions, which made its absolute assertions meaningless. All six passed: a snapshot uploads and is confirmed as revision 1, a re-upload advances to 2, a second fiscal year starts independently at 1, a non-database file is refused with the server's own reason, an unreachable server is reported with the local backup intact, and **a refused upload is not recorded as a local success**. The rows were then read back out of PostgreSQL. `flutter test` skips the file by name, so the suite stays hermetic. |
 | 2026-09-30 | **Reviewed the uncommitted work and fixed all twelve findings.** The two that mattered were written the same day. **The upload never checked that the snapshot was still the verified one**: `BookBackup.checksum` was ignored, so a file corrupted or edited after the backup would have been uploaded, accepted by the server (whose check only covers the trip), and reported as a safe off-machine copy. It now streams a checksum and refuses on mismatch via a new `UploadStatus.unverified`. **Registration returned a 500 on ordinary input**: `unique:users,email` was checked against the address as typed while the lower-cased value was stored, so `SITA@Example.COM` after `sita@example.com` passed the rule and then hit the unique index; normalisation now happens before validation. Also fixed: the Backup screen counted only attempted years and so claimed "every year is now stored off this computer" while a year had no backup at all; the public `register`/`login` routes had **no rate limit** (verified against the framework: the `api` group gets `throttle:api` only when `throttleApi()` is called, and `bootstrap/app.php` leaves it empty) and now carry `throttle:6,1`; and a new test asserted `contains('9')` for the schema version, which the snapshot's own bytes already satisfied, so it **could not fail** — it now compares the declared field to `currentSchemaVersion`. The rest: login leaked account existence through a bcrypt short-circuit; registration confirmed that an email exists, contradicting login's anti-enumeration design; a plaintext remote server was accepted, which would have put the token and the whole database on the network readable; the body was copied three or four times in memory and hashed on the UI isolate; a fresh `HttpClient` per request discarded connection reuse; and `UploadResult.localBackupIsIntact` was dead. 660 Dart tests, 35 Laravel tests / 97 assertions, Pint and analyze clean, Windows build green, and all six live checks against the real server and PostgreSQL still pass. |
 | 2026-09-30 | **Mutation-tested every fix from the review, and caught a failure mode worse than a bad test.** Three of four new tests initially appeared not to catch their own regression — but the mutations had not applied at all: the search strings contained CRLF and the files used LF, so the replace matched nothing and the suite stayed green for the wrong reason. Re-applied through the editor, all of them failed without their fix, as they should. **A mutation that does not apply is indistinguishable from a test that works**, which is now recorded as 7.22 alongside the second instance of a test that could not fail (7.21's defect, repeated within a day). A third discovery: the timing fix's first version used a hand-written bcrypt-looking literal, which would have kept the leak while looking fixed, because `password_verify` against a malformed hash returns in **0.04 ms** against **191 ms** for a real one — measured, not assumed. Recorded as 7.23. |
+| 2026-09-30 | **Added `NEW_MACHINE.md`, the guide for setting the project up on a different device.** It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories — `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |

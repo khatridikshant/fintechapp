@@ -37,57 +37,23 @@ task rather than all 4000 lines at once.
 
 ## Continuing on a new machine
 
-The repository is designed so a fresh clone is enough. Two directories are
-deliberately not committed, because they are generated or secret. Both rebuild in
-under a minute.
+**See [`NEW_MACHINE.md`](NEW_MACHINE.md) for the full guide** — prerequisites, the
+commands for both bash and Windows PowerShell, what to verify, and the gotchas.
 
-```bash
-git clone <your-repo-url> financeapp
-cd financeapp
+Two things are worth stating here because they are easy to get wrong:
 
-# Backend
-cd backend
-composer install                 # rebuilds vendor/ (not committed)
-cp .env.example .env             # .env is never committed; it holds APP_KEY and the DB password
-php artisan key:generate         # writes a new APP_KEY into .env
-# set DB_PASSWORD in .env, then create the database and migrate:
-createdb -U postgres financeapp
-php artisan migrate
+- **Note the PostgreSQL password before you leave the old machine.** It lives in
+  `backend/.env`, which is deliberately not committed, so it is not recoverable
+  from GitHub.
+- **The backend test suite does not need PostgreSQL.** Laravel runs its feature
+  tests on an in-memory SQLite database, so `php artisan test` passes on a machine
+  with no PostgreSQL at all. Only `migrate`, `db:show`, and actually serving the
+  API need the real database.
 
-# Desktop
-cd ../desktop
-flutter pub get                  # reads the committed pubspec.lock
-flutter test                     # expect: All tests passed!
-flutter run -d windows
-```
-
-What is committed that makes this reproducible:
-
-| File | Why it matters |
-| --- | --- |
-| `backend/composer.lock` | Pins exact backend package versions. |
-| `desktop/pubspec.lock` | Pins exact Dart package versions. |
-| `backend/.env.example` | Template for the `.env` you must create locally. |
-| `desktop/windows`, `linux`, `macos` | Flutter's native folders. Committing them means you do not need to re-run `flutter create`. |
-
-What is deliberately not committed:
-
-| Path | Why | Rebuild with |
-| --- | --- | --- |
-| `backend/vendor/` | Dependencies. Huge, and resolved by the lockfile. | `composer install` |
-| `backend/.env` | Contains `APP_KEY`. Never commit it. | `cp .env.example .env` + `key:generate` |
-| `desktop/.dart_tool/`, `build/` | Generated build state. | `flutter pub get` |
-
-**Required local toolchain:** PHP 8.4+ with Composer, Flutter stable, PostgreSQL 17,
-and the native build tools for your platform (Visual Studio with the C++ workload
-on Windows, Xcode on macOS, GTK dev headers and clang on Linux).
-
-**The backend needs PostgreSQL.** It is configured for PostgreSQL, and the API
-(six migrations, authentication, and the backup endpoints) has been run against a
-live PostgreSQL 17 database. You will need a `financeapp` database and a
-`DB_PASSWORD` in `backend/.env`. The **test suite does not need it** — Laravel runs
-its feature tests on an isolated in-memory SQLite database — so `php artisan test`
-passes on a machine with no PostgreSQL at all.
+What a clone must rebuild — `backend/vendor/`, `backend/.env`, and Flutter's
+generated state (`desktop/.dart_tool/`, `desktop/build/`, and the platform
+`ephemeral/` folders) — takes under a minute in total. Everything else, including
+the generated drift code and the Windows runner source, is committed.
 
 ## Development
 
