@@ -15,6 +15,7 @@ running Shrawan to Ashadh.
 | `desktop/` | Flutter app for Windows, macOS, and Linux. The primary business system. |
 | `docs/` | Architecture, the AI development contract, and Architecture Decision Records. |
 | `docs/INVENTORY_EXPLAINED.md` | **Plain-language explainer** for inventory costing: what the methods mean with real numbers, what Nepali rules allow, and what this application does. Written for a non-accountant. |
+| `docs/NEPALI_CALENDAR.md` | **Plain-language explainer** for the Bikram Sambat calendar, including what has and has not been verified about the calendar data, and how to verify it before launch. |
 | `AGENTS.md` | Entry point for any AI agent. Read first. |
 | `PROGRESS.md` | Handoff state and the next task. |
 | `*.txt` | The three original specifications. These are the source of truth. |

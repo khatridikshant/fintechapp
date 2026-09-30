@@ -33,14 +33,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
-  bikram_sambat:
-    dependency: "direct main"
-    description:
-      name: bikram_sambat
-      sha256: f4ea3b0390ebced54c8c54ab5c8fc451d780d2b34452691f30e32555a2bdb87b
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.2.0"
   boolean_selector:
     dependency: transitive
     description:

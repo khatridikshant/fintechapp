@@ -294,7 +294,10 @@ void main() {
       );
     });
 
-    test('a zero quantity is rejected', () async {
+    test('a row that changes neither quantity nor value is rejected', () async {
+      // The constraint permits a *value-only* row, because that is how a
+      // write-down is recorded. What it still refuses is a row that changes
+      // nothing at all.
       final db = openInMemoryDatabase();
       addTearDown(db.close);
       final inventory = DriftInventoryRepository(db);
@@ -305,10 +308,27 @@ void main() {
           'INSERT INTO inventory_movements '
           '(id, product_id, date, reason, quantity, value_minor_units, currency) '
           'VALUES (?, ?, ?, ?, ?, ?, ?)',
-          ['MV-ZERO', keyboard.id, 1, 'adjustment', 0, 100, npr],
+          ['MV-ZERO', keyboard.id, 1, 'adjustment', 0, 0, npr],
         ),
         throwsA(predicate((e) => e.toString().toLowerCase().contains('check'))),
       );
+    });
+
+    test('a value-only row is permitted, because a write-down needs one',
+        () async {
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      final inventory = DriftInventoryRepository(db);
+      await inventory.saveProduct(keyboard);
+
+      await db.customStatement(
+        'INSERT INTO inventory_movements '
+        '(id, product_id, date, reason, quantity, value_minor_units, currency) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['MV-VALUEONLY', keyboard.id, 1, 'writeDown', 0, -100, npr],
+      );
+
+      expect(await db.select(db.inventoryMovements).get(), hasLength(1));
     });
 
     test('quantity and value pointing opposite ways is rejected', () async {

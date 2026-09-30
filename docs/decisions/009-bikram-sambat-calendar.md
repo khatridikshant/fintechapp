@@ -1,80 +1,88 @@
-# ADR 009 — Bikram Sambat calendar: `bikram_sambat`
+# ADR 009 — Bikram Sambat calendar: in-tree data, not a package
 
-**Status:** Accepted. Supersedes the "open question" recorded in
-`PROGRESS.md` section 7.10.
+**Status:** Accepted. **Supersedes the earlier version of this ADR**, which
+selected the `bikram_sambat` package. Rejected by the product owner on
+2026-09-30.
 
 ## Context
 
-The specification defines the fiscal year as **1 Shrawan to the end of Ashadh**
-and identifies years as **FY 2082/83**. Those are Bikram Sambat (BS) dates. The
-rest of the specification uses Gregorian dates.
+The fiscal year runs from **1 Shrawan to the end of Ashadh** and is identified as
+**FY 2082/83** — Bikram Sambat (BS) dates. Everything else in the specification is
+Gregorian.
 
-BS cannot be converted with a formula. Months are **29 to 32 days long and the
-lengths change from year to year**, driven by published data rather than
-arithmetic. A wrong or missing entry does not produce a wrong-looking date; it
-files a transaction under the wrong fiscal year, which silently misstates
-revenue, cost, and tax for two periods at once. That is the exact class of
-defect the architecture exists to prevent.
+BS cannot be derived from the Gregorian calendar. Months are 29 to 32 days long
+and the lengths change year to year, so the boundaries come from published data.
 
-The product owner authorised a third-party BS calendar, subject to a permissive
-licence.
+That data is **the single most compliance-critical dataset in the product**. Get a
+fiscal boundary wrong and transactions land in the wrong year, which distorts
+revenue, cost, and tax across two periods at once.
+
+## The decision that was reversed
+
+An earlier version of this ADR adopted the `bikram_sambat` package: MIT, pure
+Dart, no transitive dependencies, covering BS 1969 to 2200.
+
+**The product owner rejected it on supply-chain grounds**, which is the right
+reason. It was a dependency on a single maintainer for the one piece of data the
+product cannot ship without. If that author changed the licence, went commercial,
+was bought, or stopped maintaining the package, the fiscal calendar would become
+un-shippable. For a commercial Nepali product that is a real exposure, and
+"MIT today" is not a guarantee about "MIT when we need to ship".
 
 ## Decision
 
-Use the **`bikram_sambat`** package, version `1.2.0`.
+**Keep the calendar data in-tree**, in
+`lib/src/domain/fiscal/bs_calendar_data.dart`, and implement the conversion
+ourselves in `bs_calendar.dart`.
 
-| | |
-| --- | --- |
-| Licence | **MIT** — Copyright (c) 2024 Kedar Karki |
-| Type | Pure Dart, **no transitive dependencies** |
-| Coverage | **BS 1969 to 2200** |
-| Published | Actively maintained; 160 pub points |
+The data is a table of month lengths per BS year. That is **factual civil-calendar
+information**, set by the Government of Nepal and published by the Nepal Panchanga
+Nirnayak Samiti. How many days a given Nepali month has is a fact, in the same way
+that how many days April has is a fact. Facts are not owned by anyone, which is
+exactly why this is reasonable to keep in-tree where the team can audit it.
 
-Candidates rejected:
-
-| Package | Reason |
-| --- | --- |
-| `nepali_calendar` | Licence is **`unknown`** on pub.dev, six years old, Dart 3 incompatible. An unknown licence is not a permissive licence. |
-| `bs_ad_calendar` | MIT, but it is a Flutter calendar **widget** package. The conversion is needed in the domain, which must not depend on Flutter UI. |
-| `clean_nepali_calendar` | BSD-3, but also a Flutter UI calendar and it pulls in `nepali_utils`. |
+The table was originally taken from `bikram_sambat` (MIT, © 2024 Kedar Karki),
+so that provenance is recorded rather than glossed over. Retaining a first-party
+copy of the data is not a licence question; the licence question was about
+depending on the *package*, and that is what has been removed.
 
 ## Consequences
 
-**Isolation.** `lib/src/domain/fiscal/bs_calendar.dart` is the only file in the
-project that imports `bikram_sambat`. Everything else depends on `BsCalendar`, so
-the package can be pinned, swapped, or removed by editing one file, and the
-fiscal rules are unaffected.
+**Coverage is BS 1969 to BS 2199**, roughly AD 1932 to AD 2143.
 
-**The supported range is enforced, not guessed.** `BsCalendar` throws
-`BsYearOutOfRangeException` outside BS 1969 to 2200. Silently extrapolating would
-place transactions in the wrong fiscal year.
+**The upstream BS 2200 entry was excluded.** It consisted of twelve 31-day months
+totalling **372 days**, which no calendar year can be. It was projected
+placeholder data, not a real calendar, and carrying it as though it were
+authoritative would have been worse than not having it. A fiscal year needing BS
+2200 is now refused with a clear error rather than answered with nonsense.
 
-**The final year in the table is not fully usable.** Measuring a year, or the
-final month of a year, needs the following year's data. `latestUsableYear` is
-therefore `2199`, and `NepaliFiscalCalendar` refuses to build a fiscal year that
-would need `2201`. This was a real defect found by a test: the original
-implementation leaked a `RangeError` from inside the third-party package instead
-of failing with a domain error.
+**The data is ours, so the data is tested.** `test/domain/bs_calendar_data_test.dart`
+checks that every year has twelve months, every month is 29 to 32 days, **every
+year is 365 or 366 days**, the years are contiguous, and the excluded placeholder
+is absent. It also walks **every single day of nine spread-out years** and asserts
+the conversion round-trips, which is what catches an off-by-one that happens to
+line up at a year boundary.
 
-**Attribution.** The MIT licence requires the copyright notice to be retained.
-Flutter aggregates dependency licence texts and exposes them through
-`showLicensePage`, so the application **must** provide a reachable licences or
-"about" screen. Treat that as a requirement of the UI gate, not a nicety.
+**A latent timezone bug was fixed in the process.** The package applied a fixed
+**+5:45 Nepal offset**, so a user whose machine was set to any other timezone
+would have been given dates shifted by that offset. Our implementation does all
+arithmetic in **UTC**, where every day is exactly 24 hours and daylight saving
+cannot move a date, and then presents the result as a local date-only value. The
+calendar is now correct on a machine in any timezone.
 
-**Month lengths are derived, not copied.** `bikram_sambat` does not expose a
-month-length table, so `BsCalendar.daysInMonth` walks forward until the month
-changes. That method is validated by a test asserting the twelve month lengths
-sum to the true length of the year across a spread of years, which would fail if
-the walk were off by one.
+**Attribution is no longer required for the calendar.** The MIT notice for
+`bikram_sambat` disappears from the licences page along with the dependency. The
+in-tree data carries its provenance in its own documentation.
 
-**Verified against published anchors.** 1 Shrawan 2082 equals 17 July 2025, the
-day Nepal's FY 2082/83 began, and 1 Baishakh 2082 equals 14 April 2025. These are
-asserted in `test/domain/fiscal_test.dart` so that a package update which shifts
-the calendar fails the build rather than silently moving the fiscal boundary.
+## Open item: verify against the official calendar before shipping
 
-## Why not implement the calendar ourselves
+The table has been checked for **internal consistency** (every year's twelve
+month lengths sum to its stated length) and against **known public anchors** —
+1 Baishakh 2000 BS = 14 April 1943, 1 Shrawan 2082 = 17 July 2025, 1 Baishakh
+2082 = 14 April 2025. Those anchors are asserted in the tests, so a data error
+would fail the build.
 
-It would mean embedding and maintaining a 232-year boundary table whose
-provenance we would have to establish independently. The package is MIT, pure
-Dart, dependency-free, and isolated behind one file, so the cost of adopting it
-is low and the cost of reversing the decision is one file.
+**That is not the same as an audit against the Government of Nepal's published
+calendar.** Before launch, the years the product will actually be used in should
+be checked against the official Nepali calendar. This is recorded here so it is
+not assumed done.

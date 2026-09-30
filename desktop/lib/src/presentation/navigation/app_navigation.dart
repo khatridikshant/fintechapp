@@ -1,0 +1,140 @@
+import 'package:flutter/material.dart';
+
+import '../app_services.dart';
+import '../screens/licenses_screen.dart';
+import '../screens/placeholder_screen.dart';
+import '../screens/trial_balance_screen.dart';
+
+/// A group of related screens, as `ui.txt` section 13 lays out the navigation.
+@immutable
+class NavigationGroup {
+  const NavigationGroup({required this.title, required this.sections});
+
+  /// The group heading, shown as a large label above its items.
+  final String title;
+
+  final List<NavigationItem> sections;
+}
+
+/// One destination in the primary navigation.
+@immutable
+class NavigationItem {
+  const NavigationItem({required this.title, required this.icon, this.route});
+
+  /// Builds the screen this opens, or `null` when it has not been built yet.
+  final WidgetBuilder? route;
+
+  final String title;
+
+  /// A simple outline icon, per `ui.txt` section 4: "simple icons".
+  final IconData icon;
+}
+
+/// The primary navigation, in the order `ui.txt` section 13 suggests.
+///
+/// A section has a screen only when the corresponding use case has been wired in
+/// [services]. Everything else shows a placeholder that says plainly that it has
+/// not been built, rather than a blank panel or a crash.
+List<NavigationGroup> buildNavigation(AppServices services) {
+  final trialBalance = services.trialBalance;
+
+  return <NavigationGroup>[
+    NavigationGroup(
+      title: 'Overview',
+      sections: <NavigationItem>[
+        NavigationItem(
+            title: 'Dashboard', icon: Icons.space_dashboard_outlined),
+      ],
+    ),
+    NavigationGroup(
+      title: 'Accounting',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Journal', icon: Icons.menu_book_outlined),
+        NavigationItem(
+            title: 'Chart of Accounts', icon: Icons.account_tree_outlined),
+        NavigationItem(
+            title: 'General Ledger', icon: Icons.vertical_split_outlined),
+        NavigationItem(
+          title: 'Trial Balance',
+          icon: Icons.balance_outlined,
+          route: trialBalance == null
+              ? null
+              : (context) => TrialBalanceScreen(loader: trialBalance),
+        ),
+      ],
+    ),
+    NavigationGroup(
+      title: 'Sales',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Invoices', icon: Icons.description_outlined),
+        NavigationItem(title: 'Sales', icon: Icons.trending_up_outlined),
+        NavigationItem(title: 'Customers', icon: Icons.people_outline),
+        NavigationItem(
+            title: 'Receivables', icon: Icons.account_balance_wallet_outlined),
+      ],
+    ),
+    NavigationGroup(
+      title: 'Purchases',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Purchases', icon: Icons.shopping_cart_outlined),
+        NavigationItem(title: 'Suppliers', icon: Icons.local_shipping_outlined),
+        NavigationItem(title: 'Payables', icon: Icons.payments_outlined),
+      ],
+    ),
+    NavigationGroup(
+      title: 'Inventory',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Products', icon: Icons.inventory_2_outlined),
+        NavigationItem(title: 'Stock', icon: Icons.warehouse_outlined),
+        NavigationItem(
+            title: 'Stock Movements', icon: Icons.swap_vert_outlined),
+      ],
+    ),
+    NavigationGroup(
+      title: 'Payments',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Receipts', icon: Icons.receipt_long_outlined),
+        NavigationItem(title: 'Payments', icon: Icons.paid_outlined),
+        NavigationItem(title: 'Transfers', icon: Icons.compare_arrows_outlined),
+      ],
+    ),
+    NavigationGroup(
+      title: 'Reports',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Profit & Loss', icon: Icons.show_chart_outlined),
+        NavigationItem(title: 'Balance Sheet', icon: Icons.assignment_outlined),
+        NavigationItem(
+            title: 'Cash Flow', icon: Icons.waterfall_chart_outlined),
+        NavigationItem(title: 'Sales Reports', icon: Icons.bar_chart_outlined),
+        NavigationItem(
+            title: 'Inventory Reports', icon: Icons.donut_small_outlined),
+        NavigationItem(title: 'Tax Reports', icon: Icons.receipt_outlined),
+      ],
+    ),
+    NavigationGroup(
+      title: 'System',
+      sections: <NavigationItem>[
+        NavigationItem(title: 'Settings', icon: Icons.settings_outlined),
+        NavigationItem(title: 'Backup', icon: Icons.backup_outlined),
+        NavigationItem(title: 'Sync', icon: Icons.sync_outlined),
+        NavigationItem(title: 'Fiscal Year', icon: Icons.event_outlined),
+        // Required by the MIT and BSD-3 licences of every dependency.
+        NavigationItem(
+          title: 'Licences',
+          icon: Icons.gavel_outlined,
+          route: LicensesScreen.route,
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Every navigation item, flattened. Used for searching and for tests.
+List<NavigationItem> allNavigationItemsFor(AppServices services) =>
+    buildNavigation(services)
+        .expand((group) => group.sections)
+        .toList(growable: false);
+
+/// The screen shown for a section that exists in the design but has not been
+/// built yet.
+Widget placeholderFor(String title) => PlaceholderScreen(title: title);

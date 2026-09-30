@@ -149,20 +149,32 @@ void main() {
     });
 
     test('the final year in the table cannot be measured, and says so', () {
-      // Measuring BS 2200's last month needs BS 2201, which the table does not
-      // contain. This must fail with a clear domain error rather than a range
-      // error from inside the third-party package, and it must never be guessed.
+      // The last year in the table is fully present, so a single month or a
+      // single year can be measured from it. Measuring the year **after** it
+      // cannot, because that year's data is absent, and that must fail clearly
+      // rather than extrapolate.
+      expect(bs.daysInMonth(BsCalendar.latestYear, 12), greaterThan(28));
       expect(
-        () => bs.daysInMonth(BsCalendar.latestYear, 12),
+        bs.daysInYear(BsCalendar.latestYear),
+        greaterThanOrEqualTo(365),
+      );
+
+      expect(
+        () => bs.daysInYear(BsCalendar.latestYear + 1),
         throwsA(isA<BsYearOutOfRangeException>()),
       );
       expect(
-        () => bs.daysInYear(BsCalendar.latestYear),
+        () => bs.toGregorian(year: BsCalendar.latestYear + 1, month: 1, day: 1),
         throwsA(isA<BsYearOutOfRangeException>()),
       );
 
-      // The last usable year still works.
-      expect(bs.daysInYear(BsCalendar.latestUsableYear), greaterThan(364));
+      // The excluded placeholder year must be out of range, so a fiscal year
+      // needing it is refused rather than answered with a 372-day "year".
+      expect(BsCalendar.latestYear, 2199);
+      expect(
+        () => bs.daysInYear(2200),
+        throwsA(isA<BsYearOutOfRangeException>()),
+      );
     });
 
     test('every month length is a plausible 29 to 32 days', () {

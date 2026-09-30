@@ -110,9 +110,27 @@ class InventoryMovement {
         'the history.',
       );
     }
-    // When both move, they must agree in direction. A **value-only** movement is
-    // allowed and is how a write-down is recorded: the goods are still held, so
-    // the quantity is untouched while the carrying value falls.
+    // Stock moving without its value moving would break the reconciliation
+    // between the units on the shelf and what they are worth.
+    if (quantity != 0 && value.isZero) {
+      throw ArgumentError(
+        'A movement that changes the quantity must carry a value. Changing the '
+        'units without changing what they are worth would break the '
+        'reconciliation between the stock count and the stock value.',
+      );
+    }
+    // A **value-only** movement is allowed, and is how a write-down is recorded:
+    // the goods are still held, so the quantity is untouched while the carrying
+    // value falls. It is restricted to that one reason, because any other stock
+    // change must move the quantity too.
+    if (quantity == 0 && reason != MovementReason.writeDown) {
+      throw ArgumentError(
+        'A value-only movement is only allowed for a write-down, got '
+        '${reason.label}. Any other stock change must move the quantity too, or '
+        'the stock count and the stock value stop describing the same thing.',
+      );
+    }
+    // When both move, they must agree in direction.
     if (quantity != 0 &&
         !value.isZero &&
         ((quantity > 0) != value.isPositive)) {
@@ -120,13 +138,6 @@ class InventoryMovement {
         'An inventory movement must have quantity and value pointing the same '
         'way when both change: got a quantity of $quantity and a value of '
         '${value.format()}.',
-      );
-    }
-    if (quantity == 0 && reason != MovementReason.writeDown) {
-      throw ArgumentError(
-        'A value-only movement is only allowed for a write-down, got '
-        '${reason.label}. Any other stock change must move the quantity too, or '
-        'the stock count and the stock value stop describing the same thing.',
       );
     }
     return InventoryMovement._(

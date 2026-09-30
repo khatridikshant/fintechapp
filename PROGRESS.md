@@ -35,6 +35,7 @@ disconnected.
 | `docs/AI_RULES.md` | Hard prohibitions and obligations. A contract, not advice. |
 | `docs/ARCHITECTURE.md` | Condensed architecture and the reasoning behind each technology choice. |
 | `docs/INVENTORY_EXPLAINED.md` | **Plain-language accounting explainer.** What the costing methods mean with real numbers, what Nepali rules appear to allow, what this application does, and what it does not do yet. Written for a non-accountant. Read it before touching inventory, costing, COGS, or stock. |
+| `docs/NEPALI_CALENDAR.md` | **Plain-language calendar explainer.** What BS is, why the fiscal year starts in Shrawan, why the dates need a table, what has been verified, and � importantly � **what has not been verified, with a practical checklist for verifying it before launch.** Read it before changing the calendar data. |
 | `docs/decisions/*.md` | Architecture Decision Records. Read before touching a subsystem they govern. |
 
 The three root `.txt` files were written before any code existed. They are more
@@ -736,6 +737,151 @@ gives pre-existing movements a `null` entry rather than inventing one, because a
 fabricated entry would be a lie in the books. A migration test asserts the old row
 keeps its `null` while a new movement gets its entry.
 
+### 4.19 Inventory write-down to net realisable value — done (Gate 6 complete)
+
+| File | Contents |
+| --- | --- |
+| `lib/src/application/write_down_inventory.dart` | `WriteDownInventory` and its outcome types. |
+| `lib/src/domain/inventory/inventory_movement.dart` | New `MovementReason.writeDown`, and a **value-only** movement permitted for it. |
+| `lib/src/infrastructure/database/tables.dart` | The movement CHECK relaxed to allow a value-only row. |
+| `test/application/write_down_inventory_test.dart` | 23 tests. |
+| `test/infrastructure/migration_test.dart` | Now covers v9, 32 tests. |
+
+This is ADR 004's follow-on decision 2, and the last thing Gate 6 was waiting for.
+IAS 2 and NAS 2 require inventory to be carried at the **lower** of cost and net
+realisable value: stock that cost Rs 100 and can now only fetch Rs 80 must be
+written down **now**, not when it is eventually sold. Deferring it would overstate
+assets and profit until the sale.
+
+```
+Dr  5070 Inventory Adjustments   the reduction
+Cr  1040 Inventory               the reduction
+```
+
+**The quantity does not change, and that required a design change.** A write-down
+is not a disposal — the goods are still on the shelf, they are simply worth less.
+The movement type previously required a non-zero quantity and a value pointing the
+same way, so a value-only change was **unrepresentable**. A new `writeDown` reason
+now permits `quantity == 0` with a negative value, and the database CHECK was
+relaxed to match. Recording it as a movement rather than as a side-channel value is
+what keeps the stock value and the inventory account equal **by construction**; a
+write-down that bypassed the movement ledger would break the equality the previous
+task established.
+
+**Disposal stays separate.** A test writes stock down to Rs 800 and then scraps it
+as its own `adjustment` movement, leaving zero quantity and zero value. Conflating
+the two would make the stock count wrong and count the loss twice.
+
+**A rise in value is refused, not treated as a negative write-down.** IAS 2 does
+not permit inventory to be revalued upwards, so a value at or above the carrying
+amount is refused. The boundary is tested both ways: **exactly equal is refused, one
+paisa lower is accepted.**
+
+**Relaxing the rule went too far at first, and the existing tests caught it.** The
+first attempt allowed *any* movement with a non-zero quantity and a zero value,
+which would have broken the reconciliation between units and their worth. An
+existing test asserting "a zero value is rejected" failed, and the fix was to
+tighten the rule rather than edit the test: a quantity change must carry a value,
+and only a write-down may be value-only. Two existing tests were updated, both to
+assert the *new* correct rule rather than to weaken anything.
+
+### 4.20 Gate 7 begins: the application shell and the licences screen � done
+
+| File | Contents |
+| --- | --- |
+| `lib/src/presentation/theme/app_theme.dart` | `AppPalette` (a `ThemeExtension`), `AppSpacing`, `AppRadius`, `AppTheme`, and the type scale, all taken from `ui.txt`. |
+| `lib/src/presentation/navigation/app_navigation.dart` | The eight navigation groups from `ui.txt` section 13. |
+| `lib/src/presentation/finance_app.dart` | The `MaterialApp` root. |
+| `lib/src/presentation/finance_app_shell.dart` | Left navigation plus content area. |
+| `lib/src/presentation/screens/placeholder_screen.dart` | The "not built yet" screen. |
+| `lib/src/presentation/screens/licenses_screen.dart` | The licence notices. |
+| `lib/main.dart` | Replaced the generated counter app. |
+| `test/presentation/app_shell_test.dart` | 20 widget tests. |
+| `test/presentation/architecture_test.dart` | 4 layer-boundary guards. |
+
+**The licences screen exists because MIT and BSD-3 require the copyright notice
+to be retained.** Measured across the whole dependency tree: 85 packages, of which
+69 are BSD-3, 8 MIT, 3 Apache-2.0, plus the Flutter SDK. **Not one is public
+domain or attribution-free**, so this is not a case of choosing which notices to
+show. Flutter's `showLicensePage` aggregates them all, so the screen is one menu
+item and no maintenance. The screen also states *why it exists*, so a future
+maintainer does not delete it as boilerplate.
+
+**The design tokens come from `ui.txt`, not from taste.** Restrained warm-neutral
+base with a single blue accent; Segoe UI with Linux and macOS fallbacks; the
+newspaper type scale (32 / 24 / 18 / 14 / 13) rather than oversized headings
+everywhere; borders over shadows; corner radii capped at 6 because the
+specification warns against looking like a mobile banking app. The tests assert
+those concrete values, so a later palette or type change is a deliberate act.
+
+**Unbuilt sections say so.** Every section except Licences shows a clear "Not
+built yet" notice, including the fact that the accounting and reporting logic
+behind much of it already exists and is tested. A blank panel would look like a
+bug, and a crash would be worse; neither tells the user anything true.
+
+**Two real bugs the tests caught, both worth remembering:**
+
+1. **The shell read the theme from a context above its own `MaterialApp`.** A
+   `MaterialApp` provides the theme to everything *below* it, so a widget that
+   builds its own `MaterialApp` and then reads the palette in the same `build` is
+   reading a theme that does not exist yet. Fixed by lifting the `MaterialApp`
+   into `FinanceApp` and making the shell its `home`. The palette getter now
+   throws a descriptive `StateError` rather than a null-check crash.
+2. **`Container` was given both a `color` and a `decoration`**, which Flutter
+   asserts against. The colour now lives inside the `BoxDecoration`.
+
+**The architecture is now guarded, not just documented.** `architecture_test.dart`
+reads the source files and fails if a screen imports `infrastructure/`, `domain/`,
+`drift`, or `sqlite3`; if a domain file imports Flutter, the application, the
+infrastructure, or the presentation; or if the removed `bikram_sambat` package is
+reintroduced. These are tripwires for rules that otherwise compile, run, and
+quietly break. The calendar guard has to exclude its own file, because it contains
+the import string it searches for; loosening the pattern instead would let a real
+import through.
+
+### 4.21 The Trial Balance screen � the first screen wired to real data
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/shared/currency.dart` | `bookCurrency`, so the books' currency is written in one place. |
+| `lib/src/application/build_trial_balance.dart` | `TrialBalanceReport`, `TrialBalanceLoader`, `BuildTrialBalance`. |
+| `lib/src/presentation/app_services.dart` | `AppServices`: the only thing the presentation layer is given. |
+| `lib/src/presentation/screens/trial_balance_screen.dart` | The report screen. |
+| `lib/main.dart` | The composition root: opens the database, seeds the chart, wires the use case. |
+| `test/application/build_trial_balance_test.dart` | 7 tests. |
+| `test/presentation/trial_balance_screen_test.dart` | 11 tests. |
+
+**A use case, not a screen with logic in it.** `BuildTrialBalance` loads the
+journal and returns the report. The screen formats and displays. That is what
+keeps the layer rule true, and `architecture_test.dart` enforces it.
+
+**`TrialBalanceLoader` is an interface, which is what makes the screen testable.**
+A screen whose numbers could only come from a real database could not be tested
+without one. The widget tests hand it a stub and assert against genuine figures
+from the worked example, not invented ones.
+
+**The money formatting is not re-implemented.** Every amount on screen comes from
+`Money.format`, and a test asserts that *every* value on the page matches the same
+pattern. A screen cannot quietly grow a second formatting rule.
+
+**Real states, not just the happy path.** Loading, empty, and failure are all
+handled and tested. A failure shows the underlying message, because "something
+went wrong" tells a user nothing they can act on.
+
+**Two layout bugs the tests caught.** The money columns were shrink-wrapped, so
+the table row overflowed by 113 pixels and the totals were clipped off screen
+entirely. They now have a fixed width, which also makes the figures line up down
+the page. Separately, the error state's text column was not `Expanded`, so a long
+error message overflowed its row.
+
+**One honesty note, recorded in the tests themselves.** The screen shows a
+warning when the report does not balance, but that branch is **unreachable by
+construction**: `TrialBalance` derives its figures from journal entries, and
+`JournalEntry` refuses to hold an entry whose debits and credits disagree. Rather
+than fake an unbalanced report to test it, the use-case test says plainly that
+the check is a defensive assertion. If a future change ever let a row reach the
+journal table without going through `JournalEntry`, the check would fire.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -756,18 +902,18 @@ Everything else. Specifically, none of the following exist:
   generated is undecided, and it matters because ids must not collide if two
   installations ever sync. Needed before the UI can create a customer. See
   section 7.16.
-- **Inventory, stock, and COGS.** Products, movements, derived value-first stock,
-  and posting to the ledger all work. **Still missing: the write-down to the lower
-  of cost and net realisable value**, which ADR 004 and IAS 2 both require, and
-  which Gate 6 cannot close without. It is the next task.
+- **Inventory, stock, and COGS.** **Complete for Gate 6.** Products, movements,
+  derived value-first stock with negative stock blocked, posting to the ledger, and
+  the write-down to the lower of cost and net realisable value all work.
 - **Locations and transfers.** `MovementReason.transfer` exists in the
   specification's list but is refused, because locations are not modelled and a
   transfer has nothing to move between. Adding locations is a separate feature.
 - **Suppliers and purchases as documents.** Stock can be received, but there is no
   purchase order, supplier bill, or supplier record. `2010 Accounts Payable` is
   credited without a document behind it.
-- **Products.** The entity and stock tracking exist. Nothing yet links a product
-  to an invoice line, so selling does not move stock automatically.
+- **The link from a sale to stock.** A product cannot yet be put on an invoice
+  line, so issuing an invoice does not move stock automatically. Selling and stock
+  movement are still two manual operations.
 - Cash Flow and every other report beyond the four above.
 - Any Flutter UI. `lib/main.dart` is still the generated counter app, and the
   licences screen MIT attribution requires does not exist.
@@ -808,69 +954,54 @@ each one must be resolved before backend work starts.
 
 This is the next bounded task, ready to hand to an agent verbatim.
 
-> **Write inventory down to the lower of cost and net realisable value.**
+> **Add the General Ledger screen.**
 >
-> **Read `docs/INVENTORY_EXPLAINED.md` and ADR 004 first.** ADR 004 lists this as
-> follow-on decision 2, and both it and IAS 2 require it. **Gate 6 cannot close
-> without it.**
+> Scope: `BuildGeneralLedger` in `application/`, a `GeneralLedgerScreen` in
+> `presentation/`, wiring in `AppServices`, and tests in `test/application/` and
+> `test/presentation/`.
 >
-> Scope: a new `desktop/lib/src/application/write_down_inventory.dart`, an
-> optional `netRealisableValue` on `Product` (or a separate valuation record), a
-> migration, and tests.
+> Do not modify: `GeneralLedger`, `TrialBalance`, `Ledger`, `Money`, the chart of
+> accounts, the repositories, or the domain layer. Do not weaken any test.
 >
-> Do not modify: the accounting engine, the reporting layer, the billing domain,
-> `ProductStock`, the inventory posting use case, the UI, sync, or licensing. Do
-> not modify any existing test, except where a required constructor argument
-> changes, in which case update the call site and weaken no assertion.
->
-> **The rule, in plain terms.** Stock must be carried at whichever is **lower**:
-> what it cost, or what it can now be sold for less the cost of selling it. If you
-> paid Rs 100 for something now only worth Rs 80, you must recognise the Rs 20 loss
-> **now**, not when you eventually sell it. See `docs/INVENTORY_EXPLAINED.md` for
-> the full explanation.
->
-> **This requires a schema migration.** Decide and document the shape: either a
-> `netRealisableValueMinorUnits` column on `products`, or a
-> `inventory_write_downs` table recording each write-down with its date, reason,
-> and entry. **Prefer recording write-downs as movements**, so the stock value and
-> the ledger keep agreeing by construction — a write-down that bypassed the
-> movement ledger would break the equality the previous task established.
+> **No schema change is needed.** The reporting layer already exists and is
+> tested; only the presentation is missing.
 >
 > Required behaviour:
 >
-> 1. `WriteDownInventory`, a use case that, in **one unit of work**:
->    - refuses a date outside the active fiscal year, writing nothing;
->    - refuses an unknown product, writing nothing;
->    - refuses a write-down that would take the stock value **below zero**, and
->      refuses a non-positive amount, writing nothing;
->    - posts `Dr 5070 Inventory Adjustments / Cr 1040 Inventory` for the write-down
->      amount;
->    - records the reduction as an inventory movement of reason `adjustment`, so
->      the quantity is untouched where only value fell, or the quantity falls where
->      stock is scrapped — **state which you chose and why**;
->    - returns the new stock position.
-> 2. **Write-down does not mean writing stock off.** A write-down reduces value
->    while keeping the goods. Disposing of them is a separate movement. Do not
->    conflate the two.
+> 1. `BuildGeneralLedger` takes an **account** and a date range, and returns that
+>    account's postings with a running balance. An **account picker** belongs on
+>    the screen, not in the use case; the use case takes the account it is given.
+> 2. The screen shows, per posting: date, journal entry reference, description,
+>    debit, credit, and the running balance. The opening balance must be visible
+>    when a range starts mid-history, because otherwise the running balance
+>    silently disagrees with the trial balance.
+> 3. Offer a way to reach the account's row on the Trial Balance screen, so the
+>    two reports are navigable from each other. Do not add a route; a link that
+>    calls the shell's selection is enough.
+> 4. Follow the Trial Balance screen's established conventions exactly: fixed-width
+>    right-aligned money columns, `Money.format` for every amount, an em dash
+>    rather than a zero on an empty side, and the same loading, empty, and failure
+>    states.
+> 5. Add the screen to `buildNavigation` behind an `AppServices` entry, so it
+>    shows the "not built yet" notice until it is wired. That is the pattern the
+>    shell already uses.
 >
-> Tests to add, computing every figure **by hand**:
+> Tests to add:
 >
-> - Buy 10 units for Rs 1,000. Cost per unit Rs 100. Write the value down to
->   Rs 800, so the unit value becomes Rs 80, and the inventory account in the
->   trial balance reads **exactly Rs 800**.
-> - The loss of Rs 200 appears in the profit and loss statement as an expense,
->   and the inventory account and `ProductStock.value` still agree.
-> - Writing down to a value **at or above** current cost is refused, and nothing
->   is written. Test the boundary: down to exactly cost is refused, one paisa
->   below is accepted.
-> - A write-down larger than the current value is refused and writes nothing.
-> - Writing down an empty holding is refused and writes nothing.
-> - The trial balance balances after a write-down.
-> - **The migration test:** the current database's data survives, and the upgraded
->   database can write stock down.
+> - The use case returns postings in date order with a correct running balance,
+>   matching `GeneralLedger` computed in memory for the same entries.
+> - An opening balance appears when the range starts after the first posting, and
+>   the closing balance equals the same account's balance on the trial balance.
+> - The screen renders the opening balance, each posting, and the closing balance.
+> - Every amount matches the shared money format, and money is right-aligned.
+> - An account with no postings shows the empty state, and a range with no
+>   postings shows the opening balance alone.
+> - A failure shows the message rather than a blank screen.
+> - The architecture guards still pass.
 >
-> Run `flutter test` and `flutter analyze` and report both. The full suite must
-> stay green, including the existing 476 tests.
+> Run `flutter test` and `flutter analyze` and report both, and confirm
+> `flutter build windows --debug` still succeeds. The full suite must stay green,
+> including the existing 557 tests.
 
 ## 7. Decisions and discoveries that affect future work
 
@@ -1024,39 +1155,72 @@ normal user input, not a malfunction. Twelve tests cover it, including both
 inclusive boundary dates, an afternoon on the final day, and that a refusal
 leaves previously committed entries intact.
 
-### 7.10 Bikram Sambat calendar — RESOLVED
+### 7.10 Bikram Sambat calendar � RESOLVED, and then deliberately un-depended
 
-Closed by ADR 009. `bikram_sambat` 1.2.0, MIT, pure Dart, no transitive
-dependencies, covering BS 1969 to 2200. It is isolated behind
-`domain/fiscal/bs_calendar.dart`, which is the only file that imports it.
+**First closed with a package, then reopened by the owner and closed properly.**
 
-Verified against published anchors — 1 Shrawan 2082 equals 17 July 2025 — and
-those anchors are asserted in the tests, so a package update that moved the
-calendar would fail the build rather than silently shift a fiscal boundary.
+The original resolution adopted `bikram_sambat` 1.2.0 (MIT, pure Dart) behind
+`domain/fiscal/bs_calendar.dart`. The product owner then rejected it on
+supply-chain grounds, which was correct: it made the one dataset the product
+cannot ship without depend on a **single maintainer**. If that author changed the
+licence, went commercial, was bought, or stopped maintaining the package, the
+fiscal calendar would become un-shippable. "MIT today" is not a guarantee about
+"MIT when we need to ship".
 
-**A real defect was found and fixed here.** Measuring a year, or the final month
-of a year, requires the *following* year's data, so the last year in the table is
-not fully usable. The first implementation leaked a `RangeError` from inside the
-third-party package instead of failing with a domain error. `latestUsableYear`
-(2199) now makes the boundary explicit, and a test asserts both that the final
-year is refused and that failing case produces a clear domain error.
+The calendar data now lives **in-tree** in
+`lib/src/domain/fiscal/bs_calendar_data.dart`, and the conversion is ours. The
+data is factual civil-calendar information set by the Government of Nepal, in the
+same way that how many days April has is a fact; facts are not owned by anyone.
+Its provenance from the MIT package is recorded in the file rather than glossed
+over. See ADR 009.
 
-**The licence condition is satisfied.** MIT requires retaining the copyright
-notice. Flutter aggregates dependency licences and exposes them through
-`showLicensePage`, so the application must provide a reachable licences screen.
-That is a requirement of the UI gate, now recorded in `docs/AI_RULES.md`, not an
-afterthought.
+Three things came out of the swap:
 
-### 7.11 Gates 5 and 6 are structurally unblocked
+1. **A fake year was found and removed.** The upstream table's last entry, BS
+   2200, was twelve 31-day months totalling **372 days**, which no calendar year
+   can be. It was projected placeholder data. Carrying it as authoritative would
+   have been worse than not having it, so it was excluded and a fiscal year
+   needing it is now refused with a clear error.
+2. **A latent timezone bug was fixed.** The package applied a fixed **+5:45
+   Nepal offset**, so a user whose machine was set to any other timezone would
+   have been given shifted dates. Ours does the arithmetic in **UTC**, where every
+   day is exactly 24 hours and daylight saving cannot move a date, then presents
+   the result as a local date-only value. The calendar is now correct on a machine
+   in any timezone.
+3. **The data became ours, so the data is tested.** Eleven new tests in
+   `test/domain/bs_calendar_data_test.dart` check that every year has twelve
+   months, every month is 29 to 32 days, **every year is 365 or 366 days**, the
+   years are contiguous, the placeholder year is absent, and that **every single
+   day of nine spread-out years** round-trips exactly. That last one is what
+   catches an off-by-one which happens to line up at a year boundary.
 
-Cross-aggregate transactions (7.7) and the fiscal-year posting guard (7.9) are both
-done, and the calendar Gate 8 needs now exists (7.10, ADR 009). What remains
-before Billing can start is the **chart of accounts**, which is the next task,
-because no account definitions exist yet and every use case needs them.
+Verified against published anchors throughout: 1 Baishakh 2000 BS = 14 April
+1943, 1 Shrawan 2082 = 17 July 2025, 1 Baishakh 2082 = 14 April 2025. These are
+asserted, so a data error fails the build.
 
-Inventory (Gate 6) additionally waits on **ADR 004**, which is still open and
-requires the product owner to choose a costing method and a policy for negative
-stock. If inventory work is requested while ADR 004 is open, stop and ask.
+**Still outstanding:** the table has been checked for internal consistency and
+against public anchors, which is **not** an audit against the Government of
+Nepal's published calendar. The years the product will actually be used in
+should be verified before launch. Recorded in ADR 009 so it is not assumed done.
+### 7.11 Gates 5 and 6 are unblocked — RESOLVED, and both are now complete
+
+Kept rather than deleted because the reasoning still explains why two separate
+blockers existed and in what order they had to fall.
+
+- **Cross-aggregate transactions (7.7)** were resolved by `UnitOfWork`, without
+  which a business operation spanning several repositories could not be atomic.
+- **The fiscal-year posting guard (7.9)** was resolved by `PostJournalEntry`, and
+  every posting use case since has reused the same pattern.
+- **The chart of accounts** supplied the account definitions every use case posts
+  to. It is referenced directly rather than injected, because its ids are
+  permanent.
+- **ADR 004** was decided by the product owner on 2026-09-29: moving weighted
+  average with the running value authoritative, and negative stock blocked.
+
+**Both gates are now complete.** Gate 5 covers the full billing cycle —
+numbering, invoices, customers, payments, and credit notes. Gate 6 covers
+products, movements, value-first stock, ledger posting, and the write-down to net
+realisable value.
 
 ### 7.12 An issued invoice is not a record — RESOLVED
 
@@ -1154,7 +1318,7 @@ of assuming it would still pass.
 
 ### 7.15 A recurring pattern: the expectation is wrong more often than the code
 
-Five times now a test failure has turned out to be a mistake in the test, not in
+Nine times now a test failure has turned out to be a mistake in the test, not in
 the production code:
 
 1. A `Money` test asserted that `0.1 + 0.2` gives 300 paisa. The correct answer
@@ -1173,29 +1337,14 @@ the production code:
    `document_sequences` table was empty, when issuing the *invoice* had
    legitimately created an `invoice` row. Both were test errors; the second was
    fixed by asserting specifically that no **creditNote** row exists.
-
-All five were resolved by working out the true answer from the rules, never by
-editing the number until it went green. Expect this to keep happening: with a
-test-first discipline, a fair share of red tests are the test's fault. That is the
-process working, not failing.
-
-**The third one has an extra lesson.** The wrong expectation was a *copy* of an
-earlier correct one. Copying a number between tests is how an expectation stops
-being independently derived, and it is exactly the habit the "work it out by hand"
-rule exists to prevent. Recompute for each case, even when it looks like the same
-shape as the last one.
-
-**The fourth has its own lesson.** An assertion should be as narrow as the claim
-it is making. "A refusal writes nothing" was really "the refusal consumed no
-serial", and asserting on the whole table made the test wrong about a *different*
-fact. Narrow assertions fail for the reason they were written.
-
-**The fifth has its own lesson too.** A convenience factory that takes a positive
-number and negates it internally is easy to call wrongly, and the mistake is
-invisible at the call site, because a negative sign *looks* like the direction you
-want. Read the factory's contract before passing a sign.
-
-
+5. Four inventory-posting tests passed a **negative** value to
+   `InventoryMovement.issue`, which takes a positive amount and negates it. The
+   resulting sign mismatch threw. The code was right; the tests had the direction
+   backwards.
+6. A Trial Balance screen test asserted totals of **Rs 167,000.00**, copied from
+   the full worked example, in a fixture that has no purchase entry. Hand-computing
+   the actual fixture gives 100,000 + 20,000 + 12,000 + 5,000 = **137,000**. The
+   code was right.
 
 ### 7.16 OPEN QUESTION: how a new record's id is generated
 
@@ -1364,18 +1513,18 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | --- | --- | --- |
 | 1 | Domain model | Accounting, reporting, fiscal, chart of accounts, and document numbering complete. Customer and inventory domains not started. |
 | 2 | Double-entry accounting engine | Complete and tested. |
-| 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork` and six schema migrations (v1 through v6). |
+| 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork` and seven schema migrations (v1 through v7). |
 | 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, and Balance Sheet complete.** Cash Flow and the rest are not started. |
 | 5 | Billing | **Complete for the core cycle.** Numbering, invoices, customers, invoice records, payments, and credit notes all work: a receivable can be raised, settled, and corrected. Debit notes and refunds are not started; see section 5. |
-| 6 | Inventory and COGS | **In progress.** Products, movements, derived value-first stock, and posting to the ledger all work. **Still missing: the write-down to the lower of cost and net realisable value**, which ADR 004 and IAS 2 require and which is the next task. Locations and transfers are not modelled. |
-| 7 | Complete offline workflow | Not started. The Windows build works; `main.dart` is still the counter app. Must include a licences screen for MIT attribution. |
+| 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
+| 7 | Complete offline workflow | **In progress.** The shell, the design theme, and the licences screen exist and are tested. The Trial Balance screen is the next task, and will be the first screen wired to a use case. |
 | 8 | Fiscal-year conclusion and archival | Not started. The calendar it needs exists (ADR 009). |
 | 9 | Cloud backup and restore | Not started. The backend is untouched since the scaffold; see 5.1. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** 476 tests, all passing. `flutter analyze` reports no issues.
-The newest files are `test/application/post_inventory_movement_test.dart` (18) and
-the migration suite is now 28.
+**Test suite:** 539 tests, all passing. `flutter analyze` reports no issues.
+The newest files are `test/presentation/app_shell_test.dart` (20 widget tests) and
+`test/presentation/architecture_test.dart` (4 layer-boundary guards).
 
 **Build status:** `flutter build windows --debug` succeeds and produces
 `financeapp.exe`.
@@ -1406,4 +1555,7 @@ build output; deleting them breaks the migration tests.
 | 2026-09-29 | Implemented the Profit & Loss report with 16 domain tests and 3 integration tests. Income and expenses only, with balance sheet accounts excluded even when supplied in a chart. Every account read in its own natural direction, so both totals are positive. A loss is reported as a positive `loss` rather than a negative `profit`, so a bad period does not read as a double negative. Cross-checked against `TrialBalance` by deriving the same profit two independent ways. Hand-computed on the worked example: income 2,000,000, expenses 1,700,000, profit 300,000. |
 | 2026-09-29 | Implemented the Balance Sheet with 17 domain tests and 3 integration tests, completing the core report set. Equity folds in the period result as its own line, because there is no year-end closing entry and without it the sheet cannot balance. Takes `to` and not `from`, because a balance sheet is a position at a point in time. The accounting equation is asserted across five different transaction shapes, and cross-checked three ways against `ProfitAndLoss` and `TrialBalance` both in memory and from a real database. Hand-computed: assets 133,000, liabilities 30,000, equity 103,000. |
 | 2026-09-29 | Opened Gate 6 with products and inventory movements, using the fifth migration v6 to v7. `Product` has **no cost column**, because ADR 004 requires the running inventory value to be authoritative and the cost per unit to be derived from it. Movement quantity and value are both signed and must point the same way, enforced by the domain *and* a database CHECK, which is what makes quantity and value each a plain sum of the rows. `ProductStock` derives quantity, value, and cost per unit; `valueOfIssue` takes the whole remaining value when clearing a holding so it leaves exactly zero rather than stray paisa. Negative stock is blocked inside the same transaction as the write, and a refused issue writes no row at all. 28 domain tests, 17 persistence tests. |
-| 2026-09-29 | Posted inventory movements to the ledger with migration v7 to v8, closing the gap that specification RULE 5 forbids. `PostInventoryMovement` maps each movement reason and direction to accounts from **one documented table**, adds the `5070 Inventory Adjustments` account, and links each movement to its entry with a foreign key. A transfer is refused rather than given a plausible-looking entry, because locations are not modelled. The test that matters passes: after buying at two prices and issuing half, the inventory account in the trial balance equals the derived stock value, exactly Rs 1,100. The migration gives pre-existing movements a `null` entry rather than fabricating one. Hit three migration traps and recorded them in section 7.17: `createTable` writes the current shape not the historical one; SQLite cannot add a foreign key with `ALTER TABLE ADD COLUMN`, so the column change needed a table rebuild; and intermediate schema versions are not valid migration targets. Recorded a fifth instance of the recurring "the test was wrong" pattern. Suite 476 tests. Next task set to the inventory write-down. |
+| 2026-09-29 | Posted inventory movements to the ledger with migration v7 to v8, closing the gap that specification RULE 5 forbids. `PostInventoryMovement` maps each movement reason and direction to accounts from **one documented table**, adds the `5070 Inventory Adjustments` account, and links each movement to its entry with a foreign key. A transfer is refused rather than given a plausible-looking entry, because locations are not modelled. The test that matters passes: after buying at two prices and issuing half, the inventory account in the trial balance equals the derived stock value, exactly Rs 1,100. The migration gives pre-existing movements a `null` entry rather than fabricating one. Hit three migration traps and recorded them in section 7.17: `createTable` writes the current shape not the historical one; SQLite cannot add a foreign key with `ALTER TABLE ADD COLUMN`, so the column change needed a table rebuild; and intermediate schema versions are not valid migration targets. Recorded a fifth instance of the recurring "the test was wrong" pattern. |
+| 2026-09-29 | Completed Gate 6 with the inventory write-down to net realisable value, migration v8 to v9. A write-down reduces value **without changing quantity** -- the goods are still held -- which the movement type could not previously represent, so a new `writeDown` reason permits a value-only movement and the database CHECK was relaxed to match, requiring another table rebuild. Recording the write-down as a movement rather than a side-channel is what keeps the stock value and the inventory account equal by construction. Refuses a value at or above the carrying amount, because IAS 2 does not permit inventory to be revalued upwards; the boundary is tested both ways. Disposal stays a separate movement and has its own test. **The first attempt at relaxing the rule went too far** -- it allowed a quantity change with zero value, which an existing test rightly caught; the fix was to tighten the rule rather than edit the test. Suite 504 tests. |
+| 2026-09-30 | Removed the `bikram_sambat` dependency at the product owner's request, on **supply-chain** grounds: it made the one dataset the product cannot ship without depend on a single maintainer who could change the licence, go commercial, or discontinue it. The calendar data is now in-tree in `domain/fiscal/bs_calendar_data.dart` and the conversion is implemented here, isolated to that one adapter. Removing it surfaced three things worth recording: the upstream table's final entry, BS 2200, was **placeholder data** (twelve 31-day months, 372 days -- not a real calendar) and was excluded rather than carried; the package applied a fixed **+5:45 Nepal offset**, which would have given users on other timezones shifted dates, replaced here with UTC arithmetic presented as a local date-only value; and the data being ours means it is now tested, with eleven integrity tests including a day-by-day round trip across nine whole years. ADR 009 rewritten. Suite 515 tests, Windows build verified. |
+| 2026-09-30 | Opened Gate 7. Replaced the generated counter app with a real shell: the `MaterialApp` root, a left navigation carrying the eight groups from `ui.txt` section 13, a content area, a **design theme taken from `ui.txt`** (restrained warm-neutral palette, one blue accent, Segoe UI with fallbacks, the newspaper type scale, borders over shadows, corner radii capped at 6), and the **licences screen** that MIT and BSD-3 require. Measured the whole dependency tree first: 85 packages, 69 BSD-3, 8 MIT, 3 Apache-2.0, and the Flutter SDK, so **not one is attribution-free**; Flutter aggregates them all, so the screen is one menu item. Two bugs the tests caught: the shell read the theme from a context **above its own `MaterialApp`**, which cannot work because a `MaterialApp` only themes what is below it; and a `Container` was given both a `color` and a `decoration`. Added `architecture_test.dart`, which reads the source files and fails if a screen imports a repository or a domain internal, if a domain file imports Flutter or the outer layers, or if the removed calendar package is reintroduced. Suite 539 tests, Windows build verified. |

@@ -96,7 +96,7 @@ Approved core dependencies, all permissive:
 
 | Package | Licence | Purpose |
 | --- | --- | --- |
-| `drift` (pinned `>=2.18.0 <2.24.0`) | MIT | SQLite, type-safe queries, migrations |
+| `drift` | MIT | SQLite, type-safe queries, migrations |
 | `drift_dev`, `build_runner` (dev) | MIT | Code generation for drift |
 | `sqlite3` | MIT | Native SQLite bindings, imported directly by `sqlite_native.dart` |
 | `sqlite3_flutter_libs` | MIT | Bundles SQLite into the shipped application |
@@ -105,14 +105,19 @@ Approved core dependencies, all permissive:
 | `fl_chart` | MIT | Restrained charts |
 | `go_router` | BSD-3 | Navigation |
 | `flutter_secure_storage` | BSD-3 | OS-protected token and licence storage |
-| `bikram_sambat` | MIT | Bikram Sambat to Gregorian date conversion. **Only `domain/fiscal/bs_calendar.dart` may import it.** See ADR 009. |
 
-**`bikram_sambat` is MIT and must stay isolated.** It is used in the domain
-layer, which is only acceptable because it is a pure-computation, dependency-free
-Dart package with no I/O and no Flutter coupling. The single-import rule in ADR
-009 is what keeps it replaceable. MIT requires retaining the copyright notice, so
-the application must expose a reachable licences screen (Flutter's
-`showLicensePage` covers this).
+**The Bikram Sambat calendar is deliberately NOT a package.** Its data is kept
+in-tree in `lib/src/domain/fiscal/bs_calendar_data.dart`, because a single
+maintainer should not be able to change the licence, withdraw the package, or
+discontinue it for the one dataset the product cannot ship without. The
+`bikram_sambat` package was evaluated and **rejected on those supply-chain
+grounds**; see ADR 009. If a future calendar package is proposed, weigh it as
+supply-chain risk, not just licence text.
+
+**MIT and BSD-3 both require the copyright notice to be retained**, so the
+application must expose a reachable licences screen. Flutter's
+`showLicensePage` covers this and aggregates every dependency's licence
+automatically.
 
 Declare a package you import directly, even when it arrives transitively. The
 analyzer enforces this with `depend_on_referenced_packages`, and it is correct to.

@@ -15,8 +15,12 @@ Instructions for any AI coding agent working in this repository.
    task touches inventory, costing, COGS, or stock. Written for a non-accountant,
    so use it to check that a change still makes accounting sense rather than only
    passing tests.
-5. The relevant ADR in `docs/decisions/` for the subsystem you are changing.
-6. The three specifications at the repository root, when the task touches
+5. `docs/NEPALI_CALENDAR.md` — plain-language explainer for the Bikram Sambat
+   calendar, when the task touches fiscal years, dates, or anything that decides
+   which year a transaction belongs to. **It records what has and has not been
+   verified about the calendar data.** Read it before changing that data.
+6. The relevant ADR in `docs/decisions/` for the subsystem you are changing.
+7. The three specifications at the repository root, when the task touches
    accounting, fiscal years, sync, or UI. They override any summary, including
    this file and `PROGRESS.md`.
 
@@ -33,6 +37,9 @@ Instructions for any AI coding agent working in this repository.
 - Money is always the `Money` type, never a `double` or `num`.
 - Posted financial records are immutable. Corrections use credit notes, debit
   notes, reversals, or compensating inventory movements.
+- **Never change the Bikram Sambat calendar data without reading
+  `docs/NEPALI_CALENDAR.md` first.** A wrong month length misfiles transactions
+  into the wrong fiscal year while every internal check still passes.
 - Schema changes require a migration.
 - All normal operations work offline. Only authentication, sync, backup, and
   fiscal-year conclusion require the network.
