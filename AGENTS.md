@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 Instructions for any AI coding agent working in this repository.
 
@@ -19,8 +19,9 @@ Instructions for any AI coding agent working in this repository.
    calendar, when the task touches fiscal years, dates, or anything that decides
    which year a transaction belongs to. **It records what has and has not been
    verified about the calendar data.** Read it before changing that data.
-6. The relevant ADR in `docs/decisions/` for the subsystem you are changing.
-7. The three specifications at the repository root, when the task touches
+6. `docs/BACKUP_AND_RETENTION.md` when the task touches backups, restore, or record keeping. It records what Nepali law appears to require and what the application does not yet do.
+7. The relevant ADR in `docs/decisions/` for the subsystem you are changing.
+8. The three specifications at the repository root, when the task touches
    accounting, fiscal years, sync, or UI. They override any summary, including
    this file and `PROGRESS.md`.
 

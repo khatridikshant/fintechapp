@@ -1,4 +1,7 @@
+﻿import '../application/books_session.dart';
+import '../application/build_general_ledger.dart';
 import '../application/build_trial_balance.dart';
+import '../domain/shared/book_backup_service.dart';
 
 /// What the presentation layer is allowed to reach.
 ///
@@ -9,13 +12,35 @@ import '../application/build_trial_balance.dart';
 /// This is the only thing the presentation layer is given. It is how the shell
 /// stays free of database and repository knowledge.
 class AppServices {
-  const AppServices({this.trialBalance});
+  const AppServices({
+    this.trialBalance,
+    this.generalLedger,
+    this.backup,
+    this.session,
+  });
 
   /// The Trial Balance report. Null until the application assembles it.
   final TrialBalanceLoader? trialBalance;
 
-  /// A copy with the Trial Balance report attached.
-  AppServices withTrialBalance(TrialBalanceLoader loader) => AppServices(
-        trialBalance: loader,
+  /// The General Ledger. Null until the application assembles it.
+  final GeneralLedgerLoader? generalLedger;
+
+  /// Taking and verifying backups.
+  final BackupActions? backup;
+
+  /// Which fiscal years exist and which is open, so the shell can offer a year
+  /// switcher. Concluded years open **read-only**.
+  final BooksSession? session;
+
+  /// Every use case for the selected year, rebuilt from [session].
+  ///
+  /// The loaders all belong to one year's books, so switching year replaces all
+  /// of them at once rather than patching any single one. The session is the
+  /// single source of what is open.
+  AppServices forSession(BooksSession session) => AppServices(
+        trialBalance: session.trialBalance,
+        generalLedger: session.generalLedger,
+        backup: session.backup,
+        session: session,
       );
 }

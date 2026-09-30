@@ -47,16 +47,47 @@ void enforceForeignKeys(sqlite.Database database) {
   database.execute('PRAGMA foreign_keys = ON');
 }
 
+/// Forces the connection to refuse every write for its whole lifetime.
+///
+/// `PRAGMA query_only` is per-connection, like `foreign_keys`, so it is applied
+/// through the `setup` hook to every connection the executor opens. A historical
+/// fiscal year must be opened read-only (specification sections 21 and 26), and
+/// "read-only" has to mean enforced rather than intended: a screen with no save
+/// button is not the same as a database that cannot be written to.
+///
+/// A write on such a connection fails with *"attempt to write a readonly
+/// database"*, which is testable, which is the point.
+void forceReadOnly(sqlite.Database database) {
+  database.execute('PRAGMA query_only = ON');
+}
+
+/// Applies both guards, for a writable connection.
+void _writableSetup(sqlite.Database database) => enforceForeignKeys(database);
+
+/// Applies both guards, for a read-only connection.
+void _readOnlySetup(sqlite.Database database) {
+  enforceForeignKeys(database);
+  forceReadOnly(database);
+}
+
 /// A throwaway in-memory database. Used by tests and scratch work.
-AppDatabase openInMemoryDatabase() {
+AppDatabase openInMemoryDatabase({bool readOnly = false}) {
   configureNativeSqlite();
-  return AppDatabase(NativeDatabase.memory(setup: enforceForeignKeys));
+  return AppDatabase(
+    NativeDatabase.memory(setup: readOnly ? _readOnlySetup : _writableSetup),
+  );
 }
 
 /// An on-disk database at an explicit path.
 ///
 /// Used by tests that must prove data survives closing and reopening the file.
-AppDatabase openFileDatabase(File file) {
+///
+/// Set [readOnly] for a concluded fiscal year. The specification requires
+/// historical years to be opened read-only, and this enforces that at the
+/// database rather than trusting every caller to remember.
+AppDatabase openFileDatabase(File file, {bool readOnly = false}) {
   configureNativeSqlite();
-  return AppDatabase(NativeDatabase(file, setup: enforceForeignKeys));
+  return AppDatabase(
+    NativeDatabase(file, setup: readOnly ? _readOnlySetup : _writableSetup),
+  );
 }

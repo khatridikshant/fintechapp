@@ -1,4 +1,4 @@
-# financeapp
+﻿# financeapp
 
 Offline-first desktop business management software for small businesses, with a
 Laravel cloud backend for identity, sync, backup, and restore.
@@ -15,6 +15,7 @@ running Shrawan to Ashadh.
 | `desktop/` | Flutter app for Windows, macOS, and Linux. The primary business system. |
 | `docs/` | Architecture, the AI development contract, and Architecture Decision Records. |
 | `docs/INVENTORY_EXPLAINED.md` | **Plain-language explainer** for inventory costing: what the methods mean with real numbers, what Nepali rules allow, and what this application does. Written for a non-accountant. |
+| `docs/BACKUP_AND_RETENTION.md` | **Plain-language explainer** for backup and record keeping: what Nepali law appears to require, how a backup is verified, and what a local backup still does not protect against. |
 | `docs/NEPALI_CALENDAR.md` | **Plain-language explainer** for the Bikram Sambat calendar, including what has and has not been verified about the calendar data, and how to verify it before launch. |
 | `AGENTS.md` | Entry point for any AI agent. Read first. |
 | `PROGRESS.md` | Handoff state and the next task. |

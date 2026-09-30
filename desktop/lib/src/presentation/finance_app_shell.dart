@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../application/books_session.dart';
 import 'app_services.dart';
 import 'navigation/app_navigation.dart';
 import 'theme/app_theme.dart';
@@ -24,7 +25,8 @@ class FinanceAppShell extends StatefulWidget {
 }
 
 class FinanceAppShellState extends State<FinanceAppShell> {
-  late List<NavigationGroup> _groups = buildNavigation(widget.services);
+  late AppServices _services = widget.services;
+  late List<NavigationGroup> _groups = buildNavigation(_services);
   late NavigationItem _selected = _groups.first.sections.first;
 
   @override
@@ -32,7 +34,8 @@ class FinanceAppShellState extends State<FinanceAppShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.services != widget.services) {
       setState(() {
-        _groups = buildNavigation(widget.services);
+        _services = widget.services;
+        _groups = buildNavigation(_services);
         // The previously selected section may no longer have a screen, so fall
         // back to the first rather than showing a stale screen.
         if (_groups
@@ -50,6 +53,27 @@ class FinanceAppShellState extends State<FinanceAppShell> {
   /// reaching into private state.
   void select(NavigationItem item) => setState(() => _selected = item);
 
+  /// Switches the open fiscal year.
+  ///
+  /// Every use case belongs to one year's books, so the whole service bundle is
+  /// replaced rather than any single loader being patched. A concluded year is
+  /// opened **read-only** by the session, and the shell says so.
+  Future<void> selectYear(int index) async {
+    final session = _services.session;
+    if (session == null) return;
+
+    await session.open(session.years[index].fiscalYear);
+    if (!mounted) return;
+
+    setState(() {
+      _services = _services.forSession(session);
+      _groups = buildNavigation(_services);
+      // The open screen belongs to the old year. Return to the first section so
+      // nothing is showing another year's figures.
+      _selected = _groups.first.sections.first;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -63,6 +87,8 @@ class FinanceAppShellState extends State<FinanceAppShell> {
             groups: _groups,
             selected: _selected,
             onSelected: select,
+            session: _services.session,
+            onYearSelected: selectYear,
           ),
           Expanded(child: _contentFor(_selected)),
         ],
@@ -83,11 +109,15 @@ class _NavigationArea extends StatelessWidget {
     required this.groups,
     required this.selected,
     required this.onSelected,
+    required this.session,
+    required this.onYearSelected,
   });
 
   final List<NavigationGroup> groups;
   final NavigationItem selected;
   final ValueChanged<NavigationItem> onSelected;
+  final BooksSession? session;
+  final Future<void> Function(int index) onYearSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -149,15 +179,98 @@ class _NavigationArea extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             const Divider(height: 1, thickness: 1),
             const SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              child: Text(
-                'FY 2082/83 — not built yet',
-                style: textTheme.bodySmall,
+            if (session != null)
+              _FiscalYearSelector(
+                session: session!,
+                onSelected: onYearSelected,
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                child: Text(
+                  'No fiscal year is open.',
+                  style: textTheme.bodySmall,
+                ),
               ),
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The fiscal year selector.
+///
+/// One SQLite file per year, so switching year opens different books. A
+/// concluded year is opened **read-only**, and the selector says so rather than
+/// leaving the user to discover it when a screen refuses to save.
+class _FiscalYearSelector extends StatelessWidget {
+  const _FiscalYearSelector({required this.session, required this.onSelected});
+
+  final BooksSession session;
+  final Future<void> Function(int index) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final textTheme = Theme.of(context).textTheme;
+    final open = session.openYear;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'FISCAL YEAR',
+            style: textTheme.labelSmall?.copyWith(
+              color: palette.secondaryText,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          DropdownButton<int>(
+            key: const ValueKey<String>('fiscal-year-selector'),
+            isExpanded: true,
+            value: session.years.indexWhere(
+              (y) => y.fiscalYear.label == open.fiscalYear.label,
+            ),
+            underline: const SizedBox.shrink(),
+            items: <DropdownMenuItem<int>>[
+              for (var i = 0; i < session.years.length; i++)
+                DropdownMenuItem<int>(
+                  value: i,
+                  child: Text(
+                    session.years[i].fiscalYear.label,
+                    style: textTheme.bodyMedium,
+                  ),
+                ),
+            ],
+            onChanged: (index) {
+              if (index != null) onSelected(index);
+            },
+          ),
+          if (open.isReadOnly) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+            // Stated, not discovered later. A concluded year refuses writes, so
+            // the user should know before they try to make one.
+            Row(
+              children: <Widget>[
+                Icon(Icons.lock_outline, size: 13, color: palette.warning),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Concluded year, read-only',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: palette.warning,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

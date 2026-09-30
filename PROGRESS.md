@@ -35,7 +35,7 @@ disconnected.
 | `docs/AI_RULES.md` | Hard prohibitions and obligations. A contract, not advice. |
 | `docs/ARCHITECTURE.md` | Condensed architecture and the reasoning behind each technology choice. |
 | `docs/INVENTORY_EXPLAINED.md` | **Plain-language accounting explainer.** What the costing methods mean with real numbers, what Nepali rules appear to allow, what this application does, and what it does not do yet. Written for a non-accountant. Read it before touching inventory, costing, COGS, or stock. |
-| `docs/NEPALI_CALENDAR.md` | **Plain-language calendar explainer.** What BS is, why the fiscal year starts in Shrawan, why the dates need a table, what has been verified, and � importantly � **what has not been verified, with a practical checklist for verifying it before launch.** Read it before changing the calendar data. |
+| `docs/NEPALI_CALENDAR.md` | **Plain-language calendar explainer.** What BS is, why the fiscal year starts in Shrawan, why the dates need a table, what has been verified, and — importantly — **what has not been verified, with a practical checklist for verifying it before launch.** Read it before changing the calendar data. |
 | `docs/decisions/*.md` | Architecture Decision Records. Read before touching a subsystem they govern. |
 
 The three root `.txt` files were written before any code existed. They are more
@@ -785,7 +785,7 @@ tighten the rule rather than edit the test: a quantity change must carry a value
 and only a write-down may be value-only. Two existing tests were updated, both to
 assert the *new* correct rule rather than to weaken anything.
 
-### 4.20 Gate 7 begins: the application shell and the licences screen � done
+### 4.20 Gate 7 begins: the application shell and the licences screen — done
 
 | File | Contents |
 | --- | --- |
@@ -839,7 +839,7 @@ quietly break. The calendar guard has to exclude its own file, because it contai
 the import string it searches for; loosening the pattern instead would let a real
 import through.
 
-### 4.21 The Trial Balance screen � the first screen wired to real data
+### 4.21 The Trial Balance screen — the first screen wired to real data
 
 | File | Contents |
 | --- | --- |
@@ -882,6 +882,207 @@ than fake an unbalanced report to test it, the use-case test says plainly that
 the check is a defensive assertion. If a future change ever let a row reach the
 journal table without going through `JournalEntry`, the check would fire.
 
+### 4.22 The General Ledger screen, and cross-report navigation
+
+| File | Contents |
+| --- | --- |
+| `lib/src/application/build_general_ledger.dart` | `GeneralLedgerReport`, `GeneralLedgerLoader`, `BuildGeneralLedger`. |
+| `lib/src/presentation/screens/general_ledger_screen.dart` | The ledger, with an account picker. |
+| `test/application/build_general_ledger_test.dart` | 10 tests. |
+| `test/presentation/general_ledger_screen_test.dart` | 11 tests. |
+
+**The opening balance is the point of this screen.** A range that starts after an
+account's first posting must bring the earlier balance forward, or the running
+balance appears to start at zero and **the closing figure silently disagrees with
+the trial balance** — a reconciliation failure a user has no way to detect. Three
+tests cover it: a mid-history range shows the opening and its first running
+balance continues from it; a range with no postings *still* shows the opening;
+and an untouched account shows neither.
+
+**The closing balance is cross-checked against the trial balance.** Same account,
+same book, same answer, asserted in the use-case test. If those two reports ever
+disagree, the test points straight at which pair of numbers to check.
+
+**Account selection lives on the interface, not behind a type check.** The first
+version did `loader is BuildGeneralLedger`, which broke the moment a test supplied
+a stub. `selectableAccounts()` is now part of `GeneralLedgerLoader`.
+
+**The two reports drill into each other.** Tapping a Trial Balance row opens that
+account's General Ledger, with no router: the navigation item reaches the shell's
+state through `findAncestorStateOfType`.
+
+### 4.23 Local backup and verified restore
+
+**Given priority over customers and products at the owner's request**, because a
+lost file is a legal problem and not merely an inconvenience: Nepali law requires
+a business to keep its books for years, so a single file on one computer is a
+compliance risk. See `docs/BACKUP_AND_RETENTION.md`.
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/shared/book_backup.dart` | `BookBackup`, `BackupVerification`, `BackupException`. |
+| `lib/src/domain/shared/book_backup_service.dart` | `BackupActions` (narrow) and `BookBackupService`. |
+| `lib/src/infrastructure/backup/file_book_backup_service.dart` | The implementation. |
+| `lib/src/presentation/screens/backup_screen.dart` | Take, list, verify. |
+| `test/infrastructure/book_backup_test.dart`, `test/presentation/backup_screen_test.dart` | 15 and 10 tests. |
+
+**The snapshot is produced by SQLite, not by copying the file.** A plain copy
+taken while the application is writing can capture the database mid-change and
+produce a file that is quietly corrupt: plausible size, plausible name, unusable.
+`VACUUM INTO` writes a complete, self-consistent copy while the database is in
+use. Probed first: SQLite here is 3.51.1 and supports it.
+
+**Every snapshot is verified before it is filed.** A SHA-256 checksum proves the
+bytes have not changed; `PRAGMA integrity_check` on a real connection proves the
+file is a database at all. A snapshot failing either is **deleted and reported as a
+failed backup**, because a directory of files that feel like a safety net and are
+not one is worse than an empty directory.
+
+**Restoring is proved, not assumed.** The test takes a backup, changes the books,
+restores, and asserts the original figures came back. An untested backup is not a
+backup.
+
+**Restoring protects what it replaces.** Verification runs first, so an unusable
+backup is refused before anything is touched; then the **current** books are
+backed up before being overwritten, so a wrong choice is recoverable.
+
+**The screen says plainly what a local backup does not do.** It protects against a
+damaged or deleted file. It does **not** survive the disk failing, theft, or fire.
+A user who believes otherwise is worse off than one who knows.
+
+### 4.24 Backup covers every fiscal year, not just the current one
+
+**A gap the owner found by asking the obvious question: "our logic says a SQLite
+per year, so?"** The first implementation covered only the **current** fiscal
+year. Two faults, and the second was worse:
+
+1. **The app did not know the other years existed.** `main.dart` computed the
+   current fiscal year and opened that one file; it never looked for other
+   `accounting-FY-*.db` files. It could not back them up — and could not open
+   them either.
+2. **The screen implied more protection than it delivered.** It warned that a
+   backup does not survive losing the computer, but said nothing about older years
+   having no backup at all. Those are the years closest to the retention clock.
+
+| File | Contents |
+| --- | --- |
+| `lib/src/domain/shared/book_year.dart` | `BookYear`, `BackupRun`, `BackupFailure`. |
+| `lib/src/infrastructure/backup/file_book_backup_service.dart` | Discovers every year and backs up all of them. |
+| `lib/src/presentation/screens/backup_screen.dart` | Lists every year and whether it is protected. |
+
+**Every `accounting-FY-*.db` in the books folder is discovered and backed up.** The
+current year is snapshotted through the connection already open; a concluded year
+is opened for the duration and closed again. Both go through the **same** snapshot
+and verification path, so a closed year is not treated as a lesser case.
+
+**A year that cannot be backed up is reported, never skipped.** `BackupRun` carries
+both the backups taken and the failures, and a test proves a corrupt concluded year
+is named in the failures while the other years are still covered.
+
+**The screen now says which years have no backup**, counts them, and a partial run
+reports "…could NOT be backed up: FY 2081/82 (reason)".
+
+**Two bugs of my own, both caught by the tests.** Restore was writing to the
+**snapshot's** file name instead of that year's books file, so it never replaced
+the real books; and the stray files it left in the books folder were then
+discovered as extra years on the next run, which is why the suite went from one
+second to five minutes.
+
+### 4.25 Opening a concluded fiscal year, read-only
+
+**A specified requirement that had not been built.** The specification says it
+three times and lists it as an acceptance test:
+
+> Section 21: *"Historical years may be opened or downloaded for reporting and
+> review, but they shall be opened in read-only mode."*
+> Section 26: *"Historical fiscal-year databases are read-only and shall never be
+> silently modified."*
+> Acceptance test: *"Historical year → opens read-only."*
+
+| File | Contents |
+| --- | --- |
+| `lib/src/application/books_session.dart` | `OpenYear`, `BooksSession`. |
+| `lib/src/infrastructure/database/file_books_session.dart` | Discovers the years, opens the trading year writable and closed years read-only. |
+| `lib/src/infrastructure/database/sqlite_native.dart` | `readOnly` on the openers, via `PRAGMA query_only`. |
+| `lib/src/presentation/finance_app_shell.dart` | A fiscal-year selector that rebuilds the services. |
+| `test/infrastructure/books_session_test.dart` | 11 tests. |
+
+**Read-only is enforced by the database, not by the screen.** `PRAGMA query_only`
+is set through the `setup` hook, so **every** connection the executor opens
+refuses writes. A concluded year is not merely one whose screens lack a save
+button; its database rejects the write, and the test asserts the exact SQL
+insertion fails. A rule that lives only in the UI is one any future caller can
+walk past.
+
+**A test proves the refusal leaves the file untouched on disk**, because the
+requirement is that historical years are *never silently modified*.
+
+**Read-only does not mean unreadable**, and a test asserts the figures still load.
+**The trading year stays writable**, asserted separately: a guard that stopped the
+business trading would be worse than the problem it solves.
+
+**Switching year replaces the whole service bundle**, because every use case
+belongs to one year's books and cannot be patched individually.
+
+**A hidden clock dependency was removed while building this.** The first version
+recomputed "the current year" from `DateTime.now()` inside the session, which
+would have made the read-only decision untestable. The trading year is now given,
+never inferred.
+
+### 4.26 The backend: PostgreSQL, API routes, and a verified upload endpoint
+
+**The off-machine answer the specification asks for.** The local backup already
+produces a verified, checksummed snapshot; what was missing was a server to
+receive it.
+
+| File | Contents |
+| --- | --- |
+| `backend/routes/api.php` | Three authenticated routes. Created; the file did not exist. |
+| `backend/bootstrap/app.php` | `api:` routing registered. |
+| `backend/app/Services/BackupUploadVerifier.php` | The verification chain and `BackupVerification`. |
+| `backend/app/Http/Controllers/Api/BackupRevisionController.php` | Store, list, show. |
+| `backend/app/Models/Book.php`, `BackupRevision.php` | Laravel 13 PHP-attribute style, not `$fillable`. |
+| `backend/database/migrations/*_create_books_table.php` | Books, so ownership can be checked. |
+| `backend/database/migrations/*_create_backup_revisions_table.php` | The exact metadata columns the specification lists. |
+| `backend/config/filesystems.php` | A `backups` disk, so moving to object storage later is a config change. |
+| `backend/tests/Feature/BackupUploadTest.php` | 11 tests. |
+
+**An unverified upload is never treated as a valid backup.** The specification says
+so directly, and it is enforced in four ordered checks, cheapest-and-safest first:
+the file's magic header, the declared size, the declared SHA-256, and finally
+SQLite's own `integrity_check`. The first failure stops the upload and **nothing
+is written** — no file, no metadata row. There is deliberately no "uploaded but not
+yet checked" state, because such a row is a backup the desktop might later
+report as stored.
+
+The integrity check is **last on purpose**. Opening a received file with SQLite
+means parsing data from outside, so it runs only after the file is known to be a
+SQLite database whose checksum matches what a trusted client sent, and the file is
+opened read-only.
+
+**Most of the tests are about refusal**, because a backup feature is only worth
+having if it says no: a checksum mismatch, a truncated upload, a file that is not a
+database, a **corrupted database with a valid header and a matching checksum**
+(only the integrity check catches that one), an unauthenticated caller, another
+user's book, and a revision that does not follow the latest. Each asserts nothing
+was stored.
+
+**A revision that does not follow the latest is a conflict, not a silent
+overwrite**, so two copies of the same books cannot clobber each other.
+
+**The SQLite file is not in the database.** `object_key` points at it on the
+`backups` disk, which is the pattern the specification describes for uploaded
+files. PostgreSQL holds only the metadata.
+
+**PostgreSQL is configured** as the specification mandates, and PostgreSQL 17 with
+`pdo_pgsql` is installed and running. `APP_NAME` is `financeapp`. The test suite
+runs on an isolated in-memory SQLite database, Laravel's own convention, so it
+needs no external database.
+
+**A stored revision has no `updated_at`**, because the specification's column list
+has none, and one would be misleading: a revision is an immutable record, and a
+change means a new revision.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -915,28 +1116,54 @@ Everything else. Specifically, none of the following exist:
   line, so issuing an invoice does not move stock automatically. Selling and stock
   movement are still two manual operations.
 - Cash Flow and every other report beyond the four above.
-- Any Flutter UI. `lib/main.dart` is still the generated counter app, and the
-  licences screen MIT attribution requires does not exist.
-- Any backend API, model, or migration beyond stock Laravel. See section 5.1.
-- Authentication, licensing, sync, backup, restore, fiscal-year lifecycle.
+- **The Flutter UI.** Not "any" — the shell, navigation, theme, licences screen,
+  Trial Balance, General Ledger, fiscal-year selector, and Backup screen are built
+  and wired to real data. See 4.20 to 4.25. **Still missing: any screen that
+  creates a record.** There is no form for a customer, a product, an invoice, or a
+  payment, so the business cannot be run through the application. This is the
+  largest remaining gap and it is what keeps Gate 7 open.
+- **The backend.** Not "any" — Sanctum, PostgreSQL configuration, `books` and
+  `backup_revisions`, the upload verification chain, and store/index/show routes
+  exist and are tested. See 4.26.
+- **Uploading a backup off the machine.** The server half exists; the desktop has
+  no `UploadBackup` port, no implementation, and no button. **Nothing has actually
+  crossed the wire.** This is the next task.
+- **Restore from the cloud.** The server can store and list revisions but has no
+  download endpoint, and the desktop has no restore-from-server path. A backup that
+  cannot be fetched is not a backup.
+- **Identity.** Sanctum is installed and the upload routes are authenticated, but
+  there is no login, registration, or token-issuing endpoint, so **no client can
+  obtain a token**, and the desktop has no way to authenticate. This blocks every
+  remaining end-to-end path.
+- **The PostgreSQL password is unknown.** The server is configured for PostgreSQL
+  and PostgreSQL 17 is running, but `DB_PASSWORD` is empty in `backend/.env` and
+  the install-time password was never recorded. The test suite is unaffected — it
+  runs on in-memory SQLite — but the server **cannot be started against a real
+  database** until the owner supplies the password. This is the one thing blocking
+  a live end-to-end run, and it needs an owner decision.
+- **Sync, licensing, and device registration.** Not started. Sync in particular
+  depends on the id-generation question in 7.16.
+- **Retention.** The specification and Nepali law require records to be kept for
+  years; nothing prunes, archives, or enforces that. See
+  `docs/BACKUP_AND_RETENTION.md`.
 
 ### 5.1 Backend findings from reading the scaffolding
 
-Discovered by reading the generated backend, not previously recorded. These are
-all pre-existing Laravel defaults, not defects introduced by this project, but
-each one must be resolved before backend work starts.
+Discovered by reading the generated backend. **Every row is now resolved**; it is
+kept because the traps in it cost time and the reasoning is not obvious from the
+finished code.
 
-| Finding | Required action |
+| Finding | Status |
 | --- | --- |
-| `DB_CONNECTION=sqlite` in both `.env` and `.env.example`, and `sqlite` is the default in `config/database.php` | The architecture mandates **PostgreSQL** for the cloud. A `pgsql` connection exists in the config but is not selected. Switch `DB_CONNECTION` and configure credentials. |
-| No `routes/api.php`, and `bootstrap/app.php` registers only `web`, `commands`, and `health` | Register `api:` routing. The API surface does not exist yet. |
-| No Sanctum or Passport installed | Authentication, 7-day sessions, and device registration have no implementation path. Sanctum is the natural fit for a first-party desktop client. |
-| `APP_NAME=Laravel` | Change to `financeapp`. |
-| Laravel 13 uses PHP attributes on models: `#[Fillable([...])]`, `#[Hidden([...])]` | **Convention trap.** Write the attribute style, not the older `$fillable` / `$hidden` properties. See `backend/app/Models/User.php`. |
-| Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `composer test` is the configured command. |
-| Skeleton ships Vite, Tailwind, `resources/views/welcome.blade.php`, and `routes/web.php` returning a view | Dead weight for an API-only backend. Needs a deliberate decision, not an accidental one. |
+| `DB_CONNECTION=sqlite` in both `.env` and `.env.example`, and `sqlite` is the default in `config/database.php` | **Resolved.** Switched to `pgsql`. See 4.26. **The password is still unknown — see section 5.** |
+| No `routes/api.php`, and `bootstrap/app.php` registers only `web`, `commands`, and `health` | **Resolved.** `api:` routing registered, `routes/api.php` created. |
+| No Sanctum or Passport installed | **Resolved.** `laravel/sanctum` v4.3 installed, and the upload routes are protected. **Token issuance is still not implemented — see section 5.** |
+| `APP_NAME=Laravel` | **Resolved.** Now `financeapp`. |
+| Laravel 13 uses PHP attributes on models: `#[Fillable([...])]`, `#[Hidden([...])]` | **Convention trap.** Write the attribute style, not the older `$fillable` / `$hidden` properties. See `backend/app/Models/User.php`. The new models follow it. |
+| Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `php artisan test` is the command that passes; 13 tests. |
+| Skeleton ships Vite, Tailwind, `resources/views/welcome.blade.php`, and `routes/web.php` returning a view | **Left in place deliberately.** Dead weight for an API-only backend, but removing it is a separate cleanup and is not blocking. |
 | `backend/database/database.sqlite` exists as a real file | Confirmed gitignored. Do not commit it. |
-| `backend/database/migrations/0001_01_01_000000_create_users_table.php` already creates `users`, `password_reset_tokens`, and `sessions` | Build on these rather than recreating them. |
+| `backend/database/migrations/0001_01_01_000000_create_users_table.php` already creates `users`, `password_reset_tokens`, and `sessions` | Built on, not recreated. |
 
 ### 5.2 Desktop toolchain findings
 
@@ -947,61 +1174,66 @@ each one must be resolved before backend work starts.
 | **Windows Developer Mode was enabled by the owner, and `flutter build windows` now succeeds**, producing `build\windows\x64\runner\Debug\financeapp.exe`. | Resolved. The build and the `sqlite3_flutter_libs` plugin link both work. Running the binary shows the generated counter app, which is expected until the UI gate. Rebuilt and verified again after the schema v2 migration. |
 | The Android SDK path contains spaces, which `flutter doctor` flags | Irrelevant for a Windows/macOS/Linux desktop product. Ignore unless Android is ever targeted. |
 | `sqlite3_flutter_libs` is a Flutter plugin and does not load in `flutter test` | Tests still fall back to `winsqlite3.dll` via `open.overrideFor` in `sqlite_native.dart`. Working, and now recorded as intentional. |
-- `pubspec.yaml` still has no dependencies. The approved list is in
-  `docs/AI_RULES.md`.
+- `pubspec.yaml` **does** have dependencies now — `drift`, `sqlite3_flutter_libs`,
+  `path_provider`, `crypto`, and others. The approved list is in
+  `docs/AI_RULES.md`. **`crypto` was added in 4.23 for the backup checksum**, which
+  is why the licence and dependency records had to be updated.
+- **PowerShell 5.1 corrupts `.md` files**, and the corruption is already in one
+  commit. This is a tooling constraint that affects every future agent working on
+  this repository. **See 7.19 before editing any markdown file from a shell.**
 
 ## 6. Next task
 
 This is the next bounded task, ready to hand to an agent verbatim.
 
-> **Add the General Ledger screen.**
+> **Send a verified backup to the server.**
 >
-> Scope: `BuildGeneralLedger` in `application/`, a `GeneralLedgerScreen` in
-> `presentation/`, wiring in `AppServices`, and tests in `test/application/` and
-> `test/presentation/`.
+> The server half exists and is tested (4.26). This is the desktop half, and it is
+> what finally puts a backup somewhere other than the disk it came from.
 >
-> Do not modify: `GeneralLedger`, `TrialBalance`, `Ledger`, `Money`, the chart of
-> accounts, the repositories, or the domain layer. Do not weaken any test.
->
-> **No schema change is needed.** The reporting layer already exists and is
-> tested; only the presentation is missing.
+> Do not modify: the accounting engine, the reporting layer, the billing or
+> inventory domains, the server-side controller, or any screen beyond the Backup
+> screen. Do not weaken any test.
 >
 > Required behaviour:
 >
-> 1. `BuildGeneralLedger` takes an **account** and a date range, and returns that
->    account's postings with a running balance. An **account picker** belongs on
->    the screen, not in the use case; the use case takes the account it is given.
-> 2. The screen shows, per posting: date, journal entry reference, description,
->    debit, credit, and the running balance. The opening balance must be visible
->    when a range starts mid-history, because otherwise the running balance
->    silently disagrees with the trial balance.
-> 3. Offer a way to reach the account's row on the Trial Balance screen, so the
->    two reports are navigable from each other. Do not add a route; a link that
->    calls the shell's selection is enough.
-> 4. Follow the Trial Balance screen's established conventions exactly: fixed-width
->    right-aligned money columns, `Money.format` for every amount, an em dash
->    rather than a zero on an empty side, and the same loading, empty, and failure
->    states.
-> 5. Add the screen to `buildNavigation` behind an `AppServices` entry, so it
->    shows the "not built yet" notice until it is wired. That is the pattern the
->    shell already uses.
+> 1. An `UploadBackup` **port** in the domain, with a Laravel-backed
+>    implementation in `infrastructure/`. It sends a snapshot that has **already
+>    been verified locally** by the existing backup service, together with the
+>    checksum, size, and fiscal-year label the server will verify against. **Do
+>    not create a second kind of backup** — the local verified snapshot is the
+>    thing that gets uploaded.
+> 2. A `BookIdentity` concept, because the endpoint is
+>    `/books/{book}/backup-revisions` and the desktop must know which book it is
+>    uploading to. Where that id comes from connects to the open question in 7.16:
+>    ids must not collide across installations. **If it needs an owner decision,
+>    stop and ask.**
+> 3. A button on the Backup screen that uploads, and a statement of when the last
+>    upload succeeded. **Until this works against a real server the screen must
+>    still say a local backup does not survive losing the machine, because that
+>    remains true.**
+> 4. **A failed upload must not claim success**, and must not delete or alter the
+>    local backup. The local copy is the fallback until the server has confirmed it
+>    holds the bytes.
+> 5. The revision number continues the sequence the server expects. A conflict
+>    must be reported as a conflict, not retried blindly.
 >
 > Tests to add:
 >
-> - The use case returns postings in date order with a correct running balance,
->   matching `GeneralLedger` computed in memory for the same entries.
-> - An opening balance appears when the range starts after the first posting, and
->   the closing balance equals the same account's balance on the trial balance.
-> - The screen renders the opening balance, each posting, and the closing balance.
-> - Every amount matches the shared money format, and money is right-aligned.
-> - An account with no postings shows the empty state, and a range with no
->   postings shows the opening balance alone.
-> - A failure shows the message rather than a blank screen.
-> - The architecture guards still pass.
+> - The port is called with the snapshot's real checksum, size, and fiscal-year
+>   label — read from the file, not passed in by the test.
+> - A rejected upload is reported, and the local backup file is byte-identical
+>   afterwards.
+> - A server conflict is surfaced rather than silently retried.
+> - The screen shows the last successful upload time.
+> - With no server reachable, the upload fails cleanly and the local backup is
+>   untouched. **A desktop application that cannot reach the internet must still
+>   work**, per the specification.
+> - The architecture guards still pass, including the `export` check added in 7.21.
 >
-> Run `flutter test` and `flutter analyze` and report both, and confirm
-> `flutter build windows --debug` still succeeds. The full suite must stay green,
-> including the existing 557 tests.
+> Report `flutter test`, `flutter analyze`, `php artisan test`, and
+> `flutter build windows --debug`. The Dart suite must stay green including the
+> existing 620 tests.
 
 ## 7. Decisions and discoveries that affect future work
 
@@ -1155,7 +1387,7 @@ normal user input, not a malfunction. Twelve tests cover it, including both
 inclusive boundary dates, an afternoon on the final day, and that a refusal
 leaves previously committed entries intact.
 
-### 7.10 Bikram Sambat calendar � RESOLVED, and then deliberately un-depended
+### 7.10 Bikram Sambat calendar — RESOLVED, and then deliberately un-depended
 
 **First closed with a package, then reopened by the owner and closed properly.**
 
@@ -1465,7 +1697,89 @@ every existing assertion still holds on its own merits** — the hand-computed V
 amounts were unchanged, and the tests assert that. The prohibited move is
 loosening a matcher or deleting an expectation so the suite goes green.
 
+### 7.19 PowerShell 5.1 corrupts this file, and git preserved the damage
 
+**This is the single most expensive discovery of the session, and it is about the
+tooling, not the accounting.** Windows PowerShell 5.1 here defaults to reading and
+writing files with a codec that cannot represent an em dash. Two distinct
+consequences, and the second is far worse:
+
+1. `Set-Content` on this file replaces the em dashes with byte `0x97`, a lone
+   high byte that is not valid UTF-8. The text still *reads* plausibly in most
+   viewers, so the damage is not obvious.
+2. **The corruption reached `git`.** Commit `ae3c63b` contains a file with five
+   corrupt bytes. Restoring from git therefore restored *the damage*, not the
+   text. The file is now 0 corrupt bytes again, but a future `git checkout` of
+   that commit would reintroduce it.
+
+**The rule for this repository: never use `Set-Content`, `Out-File`,
+`Add-Content`, or `Get-Content | Set-Content` on any `.md` file.** Use the editor
+tools, which write UTF-8 directly. Read with `Get-Content -Encoding UTF8` when a
+shell command genuinely needs to inspect a file.
+
+**To check a file for this damage, count lone high bytes.** Walk the bytes and
+skip any valid UTF-8 multi-byte sequence; whatever remains is corruption:
+
+```powershell
+$b = [System.IO.File]::ReadAllBytes($p); $i = 0; $lone = 0
+while ($i -lt $b.Length) {
+  if ($b[$i] -gt 127) {
+    $len = if (($b[$i] -band 0xF0) -eq 0xE0) { 3 }
+           elseif (($b[$i] -band 0xE0) -eq 0xC0) { 2 }
+           elseif (($b[$i] -band 0xF8) -eq 0xF0) { 4 } else { 1 }
+    if ($len -eq 1) { $lone++ }
+    $i += $len
+  } else { $i++ }
+}
+"corrupt: $lone"
+```
+
+A single `0x97` byte is the fingerprint, and `0xE2 0x80 0x94` is the correct
+three-byte em dash it should have been. The repair loop is a byte-level
+replacement, not a text-level one, because by then the file no longer decodes.
+
+**A second, separate lesson: do not splice this file by line number.** Editing
+`PROGRESS.md` by `Get-Content`/`AddRange`/array index arithmetic destroyed
+1,300 lines of it, because a failed `AddRange` conversion threw *after* the head
+and tail had been computed and the file had been partially written. Recovering
+meant restoring from git and re-adding five sections by hand. Use the editor
+tools, which replace an exact string and fail loudly when it is absent.
+
+### 7.20 A backup needs a unique name before it needs a timestamp
+
+`file_book_backup_service.dart` names a snapshot
+`FY2081-82-20260930-113200.db`. Two backups taken within the same second collide,
+and the second overwrites the first — so the user is told they have two backups
+and has one. Found by reading my own code while writing the tests for 4.23, not by
+a failing test.
+
+A counter is appended when the name is already taken. Timestamps remain in the
+name because they are what makes a backup list legible to a human.
+
+### 7.21 The architecture guard had a hole, and tests were copy-pasted past it
+
+**`import_boundary_test.dart` checked that `lib/src/domain/` does not import the
+other layers, but only for `import` statements — not `export`.** A `domain` file
+re-exporting something from `infrastructure` would pass the check while
+violating exactly the rule the check exists to enforce. The guard now rejects
+`export` directives too, in both directions.
+
+**A second finding is the uncomfortable one: eleven test expectations in this
+suite were wrong before they were ever run.** They were written by copying a
+neighbouring test and adjusting a number. The pattern is in 7.15, and the
+specific recurring causes here were:
+
+- a fixture that used a hand-typed date rather than a derived one, so it silently
+  moved fiscal years between runs;
+- a moving-average cost computed by hand in the test instead of in the domain,
+  where it disagreed by one paisa;
+- a ledger balance that assumed a posting order that `OrderBook` does not
+  guarantee.
+
+None of these were caught by the analyzer, and each is a test that would have
+asserted a wrong number into the suite permanently. The cost was highest here,
+where the fixtures are dates: see 7.19 for the same underlying problem in the
+tooling.
 
 ## 8. Commands
 
@@ -1517,17 +1831,23 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, and Balance Sheet complete.** Cash Flow and the rest are not started. |
 | 5 | Billing | **Complete for the core cycle.** Numbering, invoices, customers, invoice records, payments, and credit notes all work: a receivable can be raised, settled, and corrected. Debit notes and refunds are not started; see section 5. |
 | 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
-| 7 | Complete offline workflow | **In progress.** The shell, the design theme, and the licences screen exist and are tested. The Trial Balance screen is the next task, and will be the first screen wired to a use case. |
-| 8 | Fiscal-year conclusion and archival | Not started. The calendar it needs exists (ADR 009). |
-| 9 | Cloud backup and restore | Not started. The backend is untouched since the scaffold; see 5.1. |
+| 7 | Complete offline workflow | **Partial.** The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, and Backup screen exist and are wired to real use cases. **Nothing can yet be entered**: there is no form for a customer, product, invoice, or payment, so the business cannot be run through the application. |
+| 8 | Fiscal-year conclusion and archival | **Partial.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
+| 9 | Cloud backup and restore | **Partial.** The server exists and is tested: Sanctum, PostgreSQL, `books`, `backup_revisions`, the four-step verification chain, and store/index/show. **No client can reach it** — there is no token-issuing endpoint, no download endpoint, and no desktop upload path, so nothing has crossed the wire. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** 539 tests, all passing. `flutter analyze` reports no issues.
-The newest files are `test/presentation/app_shell_test.dart` (20 widget tests) and
-`test/presentation/architecture_test.dart` (4 layer-boundary guards).
+**Test suite:** 620 Dart tests, all passing, and 13 Laravel tests. `flutter analyze`
+reports no issues. `php artisan test` reports
+`{"tests":13,"passed":13,"assertions":35}`. The newest Dart files are
+`test/presentation/backup_screen_test.dart` (10 widget tests) and
+`test/presentation/architecture_test.dart` (layer-boundary guards, now covering
+`export` directives as well as `import`).
 
 **Build status:** `flutter build windows --debug` succeeds and produces
 `financeapp.exe`.
+
+**Blocked on an owner answer:** the PostgreSQL password. See section 5. The test
+suites are unaffected, but no live end-to-end run is possible until it is known.
 
 **Generated files that must be committed:** `drift_schemas/` (the schema
 snapshots) and `test/generated/` (the migration-test helpers). They are not
@@ -1559,3 +1879,9 @@ build output; deleting them breaks the migration tests.
 | 2026-09-29 | Completed Gate 6 with the inventory write-down to net realisable value, migration v8 to v9. A write-down reduces value **without changing quantity** -- the goods are still held -- which the movement type could not previously represent, so a new `writeDown` reason permits a value-only movement and the database CHECK was relaxed to match, requiring another table rebuild. Recording the write-down as a movement rather than a side-channel is what keeps the stock value and the inventory account equal by construction. Refuses a value at or above the carrying amount, because IAS 2 does not permit inventory to be revalued upwards; the boundary is tested both ways. Disposal stays a separate movement and has its own test. **The first attempt at relaxing the rule went too far** -- it allowed a quantity change with zero value, which an existing test rightly caught; the fix was to tighten the rule rather than edit the test. Suite 504 tests. |
 | 2026-09-30 | Removed the `bikram_sambat` dependency at the product owner's request, on **supply-chain** grounds: it made the one dataset the product cannot ship without depend on a single maintainer who could change the licence, go commercial, or discontinue it. The calendar data is now in-tree in `domain/fiscal/bs_calendar_data.dart` and the conversion is implemented here, isolated to that one adapter. Removing it surfaced three things worth recording: the upstream table's final entry, BS 2200, was **placeholder data** (twelve 31-day months, 372 days -- not a real calendar) and was excluded rather than carried; the package applied a fixed **+5:45 Nepal offset**, which would have given users on other timezones shifted dates, replaced here with UTC arithmetic presented as a local date-only value; and the data being ours means it is now tested, with eleven integrity tests including a day-by-day round trip across nine whole years. ADR 009 rewritten. Suite 515 tests, Windows build verified. |
 | 2026-09-30 | Opened Gate 7. Replaced the generated counter app with a real shell: the `MaterialApp` root, a left navigation carrying the eight groups from `ui.txt` section 13, a content area, a **design theme taken from `ui.txt`** (restrained warm-neutral palette, one blue accent, Segoe UI with fallbacks, the newspaper type scale, borders over shadows, corner radii capped at 6), and the **licences screen** that MIT and BSD-3 require. Measured the whole dependency tree first: 85 packages, 69 BSD-3, 8 MIT, 3 Apache-2.0, and the Flutter SDK, so **not one is attribution-free**; Flutter aggregates them all, so the screen is one menu item. Two bugs the tests caught: the shell read the theme from a context **above its own `MaterialApp`**, which cannot work because a `MaterialApp` only themes what is below it; and a `Container` was given both a `color` and a `decoration`. Added `architecture_test.dart`, which reads the source files and fails if a screen imports a repository or a domain internal, if a domain file imports Flutter or the outer layers, or if the removed calendar package is reintroduced. Suite 539 tests, Windows build verified. |
+| 2026-09-30 | Added the General Ledger screen, the second report screen. The **opening balance** is the substance of it: a range starting after an account's first posting must carry the earlier balance forward, or the closing figure silently disagrees with the Trial Balance and the user has no way to detect it. Cross-checked against `TrialBalance` in the use-case test, so a future divergence points straight at the pair of numbers to check. A type check on the loader broke the moment a test supplied a stub, so account selection moved onto the interface. 10 application tests, 11 widget tests. Suite 557. |
+| 2026-09-30 | Implemented local backup and verified restore, at the owner's priority because a lost file is a **legal** problem, not merely an inconvenience. The snapshot uses SQLite's `VACUUM INTO` rather than a file copy, because a copy taken while the application is writing can capture a half-written database that looks fine and is not; SQLite here is 3.51.1 and supports it. Every snapshot is verified before it is filed -- SHA-256 for the bytes, `PRAGMA integrity_check` for whether it is a database at all -- and a snapshot failing either is **deleted and reported as a failed backup**, because a directory of files that feel like a safety net and are not is worse than an empty one. Restoring verifies first, so an unusable backup is refused before anything is touched, and backs up the current books before overwriting them. The test takes a backup, changes the books, restores, and asserts the original figures returned: an untested backup is not a backup. Added `crypto` for the checksum, so the dependency and licence records had to be updated. 15 infrastructure tests, 10 widget tests. Suite 582. |
+| 2026-09-30 | Found and closed a gap the owner found by asking the obvious question -- "our logic says a SQLite per year, so?". The first implementation backed up only the **current** year, and the app **did not know the other years existed**: `main.dart` computed the current year and opened that one file, never looking for the rest. Two faults, and the second is worse -- the screen warned that a backup does not survive losing the computer while saying nothing about older years having no backup at all, and those are the years closest to the retention clock. Every `accounting-FY-*.db` is now discovered and snapshotted, the current year through the connection already open and a concluded year by opening it briefly, both through the same verification path. A year that cannot be backed up is **named in the failures**, never skipped, proved by a test with a corrupt year among good ones. Two bugs of my own: restore wrote to the snapshot's file name instead of that year's books file, so it never replaced the real books, and the stray files it left were then rediscovered as extra years, which is why the suite went from one second to five minutes. Suite 597. |
+| 2026-09-30 | Implemented opening a concluded fiscal year, read-only -- a specified requirement in three places, including the acceptance test *"Historical year → opens read-only"*, that had not been built. **Read-only is enforced by the database, not the screen**: `PRAGMA query_only` is set through the `setup` hook so every connection the executor opens refuses writes, and a test asserts the exact SQL insertion fails and that the file on disk is untouched. A rule living only in the UI is one any future caller walks past. Read-only does not mean unreadable, and the figures still load. The trading year stays writable, asserted separately: a guard that stopped the business trading would be worse than the problem it solves. Switching year replaces the whole service bundle, because every use case belongs to one year's books. A hidden clock dependency was removed while building this -- the session had been recomputing "the current year" from `DateTime.now()`, which would have made the decision untestable; the trading year is now given, never inferred. Suite 609. |
+| 2026-09-30 | Implemented the backend: Sanctum, PostgreSQL, `books` and `backup_revisions`, the upload verification chain, and store/index/show routes. **An unverified upload is never treated as a valid backup**, enforced as four ordered checks, cheapest-and-safest first: magic header, declared size, declared SHA-256, then SQLite's own `integrity_check`. The first failure stops the upload and nothing is written -- no file, no row. There is deliberately no "uploaded but not yet checked" state, because such a row is a backup the desktop might later report as stored. The integrity check is **last on purpose**: opening a received file with SQLite parses data from outside, so it runs only after the file is known to be a SQLite database whose checksum matches a trusted client, and it is opened read-only. Most of the 11 tests are about **refusal**, since a backup feature is only worth having if it can say no -- including a corrupted database with a valid header and a matching checksum, which only the integrity check catches, and a revision that does not follow the latest, which is a conflict rather than a silent overwrite so two copies cannot clobber each other. The SQLite file is not in the database: `object_key` points at the `backups` disk, so moving to object storage is a config change. A stored revision has no `updated_at`, because the specification's column list has none and a revision is immutable. `APP_NAME` is `financeapp`. Tests run on in-memory SQLite, so no external database is needed. 13 Laravel tests, suite 620 Dart tests, Windows build verified. |
+| 2026-09-30 | **Recovered `PROGRESS.md` from a self-inflicted loss.** Splicing the file by line number in PowerShell destroyed 1,300 lines, because a failed `AddRange` conversion threw *after* the head and tail were computed. Restoring from `git checkout HEAD -- PROGRESS.md` brought back the corruption rather than the text: commit `ae3c63b` already contains five corrupt bytes, because PowerShell 5.1 cannot encode an em dash and `Set-Content` had replaced each with a lone `0x97`. Repaired at the byte level, then sections 4.22 to 4.26 and 7.19 to 7.21 were rewritten by hand. The two lessons are recorded in 7.19 and are the most transferable findings of the session: **never use `Set-Content` on a `.md` file here, and never splice one by line number.** The file is 0 corrupt bytes. |

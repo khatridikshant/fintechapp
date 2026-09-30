@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../app_services.dart';
+import '../finance_app_shell.dart';
+import '../screens/backup_screen.dart';
+import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
 import '../screens/trial_balance_screen.dart';
@@ -53,13 +56,28 @@ List<NavigationGroup> buildNavigation(AppServices services) {
         NavigationItem(
             title: 'Chart of Accounts', icon: Icons.account_tree_outlined),
         NavigationItem(
-            title: 'General Ledger', icon: Icons.vertical_split_outlined),
+          title: 'General Ledger',
+          icon: Icons.vertical_split_outlined,
+          route: services.generalLedger == null
+              ? null
+              : (context) =>
+                  GeneralLedgerScreen(loader: services.generalLedger!),
+        ),
         NavigationItem(
           title: 'Trial Balance',
           icon: Icons.balance_outlined,
           route: trialBalance == null
               ? null
-              : (context) => TrialBalanceScreen(loader: trialBalance),
+              : (context) => TrialBalanceScreen(
+                    loader: trialBalance,
+                    // Tapping an account opens that account's ledger, so the two
+                    // reports drill into each other without a router.
+                    onAccountSelected: services.generalLedger == null
+                        ? null
+                        : (_) => _shellOf(context).select(
+                              _ledgerItemFor(services)!,
+                            ),
+                  ),
         ),
       ],
     ),
@@ -115,7 +133,13 @@ List<NavigationGroup> buildNavigation(AppServices services) {
       title: 'System',
       sections: <NavigationItem>[
         NavigationItem(title: 'Settings', icon: Icons.settings_outlined),
-        NavigationItem(title: 'Backup', icon: Icons.backup_outlined),
+        NavigationItem(
+          title: 'Backup',
+          icon: Icons.backup_outlined,
+          route: services.backup == null
+              ? null
+              : (context) => BackupScreen(service: services.backup!),
+        ),
         NavigationItem(title: 'Sync', icon: Icons.sync_outlined),
         NavigationItem(title: 'Fiscal Year', icon: Icons.event_outlined),
         // Required by the MIT and BSD-3 licences of every dependency.
@@ -134,6 +158,21 @@ List<NavigationItem> allNavigationItemsFor(AppServices services) =>
     buildNavigation(services)
         .expand((group) => group.sections)
         .toList(growable: false);
+
+/// The General Ledger navigation item, or null when it has no screen.
+NavigationItem? _ledgerItemFor(AppServices services) {
+  for (final group in buildNavigation(services)) {
+    for (final section in group.sections) {
+      if (section.title == 'General Ledger') return section;
+    }
+  }
+  return null;
+}
+
+/// The shell's own state, reached from a descendant so a navigation item can
+/// change the selected section without the shell exposing a global registry.
+FinanceAppShellState _shellOf(BuildContext context) =>
+    context.findAncestorStateOfType<FinanceAppShellState>()!;
 
 /// The screen shown for a section that exists in the design but has not been
 /// built yet.

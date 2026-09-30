@@ -1,4 +1,4 @@
-# AI Development Rules
+﻿# AI Development Rules
 
 This is a contract, not a suggestion. Every AI agent working on this repository
 must read this file before modifying code. It is derived from
@@ -99,6 +99,7 @@ Approved core dependencies, all permissive:
 | `drift` | MIT | SQLite, type-safe queries, migrations |
 | `drift_dev`, `build_runner` (dev) | MIT | Code generation for drift |
 | `sqlite3` | MIT | Native SQLite bindings, imported directly by `sqlite_native.dart` |
+| `crypto` | BSD-3 | SHA-256 checksums for verifying backups |
 | `sqlite3_flutter_libs` | MIT | Bundles SQLite into the shipped application |
 | `path`, `path_provider` | MIT / BSD-3 | Database file location |
 | `pluto_grid` | MIT | Dense desktop data grid |

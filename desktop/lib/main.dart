@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
-import 'src/application/build_trial_balance.dart';
-import 'src/domain/accounting/chart_of_accounts.dart';
 import 'src/domain/fiscal/nepali_fiscal_calendar.dart';
-import 'src/infrastructure/database/connection.dart';
-import 'src/infrastructure/database/drift_account_repository.dart';
-import 'src/infrastructure/database/drift_journal_repository.dart';
 import 'src/presentation/app_services.dart';
+import 'src/infrastructure/database/file_books_session.dart';
 import 'src/presentation/finance_app.dart';
 
 /// financeapp — offline-first business software for small Nepali businesses.
@@ -29,30 +26,21 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    // The fiscal year today falls in. ADR 002 gives each year its own database,
+    // and this is the one the business is trading in, so it is the writable one.
     final fiscalYear = const NepaliFiscalCalendar().containing(DateTime.now());
 
-    final database = await openApplicationDatabase(
-      'accounting-${fiscalYear.label.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-')}'
-      '.db',
+    // The books folder holds one database per fiscal year. The session finds
+    // them all, opens the trading year, and opens every concluded year
+    // read-only, as the specification requires.
+    final supportDirectory = await getApplicationSupportDirectory();
+    final session = await FileBooksSession.openOn(
+      booksDirectory: supportDirectory,
+      startYear: fiscalYear,
     );
-
-    // Seed the chart of accounts on first run. Saving is idempotent, so this
-    // costs nothing on later runs and cannot duplicate an account.
-    await DriftAccountRepository(database).saveAll(
-      const ChartOfAccounts().all,
-    );
-
-    final journal = DriftJournalRepository(database);
 
     runApp(
-      FinanceApp(
-        services: AppServices(
-          trialBalance: BuildTrialBalance(
-            fiscalYear: fiscalYear,
-            journal: journal,
-          ),
-        ),
-      ),
+      FinanceApp(services: AppServices().forSession(session)),
     );
   } catch (error) {
     runApp(StartupFailureApp(error: error));

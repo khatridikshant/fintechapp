@@ -38,6 +38,31 @@ return [
             'report' => false,
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | Backups disk
+        |--------------------------------------------------------------------------
+        |
+        | Where verified snapshots of a fiscal year's books are stored. The
+        | specification puts the SQLite file here and only its metadata in
+        | PostgreSQL, in the same pattern as storing an uploaded image while
+        | keeping its key.
+        |
+        | A local disk is the starting point. The specification allows object
+        | storage "rather than directly on the VPS", so this is deliberately a
+        | single named disk: moving to S3-compatible storage later is a change
+        | to this block, not to any code that stores a backup.
+        |
+        */
+
+        'backups' => [
+            'driver' => env('BACKUP_DISK_DRIVER', 'local'),
+            'root' => env('BACKUP_DISK_ROOT', storage_path('app/backups')),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

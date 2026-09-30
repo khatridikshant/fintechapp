@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../application/build_trial_balance.dart';
+import '../../domain/accounting/account.dart';
 import '../../domain/shared/money.dart';
 import '../theme/app_theme.dart';
 
@@ -9,10 +10,19 @@ import '../theme/app_theme.dart';
 /// Every amount comes from `Money.format`, so the screen cannot invent a second
 /// formatting rule and drift from the ledger's own.
 class TrialBalanceScreen extends StatefulWidget {
-  const TrialBalanceScreen({super.key, required this.loader});
+  const TrialBalanceScreen({
+    super.key,
+    required this.loader,
+    this.onAccountSelected,
+  });
 
   /// The use case that produces the report. The screen never reads a repository.
   final TrialBalanceLoader loader;
+
+  /// Called when the user picks an account, so the shell can open that account's
+  /// ledger. This is how the two reports stay navigable from each other without
+  /// either of them knowing about a router.
+  final void Function(Account account)? onAccountSelected;
 
   @override
   State<TrialBalanceScreen> createState() => _TrialBalanceScreenState();
@@ -46,7 +56,10 @@ class _TrialBalanceScreenState extends State<TrialBalanceScreen> {
           }
 
           final report = snapshot.data!;
-          return _ReportView(report: report);
+          return _ReportView(
+            report: report,
+            onAccountSelected: widget.onAccountSelected,
+          );
         },
       ),
     );
@@ -54,9 +67,12 @@ class _TrialBalanceScreenState extends State<TrialBalanceScreen> {
 }
 
 class _ReportView extends StatelessWidget {
-  const _ReportView({required this.report});
+  const _ReportView({required this.report, this.onAccountSelected});
 
   final TrialBalanceReport report;
+
+  /// Passed down so a row can open that account's ledger.
+  final void Function(Account account)? onAccountSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -83,14 +99,18 @@ class _ReportView extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          // The heavier rule under a page title, in the newspaper sense.
+          ), // The heavier rule under a page title, in the newspaper sense.
           const Divider(height: AppSpacing.xl, thickness: 2),
           if (!report.isBalanced) _UnbalancedNotice(report: report),
           if (report.isEmpty)
             const _EmptyState()
           else
-            Expanded(child: _TrialBalanceTable(report: report)),
+            Expanded(
+              child: _TrialBalanceTable(
+                report: report,
+                onAccountSelected: onAccountSelected,
+              ),
+            ),
         ],
       ),
     );
@@ -98,9 +118,10 @@ class _ReportView extends StatelessWidget {
 }
 
 class _TrialBalanceTable extends StatelessWidget {
-  const _TrialBalanceTable({required this.report});
+  const _TrialBalanceTable({required this.report, this.onAccountSelected});
 
   final TrialBalanceReport report;
+  final void Function(Account account)? onAccountSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -146,11 +167,16 @@ class _TrialBalanceTable extends StatelessWidget {
                   _ReportRow(
                     code: row.account.code,
                     name: row.account.name,
-                    // A zero side is shown as an em dash rather than a zero, so
+                    // A zero side is shown as a dash rather than a zero, so
                     // the eye goes to the numbers that carry the balance.
                     debit: row.debitTotal.isZero ? null : row.debitTotal,
                     credit: row.creditTotal.isZero ? null : row.creditTotal,
                     balance: row.balance,
+                    // Tapping a row opens that account's ledger, so the trial
+                    // balance drills down to the postings behind a figure.
+                    onTap: onAccountSelected == null
+                        ? null
+                        : () => onAccountSelected!(row.account),
                   ),
               ],
             ),
@@ -254,6 +280,7 @@ class _ReportRow extends StatelessWidget {
     required this.debit,
     required this.credit,
     required this.balance,
+    this.onTap,
   });
 
   final String code;
@@ -261,6 +288,7 @@ class _ReportRow extends StatelessWidget {
   final Money? debit;
   final Money? credit;
   final Money balance;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -275,47 +303,55 @@ class _ReportRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: palette.divider)),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _codeColumnWidth,
-            child: _Cell(
-              align: _Align.left,
-              child: Text(code, style: textTheme.bodyMedium),
-            ),
-          ),
-          Expanded(
-            child: _Cell(
-              align: _Align.left,
-              child: Text(
-                name,
-                style: textTheme.bodyMedium,
-                overflow: TextOverflow.ellipsis,
+      child: Material(
+        color: Colors.transparent,
+        // Tappable only when there is somewhere to go, so a non-navigating
+        // trial balance is not falsely interactive.
+        child: InkWell(
+          onTap: onTap,
+          child: Row(
+            children: <Widget>[
+              SizedBox(
+                width: _codeColumnWidth,
+                child: _Cell(
+                  align: _Align.left,
+                  child: Text(code, style: textTheme.bodyMedium),
+                ),
               ),
-            ),
-          ),
-          _MoneyCell(
-            child: Text(
-              debit?.format() ?? '—',
-              style: textTheme.bodyMedium,
-            ),
-          ),
-          _MoneyCell(
-            child: Text(
-              credit?.format() ?? '—',
-              style: textTheme.bodyMedium,
-            ),
-          ),
-          _MoneyCell(
-            child: Text(
-              balance.format(),
-              style: textTheme.bodyMedium?.copyWith(
-                color: balanceColour,
-                fontWeight: FontWeight.w600,
+              Expanded(
+                child: _Cell(
+                  align: _Align.left,
+                  child: Text(
+                    name,
+                    style: textTheme.bodyMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
-            ),
+              _MoneyCell(
+                child: Text(
+                  debit?.format() ?? '—',
+                  style: textTheme.bodyMedium,
+                ),
+              ),
+              _MoneyCell(
+                child: Text(
+                  credit?.format() ?? '—',
+                  style: textTheme.bodyMedium,
+                ),
+              ),
+              _MoneyCell(
+                child: Text(
+                  balance.format(),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: balanceColour,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
