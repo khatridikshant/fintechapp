@@ -48,9 +48,32 @@ Do these first. They are the only steps that cannot be redone from the repositor
 | Flutter | stable | Dart 3.5+ |
 | PostgreSQL | 17 | Must be running before `php artisan migrate` |
 | Native build tools | — | Visual Studio with the **C++ workload** on Windows, Xcode on macOS, GTK dev headers + clang on Linux |
+| **C++ ATL for Windows builds** | — | **Not needed.** See below. |
 
 The native build tools are only needed to *run or build* the desktop application.
 `flutter test` works without them.
+
+### No optional Visual Studio components are required
+
+`flutter build windows` needs only the standard C++ workload — MSVC, CMake, and a
+Windows SDK. **No optional component is required**, and that is deliberate: the
+sign-in token is stored with `crossvault`, which uses only `wincred.h`,
+`ncrypt.h` and `bcrypt.h`, all standard Windows SDK headers.
+
+Two earlier dependencies were rejected precisely because they were not:
+
+| Package | Why it was rejected |
+| --- | --- |
+| `flutter_secure_storage` | One `#include <atlstr.h>` needs the **optional** C++ ATL component. |
+| `webauthn_secure_storage` | Needs the Windows App SDK (`<winrt/...>`), and uses `<experimental/coroutine>`, which the current MSVC rejects. |
+
+If you add a Flutter plugin, **read its native sources before adopting it** — and
+for a federated plugin open the `_windows` sub-package, not the umbrella, which
+can look clean while the native code carries an `#include` on something optional.
+A green `flutter test` is not evidence the application builds, because it never
+compiles C++.
+
+See `docs/AI_RULES.md` and `PROGRESS.md` sections 4.33 and 7.24.
 
 ---
 
@@ -103,7 +126,7 @@ Setup is not finished when the commands stop erroring. Confirm each of these.
 | --- | --- | --- |
 | Desktop tests | `flutter test` (in `desktop/`) | `All tests passed!` — **660 tests** |
 | Desktop lint | `flutter analyze` | `No issues found!` |
-| Desktop build | `flutter build windows --debug` | `financeapp.exe` produced |
+| Desktop build | `flutter build windows --debug` | `financeapp.exe` produced — **needs the ATL component, see above** |
 | Backend tests | `php artisan test` (in `backend/`) | 35 passed, 97 assertions |
 | Backend lint | `./vendor/bin/pint --test` | passed |
 | Database | `php artisan db:show` | connects, shows `financeapp` |

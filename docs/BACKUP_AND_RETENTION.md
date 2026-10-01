@@ -37,30 +37,42 @@ Nepal requires businesses to maintain books of account and to keep them for
 periods set by law. The two provisions that most often matter to a small
 business are:
 
-1. **Income tax.** The **Income Tax Act, 2058 (2001)** requires a person carrying
-   on a business to maintain accounts and supporting records, and to retain them
-   for a period after the end of the relevant income year. The figure commonly
-   cited for income tax records is **five years**.
-2. **Value Added Tax.** The **Value Added Tax Act, 2052 (1996)** requires
-   registered persons to keep accounts, invoices, and returns, and its retention
-   period is commonly cited as **six years**.
+1. **Income tax.** The **Income Tax Act, 2058** — **Section 81(2)** — requires a
+   person liable to pay tax to retain the listed documents safely for **five
+   years from the date of expiry of the concerned income year**. *This is now
+   verified against the statutory text* (nepalLaws and actnepal, §81, including
+   the Nepali wording), which is more than can be said for the number alone:
 
-Other provisions can apply depending on your business — the Companies Act, for
-instance, for a registered company.
+   > सम्बन्धित आय वर्ष समाप्त भएको मितिले पाँच वर्षको अवधिसम्म सुरक्षित राख्नु पर्नेछ
+   > — "must be kept safely for a period of five years from the date the
+   > concerned income year expired."
+
+2. **Value Added Tax.** The **Value Added Tax Act, 2052**, with **Rule 23 of the
+   VAT Rules, 2053** on records. The period is commonly cited as **six years**.
+   *Still not verified against the rule text itself* — see the warning below.
+
+The important detail, and the reason it is recorded at all: **the two clocks
+start from different points.** Income tax runs from the **expiry of the income
+year**, not from the transaction date, so an invoice dated early in a fiscal year
+has nearly a year less to run than one dated at its end. The VAT figure is
+commonly stated as running from creation or transaction.
 
 ### ⚠️ Verify this before relying on it
 
-The general shape above — that books must be kept for **several years, and the
-figure differs between income tax and VAT** — is well established and is why
-retention matters. However:
+What is established: **two different statutory periods exist, five years for income
+tax and commonly cited six for VAT, and the longer one binds.** That is why
+retention matters, and `NepalTaxRules` carries both figures with the longer one
+selected, rather than a single hardcoded number.
 
-- I have **not verified the exact number of years** against the current text of
-  either Act, and the figures cited above are the commonly quoted ones, not a
-  legal opinion.
-- **Which provisions apply to you depends on your registration** — whether you
-  are VAT-registered, whether you are a company, and your turnover.
-- The retention clock starts from a defined point, and **which point** matters: an
-  income year, a tax year, or the date of filing.
+What is **not** verified:
+
+- The **exact VAT retention period**, against the text of Rule 23. The six-year
+  figure is widely reported and consistent across several practitioner sources,
+  but I have not read the rule.
+- Whether any Finance Act or IRD notice has since changed either figure.
+- **Which provisions apply to you depends on your registration** — whether you are
+  VAT-registered, whether you are a company, and your turnover. A non-VAT-registered
+  business has only the income-tax obligation.
 
 **Ask a Nepali chartered accountant or tax practitioner for the periods that
 apply to your business.** This document is a design record. It is not accounting

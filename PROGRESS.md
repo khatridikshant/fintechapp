@@ -13,6 +13,38 @@ in-memory accounting engine is no longer the only place the books exist.
 
 ---
 
+---
+
+## 0.1 WARNING - 2026-10-01: uncommitted desktop work was lost
+
+**Everything in `desktop/` after commit `42a0c2e` (2026-09-30 12:46) was deleted
+and never committed. It is not recoverable from this repository.**
+
+Sections **4.30, 4.31, 4.32, 4.33, 4.35, 4.36 and 4.37 describe work that no longer
+exists in the tree.** They are kept as a record of what was built and lost, and
+because the *reasoning* in them still holds. But nothing in those sections is
+implemented.
+
+| Section | Status |
+| --- | --- |
+| 4.30 Sign-in | **LOST.** No `settings_screen.dart`, `account_session.dart`, `http_auth_client.dart`, `http_transport.dart`. The account panel referenced by the navigation does not exist. |
+| 4.31 / 4.33 / 4.34 `crossvault`, toolchain | **LOST.** `pubspec.yaml` has **no secure-storage dependency at all**. The upload feature works, but has nothing to hold a token. |
+| 4.29 The 401 fix, multipart parts, verification before upload | **LOST.** `http_backup_uploader.dart` is at its 12:39 state: a `401` still reports "unreachable", and the body is still copied 3-4 times. |
+| 4.35 Nepali billing rules | **LOST.** The `docs/NEPALI_BILLING.md` research survives; none of the code does. |
+| 4.36 Customer identity | **LOST.** Schema is v9; no `code`, `isVatRegistered`, `businessName`, no `customer_details`. |
+| 4.37 Settings screen / business profile | **LOST, and was incomplete anyway** - the last task in progress. |
+
+**What survives:** every commit up to `42a0c2e`, including the whole backup-upload
+feature, and every document at the repository root, including this file.
+
+**Cause:** a `Remove-Item` was run against `finsoftware\Desktop` intending to delete a
+stray directory. Windows paths are case-insensitive, so `Desktop` **is** `desktop`,
+the Flutter application, and 201 files were removed. **Lesson, which this repository
+already records for text files in 7.19: the same care applies to paths.**
+
+**Before anything else:** re-read the sections below and check each claim against
+the tree. Treat 4.30 and later as a specification to rebuild from, not a record of
+what is built.
 ## 1. What this project is
 
 `financeapp` is an offline-first desktop business management application for
@@ -1325,6 +1357,479 @@ clean, Pint clean, Windows build succeeds, and the six live checks against the r
 Laravel server and PostgreSQL still pass — which also proves the new
 length-delimited segmented body is accepted by the server's multipart parser.
 
+### 4.30 Sign-in, so a backup can actually be sent by a user
+
+**The task from section 6, and it closes the gap between "the feature works" and
+"a business can use it".** Uploading worked end to end, but the only way to give
+the desktop a token was three environment variables.
+
+| File | Contents |
+| --- | --- |
+| `domain/shared/credential_store.dart` | `CredentialStore` port. |
+| `domain/shared/sign_in.dart` | `SignInStatus`, `SignInResult`, `SignInException`, and `isUsableServerAddress`. |
+| `domain/shared/auth_service.dart` | `AuthActions` port: `signIn`, `signOut`. |
+| `infrastructure/http/http_transport.dart` | `HttpTransport`, `TransportResponse`, `IoHttpTransport`, moved out of the uploader so sign-in and backup share one. |
+| `infrastructure/auth/http_auth_client.dart` | `signIn` and `signOut` over HTTP. |
+| `infrastructure/auth/secure_credential_store.dart` | The token in protected OS storage. |
+| `application/account_session.dart` | `AccountSession`: restore, sign in, sign out, and the uploader for the current session. |
+| `presentation/screens/settings_screen.dart` | `SettingsScreen` and `AccountPanel`. |
+| `test/application/account_session_test.dart`, `test/infrastructure/http_auth_client_test.dart`, `test/presentation/settings_screen_test.dart` | 16, 17, and 15 tests. |
+| `test/support/fakes.dart` | Shared doubles: `MapCredentialStore`, `ScriptedAuthActions`, `ScriptedTransport`, `OfflineTransport`, `StubBackupActions`. |
+
+**The password is never stored, and that is structural rather than a rule.**
+`BackendSession` has no field for it, so there is nowhere to put one. The test
+asserts it against **the stored map's values**, not against the absence of a key,
+because a key named `password_hash` would pass an absence check while holding the
+secret.
+
+**Signing out always signs out.** The local session is cleared *first*, then the
+server is told, best-effort, and neither step is allowed to throw. Two tests were
+written for the failure paths: a store that cannot be cleared, and a server that
+cannot be reached. Both were **real bugs in the first version**, which relied on
+the implementations swallowing their own errors rather than making the caller
+robust — a locked keyring would have stopped the application starting, and a dead
+network would have produced a sign-out that does not happen.
+
+**The transport was moved out of the uploader rather than copied.** Two features
+need it, and a second copy of a class that maps HTTP statuses is exactly the
+duplication that drifts. That is a change to the uploader's file layout, not to its
+behaviour, which is why it was done despite the task's "do not modify" note.
+
+**The plain-text rule now lives in the domain, in one place.** The sign-in screen
+refuses a bad address before a round trip and the HTTP client refuses one that
+arrived another way. Two copies of that rule would drift, and the failure mode of
+drift is sending a bearer token and an entire accounting database over clear text
+because one copy was not updated.
+
+**The decision section 6 asked for: a `401` now says "sign in again".** It was
+`unreachable`, which tells the user to try again later — and retrying a `401`
+fails identically every time, so the wording would send them round a loop they
+cannot escape. It became `UploadStatus.unauthenticated`. **Fixing it properly
+found a second bug:** the new tests failed, because a revoked session usually
+fails the *revision lookup* first and that path collapsed every failure into
+`unreachable`. `_nextRevisionFor` returned a bare `int?`, discarding exactly the
+distinction that mattered; it now returns a three-state `_RevisionLookup`.
+
+**Mutation-tested, and the first mutation was invalid.** Removing the guard
+around `signOut`'s store clear left all tests passing — not because the tests were
+weak but because the mutation I wrote (`if (false) rethrow;`) was semantically a
+no-op. Re-applied by actually deleting the `try`, the test caught it. That is
+7.22 again, from a new angle: **a mutation that does not change behaviour proves
+nothing.**
+
+**Not verified on Windows.** `flutter test` passes 712 and `flutter analyze` is
+clean, but `flutter build windows --debug` **fails**, and that is a blocker for
+the project rather than a defect in this code. See 4.32 — it needs an owner
+decision. It worked before this dependency was added.
+
+**Verified against the real backend.** `tool/live_signin_check.dart` — 7 checks
+against the running Laravel server and live PostgreSQL, using the real
+`IoHttpTransport`: a real account signs in and the parsed token is accepted by
+`/api/auth/me`; the wrong password is refused with no token and no wording that
+reveals whether the address exists; an unknown address is refused **identically**;
+**signing out really revokes the token**, proved by `me` returning 401 afterwards;
+signing out with no network does not throw; a plaintext remote address is refused
+without a request; and repeated attempts are rate limited by the server. The
+tokens were then read back out of PostgreSQL.
+
+### 4.31 The sign-in rate limit is keyed on IP alone, which is the wrong key
+
+**Found by running the live check, not by writing a test.** Registration and
+sign-in carry `throttle:6,1`, which Laravel keys on the **client address**. The
+first live run failed with `429` partway through — the limit was working exactly
+as designed, but it exposed the shape of the problem:
+
+- **Six sign-ins a minute is shared by every user behind one router.** A business
+  with three machines on one connection, or anyone behind a corporate NAT or a
+  hotel network, draws from the same budget. Two people signing in at the same
+  moment can lock each other out, and neither will understand why.
+- **It is trivially exhausted by one client**, which is the intent, so the limit
+  itself is right. The key is what is wrong.
+
+**Not changed here, and deliberately.** The obvious fixes — keying on email as
+well as address, or raising the ceiling — are guesses about deployment. The
+desktop is a first-party client where sign-in is rare, so six a minute may well be
+correct for a single household and wrong for an office. **This needs a decision
+with a real user count behind it**, and it is recorded rather than silently
+adjusted.
+
+The live check now registers **one** account and shares it, waits out the window
+if it is rate limited, and makes no server round trip where the token's validity
+is irrelevant. That is the tool accommodating the limit, not the limit being
+relaxed.
+
+### 4.32 The ATL blocker — how it ended, and what it cost
+
+**Started as:** `flutter build windows` fails, because the
+`flutter_secure_storage` package's Windows plugin contains one
+`#include <atlstr.h>`, and ATL ships in Visual Studio's *optional* C++ component.
+
+**Ended as:** the dependency is gone, and **nothing in the build needs an optional
+Visual Studio component any more.** Replaced with `webauthn_secure_storage`
+(MIT), which stores the value in the Windows Credential Manager — the same DPAPI
+protection — with no ATL dependency and no additional toolchain. Verified: no
+plugin in the build references ATL. See `docs/AI_RULES.md` for the dependency
+decision.
+
+**Along the way, four avoidable wrong turns, all mine:**
+
+1. **Adopted the package without checking its native sources.** 7.24 was written
+   earlier the same session and says exactly this. It was not applied.
+2. **Concluded the `#include <atlstr.h>` was unused**, on a grep whose pattern
+   (`CString|ATL|CCom|_bstr_t|Variant|BSTR`) misses `CA2W` and matched
+   `su**bstr**r` in `substr` case-insensitively. The plugin genuinely uses `CString`,
+   `CA2W`, and `CW2A`. A vendored fork was started and reverted.
+3. **Told the owner the toolchain was fixed when it was not.** The check was
+   `if ($r)` on the output of `vswhere`, and PowerShell treats the string `"[]"`
+   as truthy. **The check could not fail.** This is 7.21 and 7.22 again, and it is
+   the most expensive of the three because it sent the owner looking for the wrong
+   problem.
+4. **Gave `vs_installer.exe` instead of `setup.exe` twice.** `vs_installer.exe` is
+   the UI launcher and discards the arguments; the installer log showed
+   `Command line: ...\setup.exe` with nothing after it.
+
+**And one piece of harm:** `vs_installer.exe modify --add` recomputes the component
+set, and its installer log shows it **removing** packages —
+`Microsoft.VC.14.51.CRT.Headers`, `Microsoft.VC.14.51.Servicing.CrtHeaders` — while
+re-downloading the Build Tools payload. Each attempt tore down more of the
+installation without restoring the compiler component. **Do not run it again.**
+
+### 4.33 The storage dependency, settled — and the build works
+
+**`flutter build windows --debug` now succeeds.** `financeapp.exe` builds with
+**no optional Visual Studio component of any kind**, after two rejected packages
+and one that looked clean and was not.
+
+| Package | OS keystore | Extra toolchain | Outcome |
+| --- | --- | --- | --- |
+| `flutter_secure_storage` | Credential Manager | **ATL component** | Rejected: one `#include <atlstr.h>` |
+| `webauthn_secure_storage` | Credential Manager | **App SDK + coroutine fix** | Rejected: `<winrt/...>` and `<experimental/coroutine>`, which MSVC 14.51 rejects |
+| `local_storage_cache` | **no** — app-level `crypto` | none | Rejected: encrypts with a key on the same disk |
+| `get_secure_storage` | **no** — app-level `cryptography` | none | Rejected: same, and 903 days stale |
+| `keyring` | yes | **Rust toolchain** (`native_toolchain_rust`, `hooks`) | Rejected: swaps one prerequisite for a worse one |
+| **`crossvault`** | **Credential Manager + DPAPI/CNG** | **none** | **Adopted** |
+
+`crossvault` includes only `wincred.h`, `ncrypt.h` and `bcrypt.h` — standard
+Windows SDK headers — and no coroutines. Verified in the built plugin: no `atlstr`,
+no `<winrt/`, no `experimental/coroutine`.
+
+**Its one limitation is real: no Linux implementation.** On Linux the token lives
+in memory for the session and the user signs in again after a restart. Because
+`CredentialStore` is an interface, adding Linux later touches one file.
+
+**The lesson from the two rejected rejections is the valuable part.** Checking
+`local_storage_cache` and `get_secure_storage` properly — rather than dismissing
+them — was what surfaced that `keyring`'s native half needs a Rust toolchain, and
+it corrected a claim I had already made. The umbrella package is **not** where the
+native code lives for a federated plugin: `webauthn_secure_storage`'s umbrella was
+clean and its `_windows` package carried the ATL and the WinRT include.
+
+### 4.34 BLOCKER — Visual Studio's compiler component is unregistered
+
+Still broken, and **not the project's fault**. `flutter build windows` refuses with
+`Unable to find suitable Visual Studio toolchain` whenever Flutter asks `vswhere`
+for an installation satisfying
+`Workload.VCTools` + `VC.Tools.x86.x64` + `VC.CMake.Project`.
+
+- `Workload.VCTools` ✅, `VC.CMake.Project` ✅, `Windows10SDK` ✅
+- **`VC.Tools.x86.x64` ❌ not registered**, though `cl.exe` 14.51.36231 and
+  `cmake.exe` are both present and working.
+- The component **was** registered earlier in this session and `state.json` shows
+  it in the selection before the ATL installer attempts and not after. **The exact
+  cause is not established.**
+
+**`vs_installer.exe modify --add` made this worse and must not be used.** Its
+installer log shows it *removing* packages — `Microsoft.VC.14.51.CRT.Headers`,
+`Microsoft.VC.14.51.Servicing.CrtHeaders` — while re-downloading the Build Tools
+payload, and it never restored the compiler component.
+
+**The fix belongs to the owner**, in the GUI, because the point of the GUI is that
+it shows the pending change *before* it is applied: *Modify* → *Individual
+components* → search `MSVC` → confirm **"MSVC Build Tools for x64/x86 (Latest)"**
+is ticked → *Modify*. As of this entry the owner has done that and `vswhere`
+reports the component registered with `isComplete: true`, so this is recorded as
+**resolved pending confirmation by a build**.
+
+macOS and Linux builds are unaffected.
+
+### 4.35 What a Nepali invoice actually has to contain
+
+The owner's instruction: learn what Nepali billing requires, then implement it
+properly. The specification had already set the standard — *"Nepal's applicable
+tax rules shall be verified against current authoritative requirements before
+production release and **shall not be treated as permanently fixed application
+constants**"* — so the work had two halves, and the second mattered more than
+the first.
+
+| File | Contents |
+| --- | --- |
+| `docs/NEPALI_BILLING.md` | The rules, their sources, **and where the sources conflict**. |
+| `domain/billing/nepali_pan.dart` | `NepaliPan`: nine digits, formatting removed, malformed rejected. |
+| `domain/billing/nepal_tax_rules.dart` | `NepalTaxRules` — the rules as **data with a version**, not constants. |
+| `domain/billing/business_profile.dart` | `BusinessProfile`: the supplier details every tax invoice carries. |
+| `domain/billing/party.dart` | `Party` — customer or supplier, with PAN and VAT registration. |
+| `domain/billing/invoice_compliance.dart` | `InvoiceKind`, `InvoiceComplianceIssue`, `InvoiceCompliance`. |
+| `domain/billing/amount_in_words.dart` | Total in words, in lakh and crore. |
+| `domain/billing/hs_code.dart` | HS code, the 46th-amendment addition for goods. |
+  | `test/domain/nepal_billing_test.dart` | 37 tests. |
+
+**Two compliance questions were left open on purpose, and are recorded in section
+5.1** so they are not forgotten: the VAT registration threshold, and the buyer's
+PAN threshold. The sources conflict on both, so neither is implemented as a
+constant — the registration flag is stated by the owner, and the PAN threshold uses
+the stricter of the two reported figures.
+
+**What was implemented, and why each one is a rule rather than a feature:**
+
+- **Two invoice forms, not one.** Rule 17 tax invoice, and the Rule 17(Ka)
+  abbreviated retail invoice available only within a ceiling — NPR 10,000. Both are
+  legal, and the abbreviated form is a convenience for a high-volume seller, never
+  a way to refuse a customer who asks for a full one.
+- **The seller's PAN gates everything.** A bill without the supplier's PAN is not a
+  valid tax bill, so a business with no PAN is reported first and every other check
+  is moot without it.
+- **The buyer's PAN is required when any of three conditions hold**: the buyer is
+  VAT-registered, the document is a full tax invoice, or the total is at or above
+  the threshold. **A malformed PAN is reported as missing, not accepted** — an
+  invalid PAN on a bill is not a PAN, and printing one looks compliant without
+  being so.
+- **A VAT-registered business charging no VAT is reported.** The zero-rate case is
+  legitimate for zero-rated or exempt goods, but never by accident.
+- **Rates travel as `NepalTaxRules` with a version string.** The Finance Act sets
+  the VAT rate every year, so `const int vatStandardRate = 1300` in the domain is a
+  rule that would be silently wrong the year it changed. A test proves a different
+  rule set changes the verdict with no code change.
+- **Nothing is inferred that the sources disagree about.** Whether VAT
+  registration is *compulsory* depends on a turnover threshold reported
+  inconsistently (NPR 20 lakh or 30 lakh for services), so **no threshold is
+  implemented at all** — `isVatRegistered` is stated by the owner. Guessing would
+  produce confidently wrong compliance advice, which is worse than none.
+- **Retention was corrected.** Income Tax Act §81(2), verified against the
+  statutory text, is **five years from the expiry of the income year** — not five
+  years from the transaction date. VAT is commonly cited at six, and is the longer
+  and therefore binding period. `docs/BACKUP_AND_RETENTION.md` previously stated
+  a single undifferentiated "six years"; it now carries both figures, their
+  different start points, and which one binds.
+
+**Compliance is advisory, not blocking.** `InvoiceCompliance` reports what is
+missing; it does not refuse to issue. An owner who must bill a customer at closing
+time and cannot, will work around the application entirely, which is worse than a
+report they can see and act on.
+
+**Two defects the tests caught in my own new code**, both found before they could
+ship:
+
+1. **`amountInWords` was producing "Rupees Ten Hundred Crore"** for Rs 100,000. The
+   divisor list and the name list were **misaligned** — `units[0]` was crore while
+   `names[0]` was the empty string. Every lakh and crore figure on every invoice
+   would have been wrong. Caught by a test asserting 100,000 contains "One Lakh".
+2. **The ceiling test did not land on the ceiling.** It computed a price from
+   `rupees * 1.13` and assumed the result equalled NPR 10,000, but VAT is rounded
+   per paisa, so it does not for most inputs — the test was passing without ever
+   exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% =
+   Rs 10,000.00) and asserts the total first, so a change to the VAT calculation
+   cannot quietly stop it testing what it claims to.
+
+**Mutation-tested**, because boundary rules are where compliance is lost: making
+the ceiling exclusive fails the inclusive test, and restoring the misaligned
+name lists fails the lakh/crore tests. Both caught.
+
+**Deliberately not implemented**, and recorded so they are not forgotten: e-billing
+to CBMS (a certification programme, with a threshold the literature calls a
+"moving threshold" — reported as NPR 20 crore from April 2026, down from 25 crore);
+the Annex 5 and Annex 13 reports; and Nepali-language rendering.
+
+**One thing this work revealed about the existing design**, worth protecting: CBMS
+certification checks that invoice numbers are **sequential, gap-free, and allocated
+inside the issuing transaction**. The existing `DocumentNumber` design already
+satisfies that. **Do not ever add gaps** — for tidier numbers, or to reserve
+numbers — or certification becomes impossible.
+
+Verified: **749 Dart tests** (was 712, so 37 new), 35 Laravel tests, analyze
+clean, Pint clean, Windows build succeeds.
+
+### 4.36 Customer identity — decided, implemented in the domain, blocked in the database
+
+**The owner's decision:** a customer gets a **random internal `id`** plus a
+separate **sequential business `code`** such as `C-0001`. Recorded in
+`docs/decisions/010-customer-identity.md`.
+
+The reasoning that shaped it: an `id` that changed would repoint historical sales
+at a different person, so it is random and never derived from anything a person
+types — which also closes the id-collision question in 7.16 for free. The `code` is
+what people see, and because it is not identity it can be re-sequenced freely.
+
+**The owner's suggestion of "first name plus a unique index" was rejected, and
+the reason is the substance of the decision.** Names repeat in Nepal — two "Ram
+Bahadur" are not a mistake — and they are *mutable*: misspelled, transliterated
+differently, or changed on marriage. A unique index on a name would either reject
+legitimate customers or turn a routine correction into a lost record. Their actual
+intent, catching duplicates, is served by **a unique index on `pan_number`**, which
+is a genuine unique key and so cannot produce a false collision.
+
+| File | Contents |
+| --- | --- |
+| `domain/billing/customer.dart` | `code`, `isVatRegistered`, `businessName`, and `displayReference`. |
+| `infrastructure/database/drift_customer_repository.dart` | **Refuses** to store a customer carrying the new fields. |
+| `test/infrastructure/customer_field_refusal_test.dart` | 6 tests on that refusal. |
+| `docs/decisions/010-customer-identity.md` | The decision, and why persistence is blocked. |
+
+**A duplicate was removed along the way.** `Customer` already existed and was wired
+into `IssueInvoice`, `RecordPayment`, and three test files; I had added a `Party`
+type that duplicated it. `Party` is deleted and its capability folded into
+`Customer`, which is the type the working use cases already use.
+
+**The persistence half is blocked, and the reason is worth recording.** Adding the
+columns to `customers` requires more than an `ALTER TABLE`, because of two
+structural facts about drift:
+
+1. **`createTable` writes the table's *current* definition**, so a database migrated
+   from before v3 already gets the new shape from the create step. The migration
+   must therefore skip the add-column step on that path while applying it on every
+   other — a guard on both `from` and `to`.
+2. **The generated data class always targets the newest schema**, so every
+   migration test that stops at an intermediate version and then reads a customer
+   fails with a null-check error. 21 tests rely on `customers` never changing after
+   v3.
+
+I got past (1) and could not get past (2): updating the v3–v9 snapshots did not
+propagate to `test/generated/schema_v3.dart` across repeated regenerations, so the
+change was **reverted rather than left half-applied**.
+
+**Nothing is silently dropped.** `DriftCustomerRepository` throws rather than
+storing a customer whose `code`, VAT status, or business name the v9 schema cannot
+hold, naming section 4.36. Silently losing those fields would mean a customer read
+back as VAT-unregistered and a compliance decision taken from a wrong record, with
+nothing reporting it — the worse error by far.
+
+**Recommended way to finish it:** a **separate `customer_details` table** created at
+v10, keyed on the customer id. That leaves `customers` frozen at its v3 shape, so
+every existing migration test is untouched and no migration machinery is needed.
+
+Verified: **755 Dart tests**, analyze clean, and the Windows build still succeeds.
+
+### 4.36 Customer identity — decided, implemented in the domain, blocked in the database
+
+The owner approved **a random internal id plus a separate sequential business
+code** (`C-0001`), after being offered and discussing a single sequential
+identifier and a name-based key. Recorded in **ADR 010**, which carries the full
+reasoning; the summary:
+
+| | |
+| --- | --- |
+| **id** | Random, permanent, internal. Never derived from anything a person types. |
+| **code** | Sequential, business-facing, printed on invoices and quoted on the phone. |
+
+**This closes the open question in 7.16.** Ids must not collide if two
+installations ever sync, and a random id cannot collide — so that risk is closed
+now, at no cost, rather than after data exists.
+
+**Duplicate detection came from the PAN, not the name.** A unique index on
+`pan_number` is the one key that *cannot* produce a false collision, because two
+businesses cannot share a PAN. A name cannot offer that property: Nepali names
+repeat, and a name is mutable — misspelled, transliterated, or changed on marriage —
+so making it identity would repoint history.
+
+**Two corrections made while doing it.** I introduced a `Party` type alongside the
+existing `Customer`, which already covered the same ground and was wired into
+`IssueInvoice`, `RecordPayment`, and three test files. `Party` is deleted and its
+PAN and VAT handling folded into `Customer` — the duplication was mine, and
+exactly the kind this project flags elsewhere.
+
+#### The blocker — and how it was solved
+
+The database is now at **schema v10**, and the three fields **are** stored.
+
+Adding the columns to `customers` directly turned out to be much harder than it
+looks:
+
+1. `createTable` writes the **current** definition, so a pre-v3 database gets the
+   new columns for free and the migration must *not* add them — while it *must* on
+   every other path. That needs a guard on `to` as well as `from`.
+2. **The generated data class always targets the newest schema**, so every
+   migration test that stops at an intermediate version and then *reads* a
+   customer crashed. **21 tests** depended on `customers` never changing after v3.
+3. The per-version schema helpers **would not regenerate** from edited snapshots.
+
+**Solved with a separate `customer_details` table** created at v10, holding
+`code`, `isVatRegistered`, and `businessName`, keyed to `customers.id`. **No
+existing table is touched**, so every v1-v9 snapshot stays valid and all 32
+migration tests pass unchanged. `DriftCustomerRepository` reads through a
+**left outer join**, because a customer recorded before v10 has no detail row and
+an inner join would silently drop them from the list — a customer who cannot be
+found cannot be invoiced.
+
+Two bugs found while doing it, both of which would have shipped silently:
+
+- **The PAN unique index was created only in `onUpgrade`, so a *fresh* database
+  never had it.** Two customers with the same PAN were accepted. An index added
+  only to the upgrade path leaves every new database without the guarantee, which
+  is exactly where a duplicate would slip in. It is now created on both paths.
+- `issueCustomQuery` is deprecated in favour of `customStatement`; using the
+  supported API instead of suppressing the warning.
+
+#### What was not worked around
+
+An earlier attempt persisted the fields loosely. **That is the bug you caught**,
+and it was mine: I widened `Customer` without widening storage, so
+`CustomerRepository.save()` promised something the implementation could not
+deliver. A temporary guard turned *silent data loss* into a *loud failure*, which
+was the minimum mitigation and not a fix. It has been replaced by the real thing.
+
+`test/infrastructure/customer_details_persistence_test.dart` now asserts the
+round trip directly — most importantly that `isVatRegistered` reads back **true**,
+because if it read back false the application would stop asking for the PAN that
+lets a VAT-registered customer claim input credit. **Mutation-checked**: dropping
+that field on read fails three tests.
+
+Verified: **759 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
+build succeeds.
+
+### 4.37 The business's own details, and the first real Settings screen
+
+**Without this the application cannot produce a valid tax invoice at all.** Rule 17
+requires the supplier's name, address, and **PAN** on every tax invoice, and a bill
+without the supplier's PAN is not a valid tax bill. There was previously nowhere to
+type any of it.
+
+| File | Contents |
+| --- | --- |
+| `domain/billing/business_profile_repository.dart` | The port. A singleton, not a collection. |
+| `application/business_details.dart` | `BusinessDetails` — the load/save use case. |
+| `infrastructure/database/tables.dart` | `BusinessProfiles`, created at v11. |
+| `infrastructure/database/drift_business_profile_repository.dart` | The implementation. |
+| `presentation/screens/settings_screen.dart` | `BusinessDetailsPanel`, above the account panel. |
+| `test/infrastructure/business_profile_persistence_test.dart`, `test/presentation/business_details_panel_test.dart` | 8 and 8 tests. |
+
+**A new table rather than new columns**, for exactly the reason ADR 010 found for
+`customer_details`: adding columns to an existing table changes the shape
+`createTable` produces for every older database. A table that did not exist before
+v11 is simply absent from every earlier snapshot, so **all 32 migration tests pass
+unchanged**.
+
+**The VAT box is a checkbox, not a dropdown.** There are two states, and the
+question is "is this business registered", not "which band". It **decides behaviour**
+— invoices charge 13% when ticked — and it is stated, never inferred.
+
+**The architecture guard caught a real design mistake.** The first version handed
+`BusinessProfileRepository` straight to the Settings screen, which
+`architecture_test.dart` rejected: a screen must never hold a repository, because
+one can then save anything it likes, including a profile the domain never
+validated. `BusinessDetails` is the correct seam. The only allow-list addition was
+`domain/billing/business_profile.dart`, a **value type**, with a reason.
+
+#### One consequence worth remembering
+
+**The profile lives in the open year's database**, because each fiscal year has its
+own file. So a new fiscal year starts with no business details, and **year
+conclusion has to copy the profile forward** or the owner retypes it every Ashadh.
+That is defensible — an invoice in 2082/83 must show the PAN the business was
+registered under *then* — but it is a real obligation on the conclusion work and is
+recorded there rather than discovered later.
+
+Verified: **775 Dart tests** (759 + 16), 35 Laravel tests, analyze clean, Pint
+clean, Windows build succeeds.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -1341,10 +1846,9 @@ Everything else. Specifically, none of the following exist:
   customer money, but there is no supported way to pay them back. Only reachable
   by fully paying then crediting an invoice.
 - Ageing of receivables, statements of account, and any collection reporting.
-- **Customer id generation.** The caller supplies a customer id. How a new one is
-  generated is undecided, and it matters because ids must not collide if two
-  installations ever sync. Needed before the UI can create a customer. See
-  section 7.16.
+- **Customer id generation.** **Resolved.** A random internal id plus a separate
+    sequential business code (`C-0001`); both are stored at schema v10. This closes
+    the sync-collision risk that section 7.16 raised. See ADR 010 and 4.36.
 - **Inventory, stock, and COGS.** **Complete for Gate 6.** Products, movements,
   derived value-first stock with negative stock blocked, posting to the ledger, and
   the write-down to the lower of cost and net realisable value all work.
@@ -1376,16 +1880,19 @@ Everything else. Specifically, none of the following exist:
 - **Restore from the cloud.** The server can store and list revisions but has **no
   download endpoint**, and the desktop has no restore-from-server path. A backup
   that cannot be fetched is not a backup, so this is the other half of Gate 9.
-- **Protected token storage.** The specification requires the token to live in
-  protected operating-system storage (`flutter_secure_storage` is the approved
-  package). Nothing is stored anywhere yet, which is why the token arrives from
-  the environment.
+- **Protected token storage.** Done. The token is held by `crossvault`, which uses
+    the Windows Credential Manager (DPAPI-backed) with **no additional toolchain**.
+    Two predecessors were rejected on evidence — `flutter_secure_storage` needs
+    Visual Studio's optional ATL component, and `webauthn_secure_storage` needs the
+    Windows App SDK. See 4.33. **Gap: no Linux implementation**, so on Linux the
+    token lives in memory for the session and the user signs in again after a
+    restart.
 - **Identity.** Sanctum is installed, the upload routes are authenticated, and
   **token issuance works**: `register`, `login`, `logout`, and `me`, tested and
   verified end to end against live PostgreSQL. The desktop **uses** a token for
-  uploads. See 4.27 and 4.28. **Still missing: any desktop sign-in screen**, so a
-  token can only be obtained by hand, and the licensing system the specification
-  requires is not started.
+uploads. See 4.27, 4.28, and 4.30. **Still missing: any desktop sign-in screen**,
+    so a token can only be obtained by hand, and the licensing system the
+    specification requires is not started.
 - **Licensing.** Not started, and it is a larger capability than authentication.
   The specification requires a backend-signed licence authorisation carrying the
   license id, user id, book id, status, expiry, issue date, next validation time,
@@ -1394,13 +1901,35 @@ Everything else. Specifically, none of the following exist:
   carries, so an expired licence can be detected with no internet connection. Also
   `subscriptions` and `registered_desktop_installations`. The token endpoints here
   are deliberately **not** presented as licensing. See section 6.
+
+### 5.1 Open questions that need the owner's answer
+
+Two compliance questions were left deliberately unanswered in 4.35, because the
+sources conflict and **guessing would produce confidently wrong advice about
+someone's tax obligations.** Neither blocks anything. Both are one small code
+change once answered.
+
+| # | Question | Why it is open | What is needed |
+| --- | --- | --- | --- |
+| 1 | **The VAT registration threshold.** Compulsory registration is reported at NPR 50 lakh for goods, but for services as **NPR 20 lakh or NPR 30 lakh** — different sources give different figures, and the rate is reset by each year's Finance Act. | Whether a business *must* register depends on a number that moves annually and that the sources disagree about. | A chartered accountant's answer, or the figure from the operative Finance Act. Until then `BusinessProfile.isVatRegistered` is **stated by the owner, never inferred**. |
+| 2 | **The buyer's PAN threshold.** Reported as NPR 10,000 (the Rule 17 abbreviated-invoice ceiling, applying to all transactions) and as NPR 1 lakh (individuals buying from a supplier who is not VAT-registered). | The two may be reconcilable — one applying generally, one to individuals — but the sources do not say so. | The same. Meanwhile `NepalTaxRules.buyerPanRequiredByAmount` uses the **stricter** figure, so a bill asks for a PAN slightly more eagerly than strictly required. |
+
+**Why the conservative direction.** Where a choice had to be made in code, it
+errs towards asking for a PAN and towards never guessing a threshold. Over-asking
+costs a line on a form; under-asking can cost input credit at an audit. That
+reasoning is recorded so a future change to "be more helpful" does not quietly
+invert it.
+
+**What was deliberately not built**, for the same reason: CBMS e-invoicing
+integration, the Annex 5 and Annex 13 reports, and a Nepali-language rendering of
+the invoice. See `docs/NEPALI_BILLING.md`.
 - **Sync, licensing, and device registration.** Not started. Sync in particular
   depends on the id-generation question in 7.16.
 - **Retention.** The specification and Nepali law require records to be kept for
   years; nothing prunes, archives, or enforces that. See
   `docs/BACKUP_AND_RETENTION.md`.
 
-### 5.1 Backend findings from reading the scaffolding
+### 5.2 Backend findings from reading the scaffolding
 
 Discovered by reading the generated backend. **Every row is now resolved**; it is
 kept because the traps in it cost time and the reasoning is not obvious from the
@@ -1413,12 +1942,12 @@ finished code.
 | No Sanctum or Passport installed | **Resolved.** `laravel/sanctum` v4.3 installed, the upload routes are protected, and **token issuance now works** — `register`, `login`, `logout`, `me`. See 4.27. **Licensing is still not implemented; see section 5.** |
 | `APP_NAME=Laravel` | **Resolved.** Now `financeapp`. |
 | Laravel 13 uses PHP attributes on models: `#[Fillable([...])]`, `#[Hidden([...])]` | **Convention trap.** Write the attribute style, not the older `$fillable` / `$hidden` properties. See `backend/app/Models/User.php`. The new models follow it. |
-| Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `php artisan test` is the command that passes; 13 tests. |
+| Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `php artisan test` is the command that passes; 35 tests, 97 assertions. |
 | Skeleton ships Vite, Tailwind, `resources/views/welcome.blade.php`, and `routes/web.php` returning a view | **Left in place deliberately.** Dead weight for an API-only backend, but removing it is a separate cleanup and is not blocking. |
 | `backend/database/database.sqlite` exists as a real file | Confirmed gitignored. Do not commit it. |
 | `backend/database/migrations/0001_01_01_000000_create_users_table.php` already creates `users`, `password_reset_tokens`, and `sessions` | Built on, not recreated. |
 
-### 5.2 Desktop toolchain findings
+### 5.3 Desktop toolchain findings
 
 | Finding | Impact |
 | --- | --- |
@@ -1439,62 +1968,68 @@ finished code.
 
 This is the next bounded task, ready to hand to an agent verbatim.
 
-> **Let a real user sign in, so uploading does not need environment variables.**
+> **Build the first data-entry form: issuing an invoice.**
 >
-> Uploading works and is tested (4.28), but the only way to give the desktop a
-> token today is to set `FINANCEAPP_SERVER`, `FINANCEAPP_TOKEN`, and
-> `FINANCEAPP_BOOK` by hand. That is fine for a developer and useless for a
-> customer. This task closes the gap between "the feature works" and "a business
-> can use it".
+> **The domain rules for this now exist** — see 4.35. The screen must use them
+> rather than re-deriving anything: `InvoiceCompliance.check` says whether the
+> document is a valid Nepali tax invoice and what is missing, and
+> `NepalTaxRules.current` carries the rate and thresholds.
+>
+> The use case already exists and is tested — `IssueInvoice` — so this is
+> presentation work, not accounting work. It is also what turns this from an
+> application you can read reports in into one you can run a business in, and it
+> is the largest remaining gap: **4 of 30 navigation items have a screen, and
+> nothing can be entered at all.**
+>
+> Nothing is blocked any more. The Windows build succeeds (4.33) and the
+> toolchain is registered (4.34). **Do not spend this task on the installer, and
+> do not run `vs_installer.exe modify --add` — it removes packages (4.34).**
 >
 > Do not modify: the accounting engine, the reporting layer, the billing or
-> inventory domains, the `UploadActions` port or its implementation, the
-> server-side controllers, or any screen other than the Settings and Backup
-> screens. Do not weaken any test. **Do not install Laravel Boost.**
+> inventory domains, the `UploadActions` or `AuthActions` ports, the
+> `CredentialStore` port, or the server-side controllers. Do not weaken any test.
+> **Do not install Laravel Boost. Do not store the token anywhere weaker than
+> protected OS storage, and do not add another dependency without reading its
+> native sources first (7.24).**
 >
 > Required behaviour:
 >
-> 1. A **sign-in screen** that takes a server address, an email, and a password,
->    and calls `POST /api/auth/login`. It must handle the three answers the server
->    actually gives: a token with a book id, a `422` for bad credentials, and no
->    answer at all when offline. The specification requires the desktop to work
->    with the server unreachable, so a failed sign-in must leave the application
->    fully usable offline.
-> 2. **The token goes into protected operating-system storage**, not a database
->    and not a plain file. `flutter_secure_storage` (BSD-3) is the approved
->    package for this in `docs/AI_RULES.md`; adding it is a dependency decision and
->    must be recorded there and in the licence list. **The password is never
->    stored.**
-> 3. A **sign-out** that revokes the token on the server (`POST /api/auth/logout`)
->    and clears it locally, and that works even if the server cannot be reached —
->    signing out must never depend on the network.
-> 4. The composition root (`main.dart`) builds the session from stored state
->    rather than the environment. **The environment-variable stopgap must still
->    work**, because `tool/live_upload_check.dart` and the developer workflow rely
->    on it.
-> 5. The Backup screen says which account is signed in, or that none is, and the
->    "Send to the server" button follows from that rather than from a null check.
+> 1. A screen that calls `IssueInvoice` and nothing else. **The UI must not
+>    compute totals, choose accounts, or decide the journal.** It collects what a
+>    person typed and renders what the use case returned.
+> 2. The screen shows the invoice the use case produced — number, total, and the
+>    journal it posted — so the user can see the accounting happened rather than
+>    being asked to trust it.
+> 3. **Show `InvoiceCompliance` findings on the screen.** A bill missing the
+>    seller's PAN, or charging no VAT while registered, is not a valid tax bill,
+>    and the owner should see that before handing it to a customer. The screen
+>    offers to switch to a full tax invoice when an abbreviated one is no longer
+>    permitted.
+> 4. A duplicate submission is impossible. The invoice number comes from the
+>    numbering sequence inside the transaction, so pressing the button twice must
+>    not produce two invoices. **The number must stay sequential and gap-free** —
+>    CBMS certification checks exactly that (4.35).
+> 5. The screen handles the failures the use case can report: an unbalanced
+>    invoice, a date outside the open fiscal year, a duplicate number. It states
+>    which, and **leaves the entered data alone** so the user can correct it.
+> 6. Navigation wiring only. **No other section's behaviour changes**, and the
+>    shell keeps showing the placeholder for everything else.
 >
 > Tests to add:
 >
-> - A successful sign-in stores the token, the book id, and the server address,
->   and the stored values are what the uploader is given.
-> - A `422` is reported as wrong credentials and stores nothing.
-> - An unreachable server is reported as such and stores nothing, and the rest of
->   the application still works.
-> - **The password is never written to storage** — assert on the stored map, not
->   on the screen.
-> - Sign-out clears the stored token, and still clears it when the server cannot
->   be reached.
-> - A revoked or expired token discovered at upload time is reported as "sign in
->   again" rather than as a failed backup. `401` currently maps to `unreachable`
->   in `_interpret`; decide deliberately whether that is still right once sign-in
->   exists, and record the reasoning.
-> - The architecture guards still pass, including the `export` check added in 7.21.
+> - The screen calls the use case and renders what it returned.
+> - A refused entry shows the reason and does not clear the form.
+> - A double tap produces one call, not two.
+> - An empty form cannot be submitted.
+> - A compliance finding is shown, and the invoice can still be issued — the
+>   checker advises, it does not block.
+> - The architecture guards still pass, including the `export` check from 7.21 —
+>   **and the domain allow-list should not need a new entry**, because the form
+>   should be dealing in use-case result types only.
 >
 > Report `flutter test`, `flutter analyze`, `php artisan test`, and
-> `flutter build windows --debug`. The Dart suite must stay green including the
-> existing 660 tests.
+> `flutter build windows --debug`. All four should pass; the Dart suite must stay
+> green including the existing 775 tests.
 
 ## 7. Decisions and discoveries that affect future work
 
@@ -2094,6 +2629,62 @@ malformed hash             :    0.8 ms for 20   (~0.04 ms each)
 Generate the hash and measure it; do not type one. The same reasoning applies to
 any constant whose purpose is to make two code paths equivalent.
 
+### 7.24 An analyzer cannot see a native toolchain requirement
+
+**712 Dart tests passed, `flutter analyze` was clean, and `flutter build windows`
+did not compile.** Not because a test was wrong — because `flutter_secure_storage`
+includes `<atlstr.h>`, which ships in Visual Studio's *optional* C++ ATL
+component rather than the base C++ workload.
+
+The dependency was approved, added, and recorded correctly in
+`docs/AI_RULES.md`, and nothing objected. The failure surfaced only at compile time
+on one platform.
+
+**Generalisable rule for a desktop application: adding a Flutter plugin is a
+build-system change, not just a `pubspec` change.** Each plugin may require native
+tooling that `flutter analyze` and `flutter test` never touch — a C++ header, a
+system library (`libsecret` on Linux), an SDK, a minimum platform version. So:
+
+- After adding a plugin, **build every target platform**, or record explicitly that
+  you did not and which ones therefore remain unverified.
+- Check the plugin's own native sources for `#include` and `find_package` lines
+  before adopting it, not after the first failed build.
+- When a package imposes a toolchain cost, that belongs next to the dependency in
+  `docs/AI_RULES.md`, where the next person reads it before installing.
+
+`flutter test` runs on the Dart VM with no native compilation, so a green suite is
+evidence about Dart only. Saying "verified" without naming **what** was verified is
+how this got through.
+
+**The corollary, learned the hard way and applied too late: check a plugin's native
+sources *before* adopting it, not after the first failed build.** This section was
+written because a plugin needed an optional Visual Studio component — and then,
+in the same session, a plugin was adopted without that check, and the whole
+evening was spent on the consequence. The rule was available and not used.
+
+### 7.25 Three ways a verification can pass while measuring nothing
+
+All three happened while trying to fix one build failure. They are worth listing
+together because each looked like a solid green result.
+
+1. **`if ($output)` on a command's stdout.** PowerShell treats the string `"[]"` —
+   which `vswhere` prints when it finds nothing — as **true**. The check therefore
+   could not fail, and the conclusion drawn from it ("the toolchain is registered
+   again") was the opposite of the truth. **Count parsed results, never test a
+   command's output for truthiness.** A `ConvertFrom-Json` count is the habit.
+2. **A regex pattern that misses the thing it is looking for.** `CString|ATL|CCom|
+   _bstr_t|Variant|BSTR` does not match `CA2W`, which was one of the two symbols in
+   use — and case-insensitively matches `su**bstr**r`. It reported "no ATL usage"
+   about a file that used three ATL classes.
+3. **An `if (false)` "mutation".** Removing a guard by writing
+   `catch (_) { if (false) rethrow; }` changes nothing, so the suite stays green
+   and looks like the test is weak, when in fact nothing was ever broken.
+
+**The common thread: a check that cannot fail looks exactly like a check that
+passed.** Whenever a verification is about to confirm something inconvenient —
+a registration was restored, a build was fixed, a file is unchanged — write down
+first what result would make it fail, and confirm the check can produce it.
+
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.
@@ -2149,24 +2740,42 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 9 | Cloud backup and restore | **Half done.** The server stores and lists verified revisions, and **the desktop now uploads**: it verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path — and **there is no sign-in screen**, so a token must be supplied by hand. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **660 Dart tests**, all passing, and **35 Laravel tests**, all
+**Test suite:** **775 Dart tests**, all passing, and **35 Laravel tests**, all
 passing with 97 assertions. `flutter analyze` reports no issues. `php artisan test`
 reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean. The newest Dart
-files are `test/infrastructure/http_backup_upload_test.dart` (30 tests) and the
-upload widget tests in `test/presentation/backup_screen_test.dart` (24 total).
+file is `test/domain/nepal_billing_test.dart` (37 tests, the Nepali billing rules
+— see 4.35).
+
+**Build status: `flutter build windows --debug` succeeds** and produces
+`financeapp.exe` (1.27 MB), **with no optional Visual Studio component required**
+— the storage dependency uses only standard Windows SDK headers (4.33).
+
+> Historical: this failed for hours on a `flutter_secure_storage` ATL dependency,
+> then on a Visual Studio component registration that `vs_installer.exe modify
+> --add` removed rather than restored. See 4.32–4.34 and 7.24–7.25.
+
+**Dependency-risks to check before adding a plugin:** read the plugin's **native**
+sources — and for a federated plugin, the `_windows`/`_linux`/`_macos` sub-package,
+not just the umbrella, which can look clean while the native code carries an
+`#include` on something optional. Neither a green suite nor a clean analyzer is
+evidence the app builds: `flutter test` never compiles C++.
 
 **Not part of the suite:** `desktop/tool/live_upload_check.dart` (6 checks against
-a running server). It is deliberately not named `*_test.dart`, so `flutter test`
-does not pick it up and the suite stays hermetic. Run it with
-`FINANCEAPP_SERVER=http://127.0.0.1:8124 flutter test tool/live_upload_check.dart`.
+a running server) and `desktop/tool/live_signin_check.dart` (7 checks). Neither is
+named `*_test.dart`, so `flutter test` does not pick them up and the suite stays
+hermetic. Run them with:
 
-**Build status:** `flutter build windows --debug` succeeds and produces
-`financeapp.exe`.
+```bash
+FINANCEAPP_SERVER=http://127.0.0.1:8124 flutter test tool/live_upload_check.dart
+FINANCEAPP_SERVER=http://127.0.0.1:8124 flutter test tool/live_signin_check.dart
+```
 
 **Live status:** PostgreSQL 17.4 holds the `financeapp` database with all six
-migrations applied. The API has been exercised over HTTP against it, and a real
-snapshot uploaded from the desktop's own uploader and read back out of
-PostgreSQL. The password is in `backend/.env`, which is gitignored.
+migrations applied. The API has been exercised over HTTP against it: a real
+snapshot uploaded from the desktop's own uploader and read back out of PostgreSQL,
+and sign-in verified end to end including that signing out **really revokes** the
+token (`/api/auth/me` returns 401 afterwards). The password is in `backend/.env`,
+which is gitignored.
 
 **Generated files that must be committed:** `drift_schemas/` (the schema
 snapshots) and `test/generated/` (the migration-test helpers). They are not
@@ -2212,3 +2821,11 @@ build output; deleting them breaks the migration tests.
 | 2026-09-30 | **Reviewed the uncommitted work and fixed all twelve findings.** The two that mattered were written the same day. **The upload never checked that the snapshot was still the verified one**: `BookBackup.checksum` was ignored, so a file corrupted or edited after the backup would have been uploaded, accepted by the server (whose check only covers the trip), and reported as a safe off-machine copy. It now streams a checksum and refuses on mismatch via a new `UploadStatus.unverified`. **Registration returned a 500 on ordinary input**: `unique:users,email` was checked against the address as typed while the lower-cased value was stored, so `SITA@Example.COM` after `sita@example.com` passed the rule and then hit the unique index; normalisation now happens before validation. Also fixed: the Backup screen counted only attempted years and so claimed "every year is now stored off this computer" while a year had no backup at all; the public `register`/`login` routes had **no rate limit** (verified against the framework: the `api` group gets `throttle:api` only when `throttleApi()` is called, and `bootstrap/app.php` leaves it empty) and now carry `throttle:6,1`; and a new test asserted `contains('9')` for the schema version, which the snapshot's own bytes already satisfied, so it **could not fail** — it now compares the declared field to `currentSchemaVersion`. The rest: login leaked account existence through a bcrypt short-circuit; registration confirmed that an email exists, contradicting login's anti-enumeration design; a plaintext remote server was accepted, which would have put the token and the whole database on the network readable; the body was copied three or four times in memory and hashed on the UI isolate; a fresh `HttpClient` per request discarded connection reuse; and `UploadResult.localBackupIsIntact` was dead. 660 Dart tests, 35 Laravel tests / 97 assertions, Pint and analyze clean, Windows build green, and all six live checks against the real server and PostgreSQL still pass. |
 | 2026-09-30 | **Mutation-tested every fix from the review, and caught a failure mode worse than a bad test.** Three of four new tests initially appeared not to catch their own regression — but the mutations had not applied at all: the search strings contained CRLF and the files used LF, so the replace matched nothing and the suite stayed green for the wrong reason. Re-applied through the editor, all of them failed without their fix, as they should. **A mutation that does not apply is indistinguishable from a test that works**, which is now recorded as 7.22 alongside the second instance of a test that could not fail (7.21's defect, repeated within a day). A third discovery: the timing fix's first version used a hand-written bcrypt-looking literal, which would have kept the leak while looking fixed, because `password_verify` against a malformed hash returns in **0.04 ms** against **191 ms** for a real one — measured, not assumed. Recorded as 7.23. |
 | 2026-09-30 | **Added `NEW_MACHINE.md`, the guide for setting the project up on a different device.** It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories — `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
+| 2026-09-30 | **Implemented sign-in, so a backup can actually be sent by a user** — the task section 6 has held since 4.28. `CredentialStore`, `SignInResult` and `AuthActions` ports; an HTTP client for `POST /api/auth/login` and `/logout`; `SecureCredentialStore` writing the token to protected OS storage; `AccountSession` coordinating them; and a Settings screen with the account panel. **The password is never stored, structurally** — `BackendSession` has no field for it — and the test asserts that against the *values* in the stored map, because a key called `password_hash` would pass an absence check while holding the secret. **Signing out always signs out**: the local session is cleared first, the server is told best-effort, and neither step may throw. Two tests for those failure paths found **two real bugs in my first version**, which had relied on the implementations swallowing their own errors instead of making the caller robust — a locked keyring would have stopped the application starting, and a dead network would have produced a sign-out that did not happen. The HTTP transport moved to `infrastructure/http/` rather than being copied, so status handling exists once. The plain-text rule moved into the domain as `isUsableServerAddress`, because the screen and the client both need it and two copies would drift — and the failure mode of that drift is sending a token and a whole accounting database over clear text. **The decision section 6 asked for**: a `401` now reports `unauthenticated` ("sign in again") instead of `unreachable` ("try again later"), because retrying a `401` fails identically forever. Making that change properly **surfaced a second bug**: a revoked session usually fails the *revision lookup* first, and that path collapsed every failure into `unreachable`, so the new tests failed until `_nextRevisionFor` returned a three-state result instead of a bare `int?`. 16 + 17 + 15 new tests, 712 total, analyze clean. |
+| 2026-09-30 | **Found a blocker: the Windows build does not compile.** `flutter build windows` fails with `Cannot open include file: 'atlstr.h'`, because `flutter_secure_storage` holds the token in protected OS storage and its Windows plugin includes that header, which ships in Visual Studio's **optional** "C++ ATL for latest v10 build tools" component rather than the base C++ workload. Verified rather than assumed: every version of `flutter_secure_storage_windows` from **2.x through 4.2.2** includes `atlstr.h`, so downgrading does not help, and 1.2.0 does not exist on pub. **This was not caught by adding the dependency, by `flutter analyze`, or by 712 passing tests — only by building.** That is the lesson: an analyzer cannot see a native toolchain requirement. Recorded in `docs/AI_RULES.md`, `desktop/README.md`, and `NEW_MACHINE.md` so it is found at install time, and escalated as an owner decision because the three ways out are not an agent's to choose. **The weaker-storage option is explicitly rejected in the task text**: a bearer token must not go into a plain file. |
+| 2026-09-30 | **Mutation testing failed in a new way: a mutation that changes nothing.** Removing the guard around `signOut`'s store clear left all 16 account tests passing — not because the tests were weak but because the mutation itself was invalid. `if (false) rethrow;` inside a catch is a no-op, so it proved nothing while looking like a deliberate break. Re-applied by actually deleting the `try`, the new test caught it. Recorded as 7.22 seen from a new angle: **verify the mutation changed behaviour, or a green suite means nothing at all.** |
+| 2026-09-30 | **Settled the Windows build, which had failed for hours.** Two dependencies were rejected on evidence and one adopted. `flutter_secure_storage` needs Visual Studio's optional C++ ATL component — a single `#include <atlstr.h>`. `webauthn_secure_storage` needs the Windows App SDK (`<winrt/...>`) **and** uses `<experimental/coroutine>`, which MSVC 14.51 rejects outright. `local_storage_cache` and `get_secure_storage` were rejected because they encrypt with a key stored on the same disk, which protects against nothing on that machine. `keyring` needs a **Rust toolchain**. **`crossvault`** was adopted: MIT, standard Windows SDK headers only (`wincred.h`, `ncrypt.h`, `bcrypt.h`), no coroutines, **no optional toolchain component** — and `flutter build windows --debug` now succeeds, producing a 1.27 MB `financeapp.exe`. Its one limitation is recorded rather than glossed: **no Linux implementation**, so on Linux the token lives in memory for the session and the user signs in again after a restart; because `CredentialStore` is an interface, adding it later touches one file. |
+| 2026-09-30 | **The most valuable finding was about checking method, not about plugins.** Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella — `webauthn_secure_storage`'s umbrella looked clean while its sub-package carried the ATL and the WinRT. |
+| 2026-09-30 | **Learned what a Nepali invoice legally requires, and implemented it.** The specification set the standard: tax rules *"shall not be treated as permanently fixed application constants"*, so the rules became `NepalTaxRules` — data with a version string — rather than a `const int vatStandardRate` that would be silently wrong the year the Finance Act changed it. Implemented: the two legal document forms (Rule 17 tax invoice and the Rule 17(Ka) abbreviated retail invoice, limited to a ceiling of NPR 10,000); the seller's PAN gating everything, since a bill without it is not a valid tax bill; the buyer's PAN required when the buyer is VAT-registered, the document is a full tax invoice, or the total reaches the threshold, with a **malformed PAN reported as missing rather than printed**; a VAT-registered business charging no VAT; total in words in lakh and crore; and the HS code added by the 46th amendment. **Nothing was inferred where the sources conflict** — VAT registration thresholds are reported inconsistently (NPR 20 lakh vs 30 lakh for services), so no threshold is implemented at all and the flag is stated by the owner; guessing would produce confidently wrong compliance advice. **Corrected a retention error**: Income Tax Act §81(2), verified against the statutory text, is five years **from the expiry of the income year**, not from the transaction date, and VAT's commonly cited six years is the binding period — `BACKUP_AND_RETENTION.md` had flattened this into one undifferentiated "six years". Compliance is **advisory, not blocking**: refusing to issue an invoice at closing time would push the owner to work around the application entirely. |
+| 2026-09-30 | **The tests caught two real defects in new code, both before shipping.** `amountInWords` produced **"Rupees Ten Hundred Crore"** for Rs 100,000, because the divisor list and the name list were **misaligned** — `units[0]` was crore while `names[0]` was the empty string — so every lakh and crore figure on every invoice would have been wrong. And the abbreviated-invoice ceiling test **never actually reached the ceiling**: it derived a price from `rupees * 1.13` and assumed that equalled NPR 10,000, but VAT is rounded per paisa so it does not for most inputs, meaning a compliance boundary test was passing without exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% = Rs 10,000.00) and asserts the total first. Both are the same lesson as 7.21 and 7.25 from the other direction: **a test that does not reach the condition it names is not a test.** Mutation-checked both — making the ceiling exclusive, and restoring the misaligned lists, each fail. 749 Dart tests. | Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella — `webauthn_secure_storage`'s umbrella was clean while its sub-package carried the ATL and the WinRT include. 712 Dart tests, 35 Laravel tests, analyze clean, Pint clean, Windows build green. | It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories — `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
+| 2026-10-01 | **Customer identity decided and recorded: a random internal id plus a separate sequential business code** (`C-0001`), chosen by the owner after being offered a single sequential identifier and a name-based key. Recorded in **ADR 010**. **This closes the open question in 7.16** — ids must not collide if two installations ever sync, and a random id cannot, so that risk is closed now rather than after data exists. **Duplicate detection came from the PAN, not the name**: a unique index on `pan_number` is the one key that cannot produce a false collision, because two businesses cannot share a PAN, whereas a Nepali name repeats and changes on marriage — making it identity would repoint history. Also **fixed a duplication I had introduced myself**: a new `Party` type sat alongside the existing `Customer`, which already covered the same ground and was wired into `IssueInvoice`, `RecordPayment`, and three test files; `Party` is deleted and its PAN and VAT handling folded into `Customer`. |

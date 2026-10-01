@@ -109,7 +109,32 @@ it is a normal dependency decision, not a pre-approved one.
 | `pluto_grid` | MIT | Dense desktop data grid | No — approved for later |
 | `fl_chart` | MIT | Restrained charts | No — approved for later |
 | `go_router` | BSD-3 | Navigation | No — approved for later |
-| `flutter_secure_storage` | BSD-3 | OS-protected token and licence storage | No — approved for later |
+| `crossvault` | MIT | OS-protected token storage | **Yes** — sign-in token |
+
+**Two predecessors were tried and rejected on evidence**, recorded in
+`PROGRESS.md` 4.32:
+
+- `flutter_secure_storage` (BSD-3) — its Windows plugin contains a single
+  `#include <atlstr.h>`, which needs Visual Studio's **optional** C++ ATL
+  component. An application must not require an optional toolchain piece.
+- `webauthn_secure_storage` (MIT) — calls WebAuthn, so its plugin includes
+  `<winrt/...>` and needs the Windows App SDK, **and** it uses
+  `<experimental/coroutine>`, which the current MSVC rejects outright.
+
+`crossvault` uses only standard Windows SDK headers (`wincred.h`, `ncrypt.h`,
+`bcrypt.h`) and no coroutines, so **it needs no additional Visual Studio
+component**. `flutter build windows --debug` succeeds with it installed.
+**Its one limitation: no Linux implementation** — see the store's doc comment.
+
+**When adding any Flutter plugin, read its native sources first.** A plugin can
+require a C++ header, a system library, an SDK, or another toolchain that
+`flutter analyze` and `flutter test` never touch, so neither a green suite nor a
+clean analyzer is evidence that the application builds. Concretely: check the
+plugin's `windows/`, `linux/`, `macos/` folders for `#include` and `find_package`
+lines *before* adopting it. **And open the federated sub-package**, not just the
+umbrella — `webauthn_secure_storage`'s umbrella looked clean while its
+`_windows` package carried the ATL and WinRT. This cost an evening here; see
+`PROGRESS.md` sections 7.24 and 7.25.
 
 **The Bikram Sambat calendar is deliberately NOT a package.** Its data is kept
 in-tree in `lib/src/domain/fiscal/bs_calendar_data.dart`, because a single
@@ -122,7 +147,9 @@ supply-chain risk, not just licence text.
 **MIT and BSD-3 both require the copyright notice to be retained**, so the
 application must expose a reachable licences screen. Flutter's
 `showLicensePage` covers this and aggregates every dependency's licence
-automatically.
+automatically, which is why adding a package does not mean editing a licence
+list: `flutter_secure_storage` is BSD-3 and appears there the moment it is a
+dependency.
 
 Declare a package you import directly, even when it arrives transitively. The
 analyzer enforces this with `depend_on_referenced_packages`, and it is correct to.
