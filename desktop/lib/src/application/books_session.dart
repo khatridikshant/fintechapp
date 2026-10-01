@@ -2,6 +2,8 @@ import '../domain/fiscal/fiscal_year.dart';
 import '../domain/shared/book_backup_service.dart';
 import 'build_general_ledger.dart';
 import 'build_trial_balance.dart';
+import 'create_customer.dart';
+import 'issue_invoice.dart';
 
 /// One fiscal year the application can open.
 class OpenYear {
@@ -43,6 +45,19 @@ abstract interface class BooksSession {
   GeneralLedgerLoader get generalLedger;
 
   BackupActions get backup;
+
+  /// Creating a customer.
+  ///
+  /// **The first thing a business must be able to do**, and it has to belong to a
+  /// year: a customer is recorded in the books of the year they were added, so
+  /// creating one while a concluded year is open would write to the wrong books.
+  CreateCustomer get createCustomer;
+
+  /// Issuing an invoice: numbering it, posting it, and recording it.
+  ///
+  /// Rebuilt per open year, because an invoice belongs to the books of the year it
+  /// is dated in.
+  IssueInvoice get issueInvoice;
 
   /// Opens [fiscalYear], closing whatever was open, and builds its use cases.
   ///

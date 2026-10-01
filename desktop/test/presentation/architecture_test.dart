@@ -101,6 +101,13 @@ void main() {
         // behaviour and still goes through the port.
         'domain/shared/book_upload.dart',
         'domain/shared/book_upload_service.dart',
+        // `Invoice` and `InvoiceLine`: the invoice screen builds them from what
+        // was typed and hands them to `IssueInvoice`. Both are value types with no
+        // behaviour, and the screen reads none of the totals — those are the
+        // domain's. The *decisions* stay behind the use case; only the shape
+        // crosses the boundary.
+        'domain/billing/invoice.dart',
+        'domain/billing/invoice_line.dart',
         // `SignInResult` and `SignInStatus`: the Settings screen has to say which
         // of the three outcomes happened -- refused, unreachable, or a bad
         // address -- because they ask different things of the user. Sending the

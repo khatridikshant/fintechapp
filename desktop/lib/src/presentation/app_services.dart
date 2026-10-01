@@ -1,5 +1,7 @@
 import '../application/account_session.dart';
 import '../application/business_details.dart';
+import '../application/create_customer.dart';
+import '../application/issue_invoice.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
 import '../application/build_trial_balance.dart';
@@ -23,6 +25,8 @@ class AppServices {
     this.upload,
     this.account,
     this.businessDetails,
+    this.createCustomer,
+    this.issueInvoice,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -56,6 +60,14 @@ class AppServices {
   /// on the Settings screen.
   final BusinessDetails? businessDetails;
 
+  /// Creating a customer. Null when the books expose no such use case, which is
+  /// a test rather than a normal state.
+  final CreateCustomer? createCustomer;
+
+  /// Issuing an invoice. Null when the books expose no such use case, which is a
+  /// test rather than a normal state.
+  final IssueInvoice? issueInvoice;
+
   /// Which fiscal years exist and which is open, so the shell can offer a year
   /// switcher. Concluded years open **read-only**.
   final BooksSession? session;
@@ -78,6 +90,10 @@ class AppServices {
         upload: account?.upload ?? upload,
         account: account,
         businessDetails: businessDetails,
+        // From the open year: a customer belongs to the books of the year they
+        // were added.
+        createCustomer: session.createCustomer,
+        issueInvoice: session.issueInvoice,
       );
 
   /// The same services, re-read after signing in or out.
@@ -93,5 +109,6 @@ class AppServices {
         upload: account?.upload,
         account: account,
         businessDetails: businessDetails,
+        createCustomer: createCustomer,
       );
 }

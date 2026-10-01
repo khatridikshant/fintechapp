@@ -281,6 +281,32 @@ class InvoiceSellers extends Table {
   Set<Column> get primaryKey => {invoiceId};
 }
 
+/// The customer code counter: one row, forever.
+///
+/// ## Why this is not `document_sequences`
+///
+/// Document numbers restart each fiscal year, which is right for documents. **A
+/// customer code must not**, because it names a party rather than a
+/// transaction — `C-0001` issued again next year would name two different
+/// customers and make every old invoice ambiguous (ADR 010).
+///
+/// ## A new table, so no existing table is touched
+///
+/// The same reasoning as `customer_details` and `invoice_sellers`: a table that
+/// did not exist before this version is absent from every earlier snapshot, so
+/// the existing migration tests stay valid.
+@DataClassName('CustomerCodeSequenceRow')
+class CustomerCodeSequences extends Table {
+  /// Always `singleton` for V1: one lifetime counter, by design.
+  TextColumn get id => text()();
+
+  /// The highest code handed out so far. 0 means none has been.
+  IntColumn get lastAllocated => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// The lines of an issued invoice.
 ///
 /// Stored because an invoice must be reprintable. A journal line records an

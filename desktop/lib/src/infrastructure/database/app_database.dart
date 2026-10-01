@@ -13,7 +13,7 @@ part 'app_database.g.dart';
 /// than one place has to know it: the database declares it to drift, and the
 /// backup upload declares it to the server. Two copies of the number would drift
 /// apart, and the server uses it to decide how to read the snapshot.
-const int currentSchemaVersion = 11;
+const int currentSchemaVersion = 12;
 
 /// The local SQLite database for one fiscal year.
 ///
@@ -35,6 +35,7 @@ const int currentSchemaVersion = 11;
     InventoryMovements,
     CustomerDetails,
     InvoiceSellers,
+    CustomerCodeSequences,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -159,6 +160,13 @@ class AppDatabase extends _$AppDatabase {
             // `customer_details`. `invoices` exists by v4, so the foreign key's
             // target always exists by the time this runs.
             await m.createTable(invoiceSellers);
+          }
+          if (from < 12) {
+            // The lifetime customer-code counter.
+            //
+            // A new table, so nothing existing is touched and every earlier
+            // migration test stays valid.
+            await m.createTable(customerCodeSequences);
           }
         },
         beforeOpen: (OpeningDetails details) async {

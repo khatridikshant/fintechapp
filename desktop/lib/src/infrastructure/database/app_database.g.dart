@@ -5245,6 +5245,209 @@ class InvoiceSellersCompanion extends UpdateCompanion<InvoiceSellerRow> {
   }
 }
 
+class $CustomerCodeSequencesTable extends CustomerCodeSequences
+    with TableInfo<$CustomerCodeSequencesTable, CustomerCodeSequenceRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomerCodeSequencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _lastAllocatedMeta =
+      const VerificationMeta('lastAllocated');
+  @override
+  late final GeneratedColumn<int> lastAllocated = GeneratedColumn<int>(
+      'last_allocated', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [id, lastAllocated];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'customer_code_sequences';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CustomerCodeSequenceRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('last_allocated')) {
+      context.handle(
+          _lastAllocatedMeta,
+          lastAllocated.isAcceptableOrUnknown(
+              data['last_allocated']!, _lastAllocatedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CustomerCodeSequenceRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomerCodeSequenceRow(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      lastAllocated: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}last_allocated'])!,
+    );
+  }
+
+  @override
+  $CustomerCodeSequencesTable createAlias(String alias) {
+    return $CustomerCodeSequencesTable(attachedDatabase, alias);
+  }
+}
+
+class CustomerCodeSequenceRow extends DataClass
+    implements Insertable<CustomerCodeSequenceRow> {
+  /// Always `singleton` for V1: one lifetime counter, by design.
+  final String id;
+
+  /// The highest code handed out so far. 0 means none has been.
+  final int lastAllocated;
+  const CustomerCodeSequenceRow(
+      {required this.id, required this.lastAllocated});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['last_allocated'] = Variable<int>(lastAllocated);
+    return map;
+  }
+
+  CustomerCodeSequencesCompanion toCompanion(bool nullToAbsent) {
+    return CustomerCodeSequencesCompanion(
+      id: Value(id),
+      lastAllocated: Value(lastAllocated),
+    );
+  }
+
+  factory CustomerCodeSequenceRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomerCodeSequenceRow(
+      id: serializer.fromJson<String>(json['id']),
+      lastAllocated: serializer.fromJson<int>(json['lastAllocated']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'lastAllocated': serializer.toJson<int>(lastAllocated),
+    };
+  }
+
+  CustomerCodeSequenceRow copyWith({String? id, int? lastAllocated}) =>
+      CustomerCodeSequenceRow(
+        id: id ?? this.id,
+        lastAllocated: lastAllocated ?? this.lastAllocated,
+      );
+  CustomerCodeSequenceRow copyWithCompanion(
+      CustomerCodeSequencesCompanion data) {
+    return CustomerCodeSequenceRow(
+      id: data.id.present ? data.id.value : this.id,
+      lastAllocated: data.lastAllocated.present
+          ? data.lastAllocated.value
+          : this.lastAllocated,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerCodeSequenceRow(')
+          ..write('id: $id, ')
+          ..write('lastAllocated: $lastAllocated')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, lastAllocated);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomerCodeSequenceRow &&
+          other.id == this.id &&
+          other.lastAllocated == this.lastAllocated);
+}
+
+class CustomerCodeSequencesCompanion
+    extends UpdateCompanion<CustomerCodeSequenceRow> {
+  final Value<String> id;
+  final Value<int> lastAllocated;
+  final Value<int> rowid;
+  const CustomerCodeSequencesCompanion({
+    this.id = const Value.absent(),
+    this.lastAllocated = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CustomerCodeSequencesCompanion.insert({
+    required String id,
+    this.lastAllocated = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id);
+  static Insertable<CustomerCodeSequenceRow> custom({
+    Expression<String>? id,
+    Expression<int>? lastAllocated,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (lastAllocated != null) 'last_allocated': lastAllocated,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CustomerCodeSequencesCompanion copyWith(
+      {Value<String>? id, Value<int>? lastAllocated, Value<int>? rowid}) {
+    return CustomerCodeSequencesCompanion(
+      id: id ?? this.id,
+      lastAllocated: lastAllocated ?? this.lastAllocated,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (lastAllocated.present) {
+      map['last_allocated'] = Variable<int>(lastAllocated.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerCodeSequencesCompanion(')
+          ..write('id: $id, ')
+          ..write('lastAllocated: $lastAllocated, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5266,6 +5469,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CustomerDetailsTable customerDetails =
       $CustomerDetailsTable(this);
   late final $InvoiceSellersTable invoiceSellers = $InvoiceSellersTable(this);
+  late final $CustomerCodeSequencesTable customerCodeSequences =
+      $CustomerCodeSequencesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5284,7 +5489,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         products,
         inventoryMovements,
         customerDetails,
-        invoiceSellers
+        invoiceSellers,
+        customerCodeSequences
       ];
 }
 
@@ -7971,6 +8177,142 @@ typedef $$InvoiceSellersTableProcessedTableManager = ProcessedTableManager<
     ),
     InvoiceSellerRow,
     PrefetchHooks Function()>;
+typedef $$CustomerCodeSequencesTableCreateCompanionBuilder
+    = CustomerCodeSequencesCompanion Function({
+  required String id,
+  Value<int> lastAllocated,
+  Value<int> rowid,
+});
+typedef $$CustomerCodeSequencesTableUpdateCompanionBuilder
+    = CustomerCodeSequencesCompanion Function({
+  Value<String> id,
+  Value<int> lastAllocated,
+  Value<int> rowid,
+});
+
+class $$CustomerCodeSequencesTableFilterComposer
+    extends Composer<_$AppDatabase, $CustomerCodeSequencesTable> {
+  $$CustomerCodeSequencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get lastAllocated => $composableBuilder(
+      column: $table.lastAllocated, builder: (column) => ColumnFilters(column));
+}
+
+class $$CustomerCodeSequencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CustomerCodeSequencesTable> {
+  $$CustomerCodeSequencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get lastAllocated => $composableBuilder(
+      column: $table.lastAllocated,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CustomerCodeSequencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CustomerCodeSequencesTable> {
+  $$CustomerCodeSequencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get lastAllocated => $composableBuilder(
+      column: $table.lastAllocated, builder: (column) => column);
+}
+
+class $$CustomerCodeSequencesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CustomerCodeSequencesTable,
+    CustomerCodeSequenceRow,
+    $$CustomerCodeSequencesTableFilterComposer,
+    $$CustomerCodeSequencesTableOrderingComposer,
+    $$CustomerCodeSequencesTableAnnotationComposer,
+    $$CustomerCodeSequencesTableCreateCompanionBuilder,
+    $$CustomerCodeSequencesTableUpdateCompanionBuilder,
+    (
+      CustomerCodeSequenceRow,
+      BaseReferences<_$AppDatabase, $CustomerCodeSequencesTable,
+          CustomerCodeSequenceRow>
+    ),
+    CustomerCodeSequenceRow,
+    PrefetchHooks Function()> {
+  $$CustomerCodeSequencesTableTableManager(
+      _$AppDatabase db, $CustomerCodeSequencesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomerCodeSequencesTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CustomerCodeSequencesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CustomerCodeSequencesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<int> lastAllocated = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CustomerCodeSequencesCompanion(
+            id: id,
+            lastAllocated: lastAllocated,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<int> lastAllocated = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CustomerCodeSequencesCompanion.insert(
+            id: id,
+            lastAllocated: lastAllocated,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CustomerCodeSequencesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $CustomerCodeSequencesTable,
+        CustomerCodeSequenceRow,
+        $$CustomerCodeSequencesTableFilterComposer,
+        $$CustomerCodeSequencesTableOrderingComposer,
+        $$CustomerCodeSequencesTableAnnotationComposer,
+        $$CustomerCodeSequencesTableCreateCompanionBuilder,
+        $$CustomerCodeSequencesTableUpdateCompanionBuilder,
+        (
+          CustomerCodeSequenceRow,
+          BaseReferences<_$AppDatabase, $CustomerCodeSequencesTable,
+              CustomerCodeSequenceRow>
+        ),
+        CustomerCodeSequenceRow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8003,4 +8345,6 @@ class $AppDatabaseManager {
       $$CustomerDetailsTableTableManager(_db, _db.customerDetails);
   $$InvoiceSellersTableTableManager get invoiceSellers =>
       $$InvoiceSellersTableTableManager(_db, _db.invoiceSellers);
+  $$CustomerCodeSequencesTableTableManager get customerCodeSequences =>
+      $$CustomerCodeSequencesTableTableManager(_db, _db.customerCodeSequences);
 }

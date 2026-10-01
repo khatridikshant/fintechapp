@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../application/business_details.dart';
+import '../../application/create_customer.dart';
+import '../../application/issue_invoice.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
 import '../../application/build_trial_balance.dart';
@@ -14,8 +16,13 @@ import '../backup/file_book_backup_service.dart';
 import 'app_database.dart';
 import 'business_database.dart';
 import 'drift_account_repository.dart';
+import 'drift_customer_code_sequence.dart';
+import 'drift_customer_repository.dart';
 import 'drift_business_profile_repository.dart';
+import 'drift_document_number_sequence.dart';
+import 'drift_invoice_repository.dart';
 import 'drift_journal_repository.dart';
+import 'drift_unit_of_work.dart';
 import 'open_business_database.dart';
 import 'sqlite_native.dart';
 
@@ -123,6 +130,28 @@ class FileBooksSession implements BooksSession {
 
   @override
   BackupActions get backup => _backup ??= _buildBackup();
+
+  /// Rebuilt per open year, because a customer belongs to the books of the year
+  /// they were added.
+  @override
+  CreateCustomer get createCustomer => CreateCustomer(
+        customers: DriftCustomerRepository(_database),
+        codes: DriftCustomerCodeSequence(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  IssueInvoice get issueInvoice => IssueInvoice(
+        fiscalYear: _openYear.fiscalYear,
+        customers: DriftCustomerRepository(_database),
+        numbers: DriftDocumentNumberSequence(_database),
+        journal: DriftJournalRepository(_database),
+        invoices: DriftInvoiceRepository(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+        // The seller's details are stamped onto the invoice, so the stored
+        // document carries what was printed on it.
+        sellers: DriftBusinessProfileRepository(_businessDb),
+      );
 
   /// This business's own details, in the **separate** `business.db`.
   ///

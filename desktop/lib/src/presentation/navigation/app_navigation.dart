@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../app_services.dart';
 import '../finance_app_shell.dart';
 import '../screens/backup_screen.dart';
+import '../screens/customer_screen.dart';
+import '../screens/invoice_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
@@ -93,9 +95,23 @@ List<NavigationGroup> buildNavigation(
     NavigationGroup(
       title: 'Sales',
       sections: <NavigationItem>[
-        NavigationItem(title: 'Invoices', icon: Icons.description_outlined),
+        NavigationItem(
+          title: 'Invoices',
+          icon: Icons.description_outlined,
+          route: services.issueInvoice == null
+              ? null
+              : (context) =>
+                  InvoiceScreen(issueInvoice: services.issueInvoice!),
+        ),
         NavigationItem(title: 'Sales', icon: Icons.trending_up_outlined),
-        NavigationItem(title: 'Customers', icon: Icons.people_outline),
+        NavigationItem(
+          title: 'Customers',
+          icon: Icons.people_outline,
+          route: services.createCustomer == null
+              ? null
+              : (context) =>
+                  CustomerScreen(createCustomer: services.createCustomer!),
+        ),
         NavigationItem(
             title: 'Receivables', icon: Icons.account_balance_wallet_outlined),
       ],
