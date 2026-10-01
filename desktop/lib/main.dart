@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'src/application/account_session.dart';
 import 'src/domain/fiscal/nepali_fiscal_calendar.dart';
 import 'src/domain/shared/book_upload.dart';
 import 'src/domain/shared/book_upload_service.dart';
+import 'src/infrastructure/auth/http_auth_client.dart';
+import 'src/infrastructure/auth/secure_credential_store.dart';
 import 'src/infrastructure/database/file_books_session.dart';
+import 'src/infrastructure/http/http_transport.dart';
 import 'src/infrastructure/sync/http_backup_uploader.dart';
 import 'src/presentation/app_services.dart';
 import 'src/presentation/finance_app.dart';
@@ -45,9 +49,38 @@ Future<void> main() async {
       startYear: fiscalYear,
     );
 
+    // One transport for the life of the application, so signing in and sending
+    // backups reuse the same connection pool.
+    final transport = IoHttpTransport();
+    final uploadLogFile =
+        File(p.join(supportDirectory.path, 'backups', 'uploads.json'));
+
+    final account = AccountSession(
+      auth: HttpAuthClient(transport),
+      store: SecureCredentialStore(),
+      deviceName: _deviceName,
+      uploadBuilder: (session) => HttpBackupUploader(
+        transport: transport,
+        session: session,
+        uploadLogFile: uploadLogFile,
+      ),
+    );
+
+    // A returning user stays signed in. A store that cannot be read leaves the
+    // session null, which is the same as never having signed in.
+    await account.restore();
+
     runApp(
       FinanceApp(
         services: AppServices(
+          account: account,
+          // From `business.db`, which is **not** a fiscal-year database, so the
+          // business is not asked to re-enter its details every Ashadh.
+          businessDetails: session.businessDetails,
+          // The developer stopgap still wins when it is configured, because the
+          // live check and the manual workflow depend on it. With nothing set --
+          // the normal case -- this is null and the account session's uploader is
+          // used instead.
           upload: _uploadsFrom(Platform.environment, supportDirectory),
         ).forSession(session),
       ),
@@ -56,6 +89,14 @@ Future<void> main() async {
     runApp(StartupFailureApp(error: error));
   }
 }
+
+/// A name for this installation, so the server can identify it.
+///
+/// ADR 003 allows one active desktop installation per account, which means the
+/// server has to be able to say *which* one is signing in. A name derived from
+/// the platform is more use than a constant, because a user with two machines can
+/// then tell them apart in the account's device list.
+String get _deviceName => 'desktop-${Platform.operatingSystem}';
 
 /// Builds the upload capability from the environment, or returns null.
 ///

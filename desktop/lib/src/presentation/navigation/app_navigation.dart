@@ -6,6 +6,7 @@ import '../screens/backup_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
+import '../screens/settings_screen.dart';
 import '../screens/trial_balance_screen.dart';
 
 /// A group of related screens, as `ui.txt` section 13 lays out the navigation.
@@ -38,7 +39,15 @@ class NavigationItem {
 /// A section has a screen only when the corresponding use case has been wired in
 /// [services]. Everything else shows a placeholder that says plainly that it has
 /// not been built, rather than a blank panel or a crash.
-List<NavigationGroup> buildNavigation(AppServices services) {
+///
+/// [onAccountChanged] reaches the Settings screen, which needs it because signing
+/// in changes which token a backup is sent with, and the shell has to rebuild its
+/// services for that to take effect. Optional, so a test or a bare screen does not
+/// have to supply one.
+List<NavigationGroup> buildNavigation(
+  AppServices services, {
+  Future<void> Function()? onAccountChanged,
+}) {
   final trialBalance = services.trialBalance;
 
   return <NavigationGroup>[
@@ -132,7 +141,22 @@ List<NavigationGroup> buildNavigation(AppServices services) {
     NavigationGroup(
       title: 'System',
       sections: <NavigationItem>[
-        NavigationItem(title: 'Settings', icon: Icons.settings_outlined),
+        NavigationItem(
+          title: 'Settings',
+          icon: Icons.settings_outlined,
+          route: services.account == null && services.businessDetails == null
+              ? null
+              : (context) => SettingsScreen(
+                    account: services.account,
+                    onAccountChanged: onAccountChanged ?? () async {},
+                    businessDetails: services.businessDetails,
+                    onBusinessSaved: (profile) async {
+                      await services.businessDetails?.save(profile);
+                      // Rebuild so anything reading the profile sees the new one.
+                      await onAccountChanged?.call();
+                    },
+                  ),
+        ),
         NavigationItem(
           title: 'Backup',
           icon: Icons.backup_outlined,

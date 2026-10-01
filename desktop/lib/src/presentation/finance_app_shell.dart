@@ -26,8 +26,11 @@ class FinanceAppShell extends StatefulWidget {
 
 class FinanceAppShellState extends State<FinanceAppShell> {
   late AppServices _services = widget.services;
-  late List<NavigationGroup> _groups = buildNavigation(_services);
+  late List<NavigationGroup> _groups = _navigationFor(widget.services);
   late NavigationItem _selected = _groups.first.sections.first;
+
+  List<NavigationGroup> _navigationFor(AppServices services) =>
+      buildNavigation(services, onAccountChanged: refreshAccount);
 
   @override
   void didUpdateWidget(FinanceAppShell oldWidget) {
@@ -35,7 +38,7 @@ class FinanceAppShellState extends State<FinanceAppShell> {
     if (oldWidget.services != widget.services) {
       setState(() {
         _services = widget.services;
-        _groups = buildNavigation(_services);
+        _groups = _navigationFor(_services);
         // The previously selected section may no longer have a screen, so fall
         // back to the first rather than showing a stale screen.
         if (_groups
@@ -45,6 +48,20 @@ class FinanceAppShellState extends State<FinanceAppShell> {
         }
       });
     }
+  }
+
+  /// Re-reads the services after the account changed.
+  ///
+  /// Signing in replaces the token a backup is sent with, and the uploader takes
+  /// its session in its constructor, so the whole bundle is rebuilt -- the same
+  /// reasoning as [selectYear]. Without this the Backup screen keeps reporting
+  /// that nobody is signed in after a successful sign-in.
+  Future<void> refreshAccount() async {
+    if (!mounted) return;
+    setState(() {
+      _services = _services.forAccount();
+      _groups = _navigationFor(_services);
+    });
   }
 
   /// Selects a navigation item.
@@ -67,7 +84,7 @@ class FinanceAppShellState extends State<FinanceAppShell> {
 
     setState(() {
       _services = _services.forSession(session);
-      _groups = buildNavigation(_services);
+      _groups = _navigationFor(_services);
       // The open screen belongs to the old year. Return to the first section so
       // nothing is showing another year's figures.
       _selected = _groups.first.sections.first;

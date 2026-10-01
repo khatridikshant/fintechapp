@@ -561,6 +561,7 @@ class _StubUploads implements UploadActions {
         UploadStatus.uploaded => 'Stored on the server as revision 1.',
         UploadStatus.unverified =>
           'This snapshot is no longer the one that was verified.',
+        UploadStatus.unauthenticated => 'You are signed out; sign in again.',
         UploadStatus.rejected => 'The server refused this snapshot.',
         UploadStatus.conflict => 'The server already holds a newer revision.',
         UploadStatus.unreachable => 'The server could not be reached.',

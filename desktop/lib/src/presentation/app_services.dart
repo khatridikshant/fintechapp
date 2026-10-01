@@ -1,4 +1,6 @@
-﻿import '../application/books_session.dart';
+import '../application/account_session.dart';
+import '../application/business_details.dart';
+import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
 import '../application/build_trial_balance.dart';
 import '../domain/shared/book_backup_service.dart';
@@ -19,6 +21,8 @@ class AppServices {
     this.backup,
     this.session,
     this.upload,
+    this.account,
+    this.businessDetails,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -30,16 +34,31 @@ class AppServices {
   /// Taking and verifying backups.
   final BackupActions? backup;
 
-  /// Which fiscal years exist and which is open, so the shell can offer a year
-  /// switcher. Concluded years open **read-only**.
-  final BooksSession? session;
-
   /// Sending a verified backup to the server.
   ///
   /// Null when the desktop is not signed in. Taking a backup works without this;
   /// it is the off-machine copy that needs a session, so its absence must never
   /// affect anything else.
+  ///
+  /// **Derived from [account] whenever there is one.** Signing in produces a fresh
+  /// uploader, because an uploader holding a stale token would keep failing with a
+  /// sign-in error the user cannot fix by signing in.
   final UploadActions? upload;
+
+  /// Signing in and out. Null when the application has no account support.
+  final AccountSession? account;
+
+  /// This business's own details, and the means to save them.
+  ///
+  /// **Null is the normal first-run state**, not a fault: a fresh installation has
+  /// no business name and no PAN, and the application must still start and still
+  /// take backups. It simply cannot produce a valid tax invoice yet, and says so
+  /// on the Settings screen.
+  final BusinessDetails? businessDetails;
+
+  /// Which fiscal years exist and which is open, so the shell can offer a year
+  /// switcher. Concluded years open **read-only**.
+  final BooksSession? session;
 
   /// Every use case for the selected year, rebuilt from [session].
   ///
@@ -47,13 +66,32 @@ class AppServices {
   /// of them at once rather than patching any single one. The session is the
   /// single source of what is open.
   ///
-  /// [upload] is carried through unchanged: it is about a session with the
-  /// server, not about which year's books are open.
+  /// [upload] is re-derived from [account] when there is one, because
+  /// signing in changes which session a snapshot would be sent with. With no
+  /// account -- tests, and the developer environment-variable path -- the
+  /// existing uploader is carried through untouched.
   AppServices forSession(BooksSession session) => AppServices(
         trialBalance: session.trialBalance,
         generalLedger: session.generalLedger,
         backup: session.backup,
         session: session,
-        upload: upload,
+        upload: account?.upload ?? upload,
+        account: account,
+        businessDetails: businessDetails,
+      );
+
+  /// The same services, re-read after signing in or out.
+  ///
+  /// Signing in replaces the token a backup is sent with, and the uploader takes
+  /// its session in its constructor, so the whole bundle is rebuilt -- the same
+  /// reasoning as [forSession].
+  AppServices forAccount() => AppServices(
+        trialBalance: trialBalance,
+        generalLedger: generalLedger,
+        backup: backup,
+        session: session,
+        upload: account?.upload,
+        account: account,
+        businessDetails: businessDetails,
       );
 }

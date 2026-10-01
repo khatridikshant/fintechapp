@@ -4702,6 +4702,306 @@ class InventoryMovementsCompanion
   }
 }
 
+class $CustomerDetailsTable extends CustomerDetails
+    with TableInfo<$CustomerDetailsTable, CustomerDetailRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CustomerDetailsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _customerIdMeta =
+      const VerificationMeta('customerId');
+  @override
+  late final GeneratedColumn<String> customerId = GeneratedColumn<String>(
+      'customer_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+      'code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isVatRegisteredMeta =
+      const VerificationMeta('isVatRegistered');
+  @override
+  late final GeneratedColumn<bool> isVatRegistered = GeneratedColumn<bool>(
+      'is_vat_registered', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_vat_registered" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _businessNameMeta =
+      const VerificationMeta('businessName');
+  @override
+  late final GeneratedColumn<String> businessName = GeneratedColumn<String>(
+      'business_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [customerId, code, isVatRegistered, businessName];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'customer_details';
+  @override
+  VerificationContext validateIntegrity(Insertable<CustomerDetailRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('customer_id')) {
+      context.handle(
+          _customerIdMeta,
+          customerId.isAcceptableOrUnknown(
+              data['customer_id']!, _customerIdMeta));
+    } else if (isInserting) {
+      context.missing(_customerIdMeta);
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+          _codeMeta, code.isAcceptableOrUnknown(data['code']!, _codeMeta));
+    }
+    if (data.containsKey('is_vat_registered')) {
+      context.handle(
+          _isVatRegisteredMeta,
+          isVatRegistered.isAcceptableOrUnknown(
+              data['is_vat_registered']!, _isVatRegisteredMeta));
+    }
+    if (data.containsKey('business_name')) {
+      context.handle(
+          _businessNameMeta,
+          businessName.isAcceptableOrUnknown(
+              data['business_name']!, _businessNameMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {customerId};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {code},
+      ];
+  @override
+  CustomerDetailRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CustomerDetailRow(
+      customerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}customer_id'])!,
+      code: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}code']),
+      isVatRegistered: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}is_vat_registered'])!,
+      businessName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}business_name']),
+    );
+  }
+
+  @override
+  $CustomerDetailsTable createAlias(String alias) {
+    return $CustomerDetailsTable(attachedDatabase, alias);
+  }
+}
+
+class CustomerDetailRow extends DataClass
+    implements Insertable<CustomerDetailRow> {
+  /// The customer this describes. One row per customer at most.
+  final String customerId;
+
+  /// The business reference, such as `C-0001`. Not the identity.
+  final String? code;
+
+  /// Whether VAT registration is active. Stated, never inferred -- see
+  /// `Customer.isVatRegistered` for why.
+  final bool isVatRegistered;
+
+  /// The registered business name, where it differs from the contact name.
+  final String? businessName;
+  const CustomerDetailRow(
+      {required this.customerId,
+      this.code,
+      required this.isVatRegistered,
+      this.businessName});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['customer_id'] = Variable<String>(customerId);
+    if (!nullToAbsent || code != null) {
+      map['code'] = Variable<String>(code);
+    }
+    map['is_vat_registered'] = Variable<bool>(isVatRegistered);
+    if (!nullToAbsent || businessName != null) {
+      map['business_name'] = Variable<String>(businessName);
+    }
+    return map;
+  }
+
+  CustomerDetailsCompanion toCompanion(bool nullToAbsent) {
+    return CustomerDetailsCompanion(
+      customerId: Value(customerId),
+      code: code == null && nullToAbsent ? const Value.absent() : Value(code),
+      isVatRegistered: Value(isVatRegistered),
+      businessName: businessName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(businessName),
+    );
+  }
+
+  factory CustomerDetailRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CustomerDetailRow(
+      customerId: serializer.fromJson<String>(json['customerId']),
+      code: serializer.fromJson<String?>(json['code']),
+      isVatRegistered: serializer.fromJson<bool>(json['isVatRegistered']),
+      businessName: serializer.fromJson<String?>(json['businessName']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'customerId': serializer.toJson<String>(customerId),
+      'code': serializer.toJson<String?>(code),
+      'isVatRegistered': serializer.toJson<bool>(isVatRegistered),
+      'businessName': serializer.toJson<String?>(businessName),
+    };
+  }
+
+  CustomerDetailRow copyWith(
+          {String? customerId,
+          Value<String?> code = const Value.absent(),
+          bool? isVatRegistered,
+          Value<String?> businessName = const Value.absent()}) =>
+      CustomerDetailRow(
+        customerId: customerId ?? this.customerId,
+        code: code.present ? code.value : this.code,
+        isVatRegistered: isVatRegistered ?? this.isVatRegistered,
+        businessName:
+            businessName.present ? businessName.value : this.businessName,
+      );
+  CustomerDetailRow copyWithCompanion(CustomerDetailsCompanion data) {
+    return CustomerDetailRow(
+      customerId:
+          data.customerId.present ? data.customerId.value : this.customerId,
+      code: data.code.present ? data.code.value : this.code,
+      isVatRegistered: data.isVatRegistered.present
+          ? data.isVatRegistered.value
+          : this.isVatRegistered,
+      businessName: data.businessName.present
+          ? data.businessName.value
+          : this.businessName,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerDetailRow(')
+          ..write('customerId: $customerId, ')
+          ..write('code: $code, ')
+          ..write('isVatRegistered: $isVatRegistered, ')
+          ..write('businessName: $businessName')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(customerId, code, isVatRegistered, businessName);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CustomerDetailRow &&
+          other.customerId == this.customerId &&
+          other.code == this.code &&
+          other.isVatRegistered == this.isVatRegistered &&
+          other.businessName == this.businessName);
+}
+
+class CustomerDetailsCompanion extends UpdateCompanion<CustomerDetailRow> {
+  final Value<String> customerId;
+  final Value<String?> code;
+  final Value<bool> isVatRegistered;
+  final Value<String?> businessName;
+  final Value<int> rowid;
+  const CustomerDetailsCompanion({
+    this.customerId = const Value.absent(),
+    this.code = const Value.absent(),
+    this.isVatRegistered = const Value.absent(),
+    this.businessName = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CustomerDetailsCompanion.insert({
+    required String customerId,
+    this.code = const Value.absent(),
+    this.isVatRegistered = const Value.absent(),
+    this.businessName = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : customerId = Value(customerId);
+  static Insertable<CustomerDetailRow> custom({
+    Expression<String>? customerId,
+    Expression<String>? code,
+    Expression<bool>? isVatRegistered,
+    Expression<String>? businessName,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (customerId != null) 'customer_id': customerId,
+      if (code != null) 'code': code,
+      if (isVatRegistered != null) 'is_vat_registered': isVatRegistered,
+      if (businessName != null) 'business_name': businessName,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CustomerDetailsCompanion copyWith(
+      {Value<String>? customerId,
+      Value<String?>? code,
+      Value<bool>? isVatRegistered,
+      Value<String?>? businessName,
+      Value<int>? rowid}) {
+    return CustomerDetailsCompanion(
+      customerId: customerId ?? this.customerId,
+      code: code ?? this.code,
+      isVatRegistered: isVatRegistered ?? this.isVatRegistered,
+      businessName: businessName ?? this.businessName,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (customerId.present) {
+      map['customer_id'] = Variable<String>(customerId.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (isVatRegistered.present) {
+      map['is_vat_registered'] = Variable<bool>(isVatRegistered.value);
+    }
+    if (businessName.present) {
+      map['business_name'] = Variable<String>(businessName.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CustomerDetailsCompanion(')
+          ..write('customerId: $customerId, ')
+          ..write('code: $code, ')
+          ..write('isVatRegistered: $isVatRegistered, ')
+          ..write('businessName: $businessName, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4720,6 +5020,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ProductsTable products = $ProductsTable(this);
   late final $InventoryMovementsTable inventoryMovements =
       $InventoryMovementsTable(this);
+  late final $CustomerDetailsTable customerDetails =
+      $CustomerDetailsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4736,7 +5038,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         creditNotes,
         creditNoteLines,
         products,
-        inventoryMovements
+        inventoryMovements,
+        customerDetails
       ];
 }
 
@@ -7117,6 +7420,168 @@ typedef $$InventoryMovementsTableProcessedTableManager = ProcessedTableManager<
     ),
     InventoryMovementRow,
     PrefetchHooks Function()>;
+typedef $$CustomerDetailsTableCreateCompanionBuilder = CustomerDetailsCompanion
+    Function({
+  required String customerId,
+  Value<String?> code,
+  Value<bool> isVatRegistered,
+  Value<String?> businessName,
+  Value<int> rowid,
+});
+typedef $$CustomerDetailsTableUpdateCompanionBuilder = CustomerDetailsCompanion
+    Function({
+  Value<String> customerId,
+  Value<String?> code,
+  Value<bool> isVatRegistered,
+  Value<String?> businessName,
+  Value<int> rowid,
+});
+
+class $$CustomerDetailsTableFilterComposer
+    extends Composer<_$AppDatabase, $CustomerDetailsTable> {
+  $$CustomerDetailsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get code => $composableBuilder(
+      column: $table.code, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isVatRegistered => $composableBuilder(
+      column: $table.isVatRegistered,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get businessName => $composableBuilder(
+      column: $table.businessName, builder: (column) => ColumnFilters(column));
+}
+
+class $$CustomerDetailsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CustomerDetailsTable> {
+  $$CustomerDetailsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get code => $composableBuilder(
+      column: $table.code, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isVatRegistered => $composableBuilder(
+      column: $table.isVatRegistered,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get businessName => $composableBuilder(
+      column: $table.businessName,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$CustomerDetailsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CustomerDetailsTable> {
+  $$CustomerDetailsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => column);
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<bool> get isVatRegistered => $composableBuilder(
+      column: $table.isVatRegistered, builder: (column) => column);
+
+  GeneratedColumn<String> get businessName => $composableBuilder(
+      column: $table.businessName, builder: (column) => column);
+}
+
+class $$CustomerDetailsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $CustomerDetailsTable,
+    CustomerDetailRow,
+    $$CustomerDetailsTableFilterComposer,
+    $$CustomerDetailsTableOrderingComposer,
+    $$CustomerDetailsTableAnnotationComposer,
+    $$CustomerDetailsTableCreateCompanionBuilder,
+    $$CustomerDetailsTableUpdateCompanionBuilder,
+    (
+      CustomerDetailRow,
+      BaseReferences<_$AppDatabase, $CustomerDetailsTable, CustomerDetailRow>
+    ),
+    CustomerDetailRow,
+    PrefetchHooks Function()> {
+  $$CustomerDetailsTableTableManager(
+      _$AppDatabase db, $CustomerDetailsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CustomerDetailsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CustomerDetailsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CustomerDetailsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> customerId = const Value.absent(),
+            Value<String?> code = const Value.absent(),
+            Value<bool> isVatRegistered = const Value.absent(),
+            Value<String?> businessName = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CustomerDetailsCompanion(
+            customerId: customerId,
+            code: code,
+            isVatRegistered: isVatRegistered,
+            businessName: businessName,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String customerId,
+            Value<String?> code = const Value.absent(),
+            Value<bool> isVatRegistered = const Value.absent(),
+            Value<String?> businessName = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CustomerDetailsCompanion.insert(
+            customerId: customerId,
+            code: code,
+            isVatRegistered: isVatRegistered,
+            businessName: businessName,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CustomerDetailsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $CustomerDetailsTable,
+    CustomerDetailRow,
+    $$CustomerDetailsTableFilterComposer,
+    $$CustomerDetailsTableOrderingComposer,
+    $$CustomerDetailsTableAnnotationComposer,
+    $$CustomerDetailsTableCreateCompanionBuilder,
+    $$CustomerDetailsTableUpdateCompanionBuilder,
+    (
+      CustomerDetailRow,
+      BaseReferences<_$AppDatabase, $CustomerDetailsTable, CustomerDetailRow>
+    ),
+    CustomerDetailRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7145,4 +7610,6 @@ class $AppDatabaseManager {
       $$ProductsTableTableManager(_db, _db.products);
   $$InventoryMovementsTableTableManager get inventoryMovements =>
       $$InventoryMovementsTableTableManager(_db, _db.inventoryMovements);
+  $$CustomerDetailsTableTableManager get customerDetails =>
+      $$CustomerDetailsTableTableManager(_db, _db.customerDetails);
 }

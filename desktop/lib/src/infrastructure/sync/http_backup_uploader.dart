@@ -9,82 +9,7 @@ import '../../domain/shared/book_backup.dart';
 import '../../domain/shared/book_upload.dart';
 import '../../domain/shared/book_upload_service.dart';
 import '../database/app_database.dart';
-
-/// The answer to one HTTP request, reduced to what this feature needs.
-class TransportResponse {
-  const TransportResponse({required this.statusCode, this.body = ''});
-
-  final int statusCode;
-  final String body;
-}
-
-/// Where a request is sent.
-///
-/// A seam, so the uploader's real behaviour — URL building, headers, multipart
-/// encoding, status mapping — is exercised by tests without a server. Replacing
-/// the transport rather than the HTTP client means nothing above it is faked.
-abstract interface class HttpTransport {
-  /// Sends one request.
-  ///
-  /// [body] is an **ordered list of byte segments**, not one buffer. A snapshot
-  /// can be tens of megabytes, and concatenating every part into a single
-  /// `Uint8List` would hold a second full-size copy of the file in memory for no
-  /// benefit. The segments are written in order instead.
-  Future<TransportResponse> send({
-    required String method,
-    required Uri url,
-    required Map<String, String> headers,
-    List<List<int>> body = const <List<int>>[],
-  });
-}
-
-/// The real transport, over `dart:io`.
-///
-/// `dart:io` rather than a package on purpose: it is part of the SDK, so the
-/// upload gains no dependency at all. `docs/AI_RULES.md` requires every
-/// dependency to be a deliberate, recorded choice, and the standard library is
-/// the cheapest choice available.
-class IoHttpTransport implements HttpTransport {
-  IoHttpTransport({this.timeout = const Duration(seconds: 30)});
-
-  /// A request that hangs must not hang the application.
-  final Duration timeout;
-
-  /// **One client for the whole transport, not one per request.**
-  ///
-  /// `HttpClient` owns the connection pool, so building one per request throws
-  /// keep-alive away and forces a fresh TCP (and, over HTTPS, TLS) handshake for
-  /// every call — and sending several fiscal years is two calls per year. The
-  /// transport is built once in the composition root and lives as long as the
-  /// application, so the pool is reused throughout.
-  late final HttpClient _client = HttpClient()..connectionTimeout = timeout;
-
-  @override
-  Future<TransportResponse> send({
-    required String method,
-    required Uri url,
-    required Map<String, String> headers,
-    List<List<int>> body = const <List<int>>[],
-  }) async {
-    final request = await _client.openUrl(method, url).timeout(timeout);
-    headers.forEach(request.headers.set);
-
-    if (body.isNotEmpty) {
-      // Declared up front so the request is a normal length-delimited body
-      // rather than chunked, which keeps the wire format the multipart parser on
-      // the server already handles.
-      request.contentLength =
-          body.fold<int>(0, (total, part) => total + part.length);
-      for (final part in body) {
-        request.add(part);
-      }
-    }
-
-    final response = await request.close().timeout(timeout);
-    final text = await response.transform(utf8.decoder).join().timeout(timeout);
-    return TransportResponse(statusCode: response.statusCode, body: text);
-  }
-}
+import '../http/http_transport.dart';
 
 /// Sends a verified snapshot to the server.
 ///
@@ -183,15 +108,24 @@ class HttpBackupUploader implements UploadActions {
     // Ask what is already stored, so the revision continues the sequence. The
     // server refuses a revision that does not follow the latest, so guessing
     // would produce a conflict on the very first upload after a reinstall.
-    final nextRevision = await _nextRevisionFor(session, backup);
-    if (nextRevision == null) {
+    final lookup = await _nextRevisionFor(session, backup);
+    if (lookup.revision == null) {
+      // **A refused token and an unreachable server are different here**, and
+      // collapsing them was a real bug: a revoked session usually fails the
+      // *lookup* first, so reporting "try again later" would tell the user to
+      // retry something that can never succeed.
       return UploadResult(
         backup: backup,
-        status: UploadStatus.unreachable,
-        message: 'The cloud copy was not updated: the server could not be '
-            'reached. Your books and your local backup are unchanged.',
+        status: lookup.refusedToken
+            ? UploadStatus.unauthenticated
+            : UploadStatus.unreachable,
+        message: lookup.refusedToken
+            ? _signedOutMessage()
+            : 'The cloud copy was not updated: the server could not be '
+                'reached. Your books and your local backup are unchanged.',
       );
     }
+    final nextRevision = lookup.revision!;
 
     final boundary = _newBoundary();
     final body = _multipartParts(
@@ -294,9 +228,24 @@ class HttpBackupUploader implements UploadActions {
               ' Your local backup is unchanged and can still be restored.',
         );
 
+      case 401:
+      case 403:
+        // **Deliberately not `unreachable`, which is what this used to report.**
+        // A `401` means the server answered clearly and the answer was no: the
+        // token is no longer valid. `unreachable` says "try again later", and
+        // retrying a `401` fails identically every time, so that wording sends
+        // the user round a loop they cannot escape. The one action that helps is
+        // signing in again, so the message says so.
+        //
+        // Still not `rejected`: a rejected credential says nothing about the
+        // books, and the books are fine.
+        return UploadResult(
+          backup: backup,
+          status: UploadStatus.unauthenticated,
+          message: _signedOutMessage(),
+        );
+
       default:
-        // 401 and 403 land here too: a rejected credential is not a statement
-        // about the books, so it is not `rejected`. It is simply "not uploaded".
         return UploadResult(
           backup: backup,
           status: UploadStatus.unreachable,
@@ -307,9 +256,13 @@ class HttpBackupUploader implements UploadActions {
     }
   }
 
-  /// The revision this upload should claim, or null when the server did not
-  /// answer.
-  Future<int?> _nextRevisionFor(
+  /// The revision this upload should claim.
+  ///
+  /// Carries **why** there is not one, because "the server refused the token" and
+  /// "the server could not be reached" need different messages and different
+  /// actions from the user, and returning a bare `null` for both loses exactly the
+  /// distinction that matters.
+  Future<_RevisionLookup> _nextRevisionFor(
     BackendSession session,
     BookBackup backup,
   ) async {
@@ -324,16 +277,24 @@ class HttpBackupUploader implements UploadActions {
         },
       );
     } catch (error) {
-      return null;
+      return const _RevisionLookup.unreachable();
     }
 
-    if (response.statusCode != 200) return null;
+    // A revoked session is refused here, before any upload is attempted, so this
+    // is the usual place an expired token is discovered.
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      return const _RevisionLookup.refusedToken();
+    }
+
+    if (response.statusCode != 200) return const _RevisionLookup.unreachable();
 
     try {
       final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, Object?>) return null;
+      if (decoded is! Map<String, Object?>) {
+        return const _RevisionLookup.unreachable();
+      }
       final data = decoded['data'];
-      if (data is! List) return null;
+      if (data is! List) return const _RevisionLookup.unreachable();
 
       var highest = 0;
       for (final entry in data) {
@@ -345,11 +306,20 @@ class HttpBackupUploader implements UploadActions {
         final revision = entry['revision'];
         if (revision is int && revision > highest) highest = revision;
       }
-      return highest + 1;
+      return _RevisionLookup.stored(highest + 1);
     } catch (error) {
-      return null;
+      return const _RevisionLookup.unreachable();
     }
   }
+
+  /// The wording for a session the server will not accept.
+  ///
+  /// One place, so the lookup path and the upload path cannot drift into
+  /// different advice.
+  static String _signedOutMessage() =>
+      'This snapshot was not sent: you are signed out or your session has '
+      'expired. Sign in again on the Settings screen and then send it. Your '
+      'books and your local backup are unchanged.';
 
   Uri _revisionsUri(BackendSession session) => Uri.parse(
         '${session.serverBaseUrl.toString().replaceAll(RegExp(r'/+$'), '')}'
@@ -529,4 +499,28 @@ class HttpBackupUploader implements UploadActions {
         final digest = await sha256.bind(File(path).openRead()).first;
         return digest.toString();
       });
+}
+
+/// What the revision lookup came back with.
+///
+/// Three states rather than `int?`, because the difference between "the server
+/// refused your token" and "the server could not be reached" changes what the user
+/// should do, and a `null` for both would lose it.
+class _RevisionLookup {
+  const _RevisionLookup.stored(this.revision) : refusedToken = false;
+
+  const _RevisionLookup.refusedToken()
+      : revision = null,
+        refusedToken = true;
+
+  const _RevisionLookup.unreachable()
+      : revision = null,
+        refusedToken = false;
+
+  /// The revision to claim, or null when there is none to claim.
+  final int? revision;
+
+  /// True when the server answered, and the answer was that the token is not
+  /// accepted.
+  final bool refusedToken;
 }

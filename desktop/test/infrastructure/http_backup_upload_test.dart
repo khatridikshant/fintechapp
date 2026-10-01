@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:financeapp/src/domain/shared/book_backup.dart';
 import 'package:financeapp/src/domain/shared/book_upload.dart';
 import 'package:financeapp/src/infrastructure/database/app_database.dart';
+import 'package:financeapp/src/infrastructure/http/http_transport.dart';
 import 'package:financeapp/src/infrastructure/sync/http_backup_uploader.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

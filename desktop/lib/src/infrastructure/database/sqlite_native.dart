@@ -1,6 +1,7 @@
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show QueryExecutor;
 import 'package:drift/native.dart';
 import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
@@ -90,4 +91,21 @@ AppDatabase openFileDatabase(File file, {bool readOnly = false}) {
   return AppDatabase(
     NativeDatabase(file, setup: readOnly ? _readOnlySetup : _writableSetup),
   );
+}
+
+/// A configured **executor**, for a database other than [AppDatabase].
+///
+/// The business database is a second, smaller schema beside the year databases,
+/// so it needs the same SQLite setup -- **`PRAGMA query_only` per connection**
+/// included -- without being an `AppDatabase`. Reusing [openFileDatabase] would
+/// build the wrong schema over it.
+QueryExecutor openExecutor(File file) {
+  configureNativeSqlite();
+  return NativeDatabase(file, setup: _writableSetup);
+}
+
+/// A throwaway in-memory [QueryExecutor], for tests of the business database.
+QueryExecutor openInMemoryExecutor() {
+  configureNativeSqlite();
+  return NativeDatabase.memory(setup: _writableSetup);
 }

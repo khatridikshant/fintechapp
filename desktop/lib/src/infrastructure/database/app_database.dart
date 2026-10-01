@@ -13,7 +13,7 @@ part 'app_database.g.dart';
 /// than one place has to know it: the database declares it to drift, and the
 /// backup upload declares it to the server. Two copies of the number would drift
 /// apart, and the server uses it to decide how to read the snapshot.
-const int currentSchemaVersion = 9;
+const int currentSchemaVersion = 10;
 
 /// The local SQLite database for one fiscal year.
 ///
@@ -33,6 +33,7 @@ const int currentSchemaVersion = 9;
     CreditNoteLines,
     Products,
     InventoryMovements,
+    CustomerDetails,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -134,6 +135,20 @@ class AppDatabase extends _$AppDatabase {
               // ignore: experimental_member_use
               TableMigration(inventoryMovements),
             );
+          }
+          if (from < 10) {
+            // Customer identity and tax details, in their own table.
+            //
+            // **Deliberately additive and self-contained.** No existing table is
+            // touched, which is what keeps every v1-v9 migration test valid: a
+            // database older than v10 simply has no `customer_details` table, and
+            // a database that already has `customers` is unaffected. Adding these
+            // as columns on `customers` instead would have changed the shape that
+            // `createTable` produces for every pre-v3 database.
+            //
+            // `customers` exists by v3 and v10 is later, so the foreign key's
+            // target always exists by the time this runs.
+            await m.createTable(customerDetails);
           }
         },
         beforeOpen: (OpeningDetails details) async {

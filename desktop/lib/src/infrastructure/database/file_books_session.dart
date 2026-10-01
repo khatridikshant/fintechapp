@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../application/business_details.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
 import '../../application/build_trial_balance.dart';
@@ -11,8 +12,11 @@ import '../../domain/fiscal/nepali_fiscal_calendar.dart';
 import '../../domain/shared/book_backup_service.dart';
 import '../backup/file_book_backup_service.dart';
 import 'app_database.dart';
+import 'business_database.dart';
 import 'drift_account_repository.dart';
+import 'drift_business_profile_repository.dart';
 import 'drift_journal_repository.dart';
+import 'open_business_database.dart';
 import 'sqlite_native.dart';
 
 /// A [BooksSession] backed by the fiscal-year files in a folder.
@@ -88,6 +92,13 @@ class FileBooksSession implements BooksSession {
 
   final List<OpenYear> _years;
   AppDatabase _database;
+
+  /// The business-level database, separate from every year.
+  ///
+  /// Opened once and kept, because it is not per-year and there is nothing to
+  /// swap when the user changes year.
+  late final BusinessDatabase _businessDb =
+      openBusinessDatabase(booksDirectory);
   OpenYear _openYear;
   BackupActions? _backup;
 
@@ -112,6 +123,23 @@ class FileBooksSession implements BooksSession {
 
   @override
   BackupActions get backup => _backup ??= _buildBackup();
+
+  /// This business's own details, in the **separate** `business.db`.
+  ///
+  /// ## Deliberately not in the open year's database
+  ///
+  /// Every fiscal year has its own file, so anything in one belongs to that year.
+  /// The business profile does not: it is the name, address, PAN, and VAT status
+  /// of the same business, and it changes rarely. Keeping it in the trading year's
+  /// file meant a new fiscal year started with no business details, so the owner
+  /// retyped them every Ashadh -- and an invoice risked printing without a PAN,
+  /// which makes it invalid.
+  ///
+  /// **An invoice still records what it used.** `Invoice` carries its own copy of
+  /// the printed seller details, so changing the profile later changes future
+  /// invoices and leaves historical ones exactly as issued.
+  BusinessDetails get businessDetails =>
+      BusinessDetails(repository: DriftBusinessProfileRepository(_businessDb));
 
   FileBookBackupService _buildBackup() => FileBookBackupService(
         currentDatabase: _database,

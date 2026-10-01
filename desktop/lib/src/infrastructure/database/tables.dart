@@ -144,6 +144,47 @@ class Customers extends Table {
       ];
 }
 
+/// Identity and tax details that do not belong on `customers` itself.
+///
+/// **Why a separate table rather than more columns on `customers`.** Adding
+/// columns to `customers` turned out to be far harder than it looks: `createTable`
+/// writes the table's *current* definition, so every older-version migration test
+/// acquired the new columns and many broke. A table that did not exist before v10
+/// is simply absent from every v1-v9 snapshot, so `customers` stays frozen at its
+/// v3 shape and those tests are untouched. See ADR 010.
+///
+/// ## Why these are not on `customers`
+///
+/// `id` and `name` identify a customer; these are *attributes of its tax status*
+/// that were added later. Keeping them apart means adding another such attribute
+/// later is a new table rather than a risky change to a table the books depend on.
+@DataClassName('CustomerDetailRow')
+class CustomerDetails extends Table {
+  /// The customer this describes. One row per customer at most.
+  TextColumn get customerId =>
+      text().references(Customers, #id, onDelete: KeyAction.cascade)();
+
+  /// The business reference, such as `C-0001`. Not the identity.
+  TextColumn get code => text().nullable()();
+
+  /// Whether VAT registration is active. Stated, never inferred -- see
+  /// `Customer.isVatRegistered` for why.
+  BoolColumn get isVatRegistered =>
+      boolean().withDefault(const Constant(false))();
+
+  /// The registered business name, where it differs from the contact name.
+  TextColumn get businessName => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {customerId};
+
+  /// Two customers must not end up quotable as the same reference.
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {code},
+      ];
+}
+
 /// Issued invoices.
 ///
 /// An invoice is a record, not merely the journal entry it produced. Without

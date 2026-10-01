@@ -101,6 +101,15 @@ void main() {
         // behaviour and still goes through the port.
         'domain/shared/book_upload.dart',
         'domain/shared/book_upload_service.dart',
+        // `SignInResult` and `SignInStatus`: the Settings screen has to say which
+        // of the three outcomes happened -- refused, unreachable, or a bad
+        // address -- because they ask different things of the user. Sending the
+        // request is behaviour and still goes through `AuthActions`.
+        'domain/shared/sign_in.dart',
+        // `BusinessProfile`: the Settings screen builds one from what the user
+        // typed, and shows the domain's own wording when it refuses. It is a value
+        // type; loading and saving it goes through `BusinessDetails`.
+        'domain/billing/business_profile.dart',
         'domain/accounting/account.dart',
         'domain/reporting/general_ledger.dart',
       };

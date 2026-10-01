@@ -74,6 +74,17 @@ enum UploadStatus {
   /// Someone else stored a revision first, so this one no longer follows.
   conflict,
 
+  /// The server rejected the token: the session is no longer valid.
+  ///
+  /// **This used to be reported as [unreachable], and that was wrong once signing
+  /// in exists.** The two look similar and are opposites in what they ask of the
+  /// user. `unreachable` means try again later — the request never got a
+  /// considered answer. A `401` means the server answered clearly and the answer
+  /// was no, so retrying fails identically every time. Telling someone to try
+  /// again later would send them round a loop they cannot escape; the only action
+  /// that helps is signing in again.
+  unauthenticated,
+
   /// The desktop could not get a usable answer from the server.
   ///
   /// Covers a connection that failed **and** a server that answered with an

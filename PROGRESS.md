@@ -15,36 +15,31 @@ in-memory accounting engine is no longer the only place the books exist.
 
 ---
 
-## 0.1 WARNING - 2026-10-01: uncommitted desktop work was lost
+## 0.1 Incidents worth remembering
 
-**Everything in `desktop/` after commit `42a0c2e` (2026-09-30 12:46) was deleted
-and never committed. It is not recoverable from this repository.**
+### 2026-10-01 - uncommitted desktop work was lost, then rebuilt
 
-Sections **4.30, 4.31, 4.32, 4.33, 4.35, 4.36 and 4.37 describe work that no longer
-exists in the tree.** They are kept as a record of what was built and lost, and
-because the *reasoning* in them still holds. But nothing in those sections is
-implemented.
+A `Remove-Item` was run against `finsoftware\Desktop`, intending to delete a stray
+directory. **Windows paths are case-insensitive, so `Desktop` *is* `desktop`,** the
+Flutter application, and 201 files were removed. Everything in `desktop/` after
+commit `42a0c2e` was uncommitted and is not recoverable from the repository.
 
-| Section | Status |
-| --- | --- |
-| 4.30 Sign-in | **LOST.** No `settings_screen.dart`, `account_session.dart`, `http_auth_client.dart`, `http_transport.dart`. The account panel referenced by the navigation does not exist. |
-| 4.31 / 4.33 / 4.34 `crossvault`, toolchain | **LOST.** `pubspec.yaml` has **no secure-storage dependency at all**. The upload feature works, but has nothing to hold a token. |
-| 4.29 The 401 fix, multipart parts, verification before upload | **LOST.** `http_backup_uploader.dart` is at its 12:39 state: a `401` still reports "unreachable", and the body is still copied 3-4 times. |
-| 4.35 Nepali billing rules | **LOST.** The `docs/NEPALI_BILLING.md` research survives; none of the code does. |
-| 4.36 Customer identity | **LOST.** Schema is v9; no `code`, `isVatRegistered`, `businessName`, no `customer_details`. |
-| 4.37 Settings screen / business profile | **LOST, and was incomplete anyway** - the last task in progress. |
+**What was lost, and has since been rebuilt** -- sections 4.30, 4.33, 4.35, 4.36 and
+4.37 describe it in full and are accurate again. The work that had been committed
+before 12:46, including the whole backup-upload feature and every fix from the
+code review, was **not** affected.
 
-**What survives:** every commit up to `42a0c2e`, including the whole backup-upload
-feature, and every document at the repository root, including this file.
+**The lesson, which is the same shape as 7.19 and 7.22:** this repository records
+repeatedly that acting before verifying causes damage -- PowerShell corrupts text
+files, a test can pass while measuring nothing, a mutation can change nothing while
+looking deliberate. The same care applies to **destructive commands and paths**, and
+it was not applied. `Resolve-Path` first, and confirm where it points, before
+anything irreversible.
 
-**Cause:** a `Remove-Item` was run against `finsoftware\Desktop` intending to delete a
-stray directory. Windows paths are case-insensitive, so `Desktop` **is** `desktop`,
-the Flutter application, and 201 files were removed. **Lesson, which this repository
-already records for text files in 7.19: the same care applies to paths.**
+Two safeguards followed, and both are in the tooling rather than in memory: **commit
+frequently** so uncommitted work is never a single deletion away from gone, and
+**state what would make a check fail before running it.**
 
-**Before anything else:** re-read the sections below and check each claim against
-the tree. Treat 4.30 and later as a specification to rebuild from, not a record of
-what is built.
 ## 1. What this project is
 
 `financeapp` is an offline-first desktop business management application for
@@ -1871,12 +1866,11 @@ Everything else. Specifically, none of the following exist:
 - **The backend.** Not "any" — Sanctum, PostgreSQL configuration, `books` and
   `backup_revisions`, the upload verification chain, and store/index/show routes
   exist and are tested. See 4.26.
-- **Uploading a backup off the machine.** Done for the mechanics. See 4.28. The
-  desktop verifies a snapshot, authenticates, sends it, and reports a refusal, a
-  conflict, or an unreachable server distinctly, without ever touching the local
-  copy. **Still missing: a way for a real user to sign in.** The token has to be
-  supplied through environment variables today, so the feature works and is tested
-  but is not yet usable by a customer. That is the next task.
+- **Uploading a backup off the machine.** **Done, and usable.** The desktop
+    verifies a snapshot, authenticates, sends it, and reports a refusal, a
+    conflict, a **revoked session**, or an unreachable server distinctly, without
+    ever touching the local copy. See 4.28 and 4.30. **Still missing: restore**,
+    which is the other half of Gate 9.
 - **Restore from the cloud.** The server can store and list revisions but has **no
   download endpoint**, and the desktop has no restore-from-server path. A backup
   that cannot be fetched is not a backup, so this is the other half of Gate 9.
@@ -1890,9 +1884,9 @@ Everything else. Specifically, none of the following exist:
 - **Identity.** Sanctum is installed, the upload routes are authenticated, and
   **token issuance works**: `register`, `login`, `logout`, and `me`, tested and
   verified end to end against live PostgreSQL. The desktop **uses** a token for
-uploads. See 4.27, 4.28, and 4.30. **Still missing: any desktop sign-in screen**,
-    so a token can only be obtained by hand, and the licensing system the
-    specification requires is not started.
+uploads. See 4.27, 4.28, and 4.30. **The desktop sign-in screen is built** —
+    Settings holds the account panel, and signing in or out rebuilds the services.
+    **Still missing: the licensing system** the specification requires.
 - **Licensing.** Not started, and it is a larger capability than authentication.
   The specification requires a backend-signed licence authorisation carrying the
   license id, user id, book id, status, expiry, issue date, next validation time,
@@ -2029,7 +2023,7 @@ This is the next bounded task, ready to hand to an agent verbatim.
 >
 > Report `flutter test`, `flutter analyze`, `php artisan test`, and
 > `flutter build windows --debug`. All four should pass; the Dart suite must stay
-> green including the existing 775 tests.
+> green including the existing 762 tests.
 
 ## 7. Decisions and discoveries that affect future work
 
@@ -2729,26 +2723,24 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 
 | Gate | Content | Status |
 | --- | --- | --- |
-| 1 | Domain model | Accounting, reporting, fiscal, chart of accounts, and document numbering complete. Customer and inventory domains not started. |
+| 1 | Domain model | Accounting, reporting, fiscal, chart of accounts, document numbering, **and the Nepali billing rules** complete: PAN handling, configurable tax rules, invoice compliance, amount in words, HS code, and `BusinessProfile`. |
 | 2 | Double-entry accounting engine | Complete and tested. |
-| 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork` and seven schema migrations (v1 through v7). |
+| 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork`, **ten schema migrations (v1 through v10)**, and a **separate business-level database** for the business profile. |
 | 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, and Balance Sheet complete.** Cash Flow and the rest are not started. |
-| 5 | Billing | **Complete for the core cycle.** Numbering, invoices, customers, invoice records, payments, and credit notes all work: a receivable can be raised, settled, and corrected. Debit notes and refunds are not started; see section 5. |
+| 5 | Billing | **Complete for the core cycle**, and now **compliant with the Nepali invoice rules** — see 4.35. Debit notes and refunds are not started; see section 5. |
 | 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
-| 7 | Complete offline workflow | **Partial.** The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, and Backup screen exist and are wired to real use cases. **Nothing can yet be entered**: there is no form for a customer, product, invoice, or payment, so the business cannot be run through the application. |
+| 7 | Complete offline workflow | **Partial.** The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, Backup screen, and **Settings** exist and are wired to real use cases. **Nothing can yet be entered**: there is no form for a customer, product, invoice, or payment, so the business cannot be run through the application. |
 | 8 | Fiscal-year conclusion and archival | **Partial.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
-| 9 | Cloud backup and restore | **Half done.** The server stores and lists verified revisions, and **the desktop now uploads**: it verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path — and **there is no sign-in screen**, so a token must be supplied by hand. |
+| 9 | Cloud backup and restore | **Upload complete, restore not.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **775 Dart tests**, all passing, and **35 Laravel tests**, all
+**Test suite:** **762 Dart tests**, all passing, and **35 Laravel tests**, all
 passing with 97 assertions. `flutter analyze` reports no issues. `php artisan test`
-reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean. The newest Dart
-file is `test/domain/nepal_billing_test.dart` (37 tests, the Nepali billing rules
-— see 4.35).
+reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean.
 
 **Build status: `flutter build windows --debug` succeeds** and produces
-`financeapp.exe` (1.27 MB), **with no optional Visual Studio component required**
-— the storage dependency uses only standard Windows SDK headers (4.33).
+`financeapp.exe`, **with no optional Visual Studio component required** — the
+storage dependency uses only standard Windows SDK headers (4.33).
 
 > Historical: this failed for hours on a `flutter_secure_storage` ATL dependency,
 > then on a Visual Studio component registration that `vs_installer.exe modify
@@ -2761,13 +2753,11 @@ not just the umbrella, which can look clean while the native code carries an
 evidence the app builds: `flutter test` never compiles C++.
 
 **Not part of the suite:** `desktop/tool/live_upload_check.dart` (6 checks against
-a running server) and `desktop/tool/live_signin_check.dart` (7 checks). Neither is
-named `*_test.dart`, so `flutter test` does not pick them up and the suite stays
-hermetic. Run them with:
+a running server). It is not named `*_test.dart`, so `flutter test` does not pick
+it up and the suite stays hermetic. Run it with:
 
 ```bash
 FINANCEAPP_SERVER=http://127.0.0.1:8124 flutter test tool/live_upload_check.dart
-FINANCEAPP_SERVER=http://127.0.0.1:8124 flutter test tool/live_signin_check.dart
 ```
 
 **Live status:** PostgreSQL 17.4 holds the `financeapp` database with all six
