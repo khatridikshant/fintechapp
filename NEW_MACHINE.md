@@ -124,9 +124,9 @@ Setup is not finished when the commands stop erroring. Confirm each of these.
 
 | Check | Command | Expected |
 | --- | --- | --- |
-| Desktop tests | `flutter test` (in `desktop/`) | `All tests passed!` — **660 tests** |
+| Desktop tests | `flutter test` (in `desktop/`) | `All tests passed!` — **762 tests** |
 | Desktop lint | `flutter analyze` | `No issues found!` |
-| Desktop build | `flutter build windows --debug` | `financeapp.exe` produced — **needs the ATL component, see above** |
+| Desktop build | `flutter build windows --debug` | `financeapp.exe` produced — **no optional component needed**, see above |
 | Backend tests | `php artisan test` (in `backend/`) | 35 passed, 97 assertions |
 | Backend lint | `./vendor/bin/pint --test` | passed |
 | Database | `php artisan db:show` | connects, shows `financeapp` |
@@ -172,11 +172,19 @@ Not needed for a fresh clone — the generated file is committed. Needed only wh
 ```bash
 cd desktop
 dart run build_runner build --delete-conflicting-outputs
-dart run drift_dev schema dump lib/src/infrastructure/database/app_database.dart drift_schemas/
+# The dump needs a FULL FILENAME. Pointing it at the directory fails with
+# "the schema version could not be read from the database class".
+dart run drift_dev schema dump \
+  lib/src/infrastructure/database/app_database.dart \
+  drift_schemas/drift_schema_v10.json
 dart run drift_dev schema generate drift_schemas/ test/generated/
 ```
 
-Then commit all three outputs.
+Then commit all three outputs, and bump `currentSchemaVersion` in
+`app_database.dart`. **Add a new table rather than a new column** wherever the
+change can: adding a column changes the shape `createTable` produces for every
+older database and breaks the migration tests, while a new table is simply absent
+from every earlier snapshot. `customer_details` is the worked example (ADR 010).
 
 ---
 

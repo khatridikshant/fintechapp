@@ -135,9 +135,13 @@ class FileBooksSession implements BooksSession {
   /// retyped them every Ashadh -- and an invoice risked printing without a PAN,
   /// which makes it invalid.
   ///
-  /// **An invoice still records what it used.** `Invoice` carries its own copy of
-  /// the printed seller details, so changing the profile later changes future
-  /// invoices and leaves historical ones exactly as issued.
+  /// **An invoice does not yet record what it used.** The intent was for each
+  /// invoice to carry its own copy of the seller details, so changing the profile
+  /// later would leave historical invoices exactly as issued. **`Invoice` has no
+  /// seller fields today** — only `id`, `issueDate`, `customerId`, `lines`, and
+  /// `vatRateBasisPoints` — so a historical invoice shows the business details
+  /// *as they are now*, not as they were printed. Recorded as an open gap rather
+  /// than a claim, because it is one.
   BusinessDetails get businessDetails =>
       BusinessDetails(repository: DriftBusinessProfileRepository(_businessDb));
 

@@ -1825,6 +1825,18 @@ recorded there rather than discovered later.
 Verified: **775 Dart tests** (759 + 16), 35 Laravel tests, analyze clean, Pint
 clean, Windows build succeeds.
 
+- **Known limitation — an invoice does not yet record the seller details it was
+  issued with.** `Invoice` carries only `id`, `issueDate`, `customerId`, `lines`,
+  and `vatRateBasisPoints`. So a historical invoice shows the business details
+  **as they are now**, not as they were printed. That matters for an audit, where
+  the printed document is the evidence. Recorded rather than claimed, because an
+  earlier draft of this file asserted the opposite.
+- **Two other open consequences**, both from putting the profile in its own file:
+  the backup sweep matches `^accounting-(FY-...)\.db$`, so **`business.db` is not
+  backed up**; and a restore onto a new machine therefore brings the year data but
+  **no business name or PAN**, which would leave every invoice invalid until the
+  details are re-entered.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:

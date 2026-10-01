@@ -198,16 +198,17 @@ press:
 
 Being explicit, so none of this is assumed:
 
-1. **You cannot sign in yet, so sending is not usable without help.** Everything
-   above protects against a corrupt or accidentally deleted file. It does **not**
-   protect against the disk failing, the computer being lost or stolen, or a fire.
-   For that, a backup must leave the machine — and the application can now do that
-   (see above), but **the sign-in screen is not built**. The token has to be
-   supplied by hand, which is fine for a developer and unusable for a business.
+1. **A backup can be sent, but there is no way back yet.** Everything above
+   protects against a corrupt or accidentally deleted file. It does **not** protect
+   against the disk failing, the computer being lost or stolen, or a fire. For
+   that, a backup must leave the machine, and the application **can now send one**
+   — sign in on Settings, take a backup, press *Send to the server*. **But you
+   cannot fetch one back**, so a lost computer is still not recoverable from the
+   cloud copy.
 
-   **So this is still the gap that matters.** Until signing in exists, treat
-   sending as unavailable and copy the backup folder to a USB drive or an external
-   disk yourself. See Gate 9 in `PROGRESS.md`.
+     **So this is still the gap that matters.** Keep copying the backup folder to
+   a USB drive or an external disk yourself until restore exists. See Gate 9 in
+   `PROGRESS.md`.
 
 2. **No automatic schedule.** Backups are taken when asked for. A business that
    forgets to press the button has no recent backup.

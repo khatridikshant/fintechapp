@@ -23,12 +23,12 @@ const int businessSchemaVersion = 1;
 /// that **deliberately does not match `accounting-FY-*.db`**, the pattern
 /// `FileBooksSession` uses to discover years.
 ///
-/// ## An invoice records what it used
+/// ## An invoice does not yet record what it used
 ///
-/// Nothing is lost by keeping one live profile. An invoice must show the seller
-/// details **as they were when it was issued**, so `Invoice` carries its own copy
-/// of the printed details. Changing the profile later changes future invoices and
-/// leaves historical ones exactly as issued.
+/// The intent was for each invoice to carry its own copy of the seller details,
+/// so a profile change would leave historical invoices exactly as issued.
+/// **`Invoice` has no seller fields yet**, so a historical invoice shows the
+/// business details as they are now. Recorded as a gap rather than a claim.
 @DriftDatabase(tables: [BusinessProfiles])
 class BusinessDatabase extends _$BusinessDatabase {
   /// Opens, creating it on first run.

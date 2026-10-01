@@ -1,8 +1,9 @@
 # ADR 010 — Customer identity: a random id and a separate business code
 
-**Status:** Accepted, and **partially implemented**. The domain carries the
-decision; the database columns are blocked, and section "What is not yet built"
-below says exactly why.
+**Status:** Accepted and **implemented**. The domain carries the decision, and the
+fields are stored in a separate `customer_details` table at schema v10. The section
+"What is not yet built" below is **historical** and is kept because the reasoning
+in it is the part worth keeping.
 
 ## The decision
 
@@ -61,9 +62,9 @@ The instinct to catch duplicates is right; name-as-key is the wrong mechanism.
 
 ## What is not yet built
 
-**This section is historical.** The fields were blocked when this ADR was first
-written; they are now stored, in a separate `customer_details` table at schema
-v10. The reasoning for that table is below, because it is the part worth keeping.
+**Nothing — this section is historical.** The fields were blocked when this ADR was
+first written; they are now stored, in a separate `customer_details` table at
+schema v10. The reasoning is kept because it is the part worth having.
 
 ### Why the columns could not simply go on `customers`
 
