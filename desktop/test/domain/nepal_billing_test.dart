@@ -51,6 +51,13 @@ void main() {
             unitPrice: unitPrice,
           ),
         ],
+      )
+          // Stamped, because `IssueInvoice` stamps it in the application. An
+          // invoice reaching the checker without a snapshot is now reported, which
+          // is the behaviour the tests below are checking.
+          .stampedWithSeller(
+        name: 'Sharma Electronics Pvt. Ltd.',
+        pan: pan,
       );
 
   Invoice anInvoice({
@@ -139,6 +146,37 @@ void main() {
       );
       expect(compliance.isCompliant, isFalse);
       expect(compliance.messages.single, contains('not a valid tax bill'));
+    });
+
+    test('an invoice issued without a seller snapshot is reported', () {
+      // The printed invoice is the evidence in an audit. An invoice whose record
+      // carries no copy of the seller's details would disagree with the paper the
+      // moment the business changes them, so it must not pass as valid.
+      final unstamped = Invoice(
+        id: 'inv-2',
+        issueDate: DateTime(2026, 3, 23),
+        customerId: 'cus-1',
+        lines: [
+          InvoiceLine(
+            description: 'Keyboard',
+            quantity: 1,
+            unitPrice: Money.fromMajorUnits(100000, 'NPR'),
+          ),
+        ],
+      );
+
+      final compliance = InvoiceCompliance.check(
+        invoice: unstamped,
+        // The profile has a PAN, so only the missing snapshot can explain it.
+        seller: BusinessProfile(name: 'Sharma Electronics', panNumber: pan),
+        rules: NepalTaxRules.current,
+        sellerSignatureCaptured: true,
+      );
+
+      expect(
+        compliance.issues,
+        contains(InvoiceComplianceIssue.sellerPanMissing),
+      );
     });
 
     test('a registered seller must charge VAT', () {

@@ -17,6 +17,8 @@ class Invoice {
     required this.customerId,
     required this.lines,
     required this.vatRateBasisPoints,
+    required this.sellerName,
+    required this.sellerPan,
   });
 
   factory Invoice({
@@ -25,6 +27,8 @@ class Invoice {
     required String customerId,
     required List<InvoiceLine> lines,
     int vatRateBasisPoints = vatStandardRate,
+    String? sellerName,
+    String? sellerPan,
   }) {
     if (id.trim().isEmpty) {
       throw ArgumentError('An invoice needs an id.');
@@ -52,8 +56,42 @@ class Invoice {
       customerId: customerId.trim(),
       lines: List.unmodifiable(lines),
       vatRateBasisPoints: vatRateBasisPoints,
+      sellerName: sellerName,
+      sellerPan: sellerPan,
     );
   }
+
+  /// The seller's details **as they were when this invoice was issued**.
+  ///
+  /// ## Why a copy is kept on the document
+  ///
+  /// The printed invoice is the evidence in an audit, so the record has to agree
+  /// with the paper. If the record held only a reference to the business, then
+  /// changing the address in Settings next year would make last year's invoices
+  /// regenerate with the **new** details, and the record would contradict the
+  /// document the customer was actually handed.
+  ///
+  /// Null means no snapshot was taken. `InvoiceCompliance` reports that as
+  /// [InvoiceComplianceIssue.sellerPanMissing], so an invoice issued without one
+  /// is visible rather than silently unevidenced.
+  final String? sellerName;
+
+  /// The seller's PAN as printed on this invoice, as nine digits.
+  final String? sellerPan;
+
+  /// A copy of this invoice stamped with the seller's details.
+  ///
+  /// Immutable, so this returns a new invoice rather than mutating one that may
+  /// already have been posted.
+  Invoice stampedWithSeller({String? name, String? pan}) => Invoice(
+        id: id,
+        issueDate: issueDate,
+        customerId: customerId,
+        lines: lines,
+        vatRateBasisPoints: vatRateBasisPoints,
+        sellerName: name,
+        sellerPan: pan,
+      );
 
   /// Nepal's standard VAT rate, 13%, expressed in basis points.
   static const int vatStandardRate = 1300;

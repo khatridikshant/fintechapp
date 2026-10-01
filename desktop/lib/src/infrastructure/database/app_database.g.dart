@@ -5002,6 +5002,249 @@ class CustomerDetailsCompanion extends UpdateCompanion<CustomerDetailRow> {
   }
 }
 
+class $InvoiceSellersTable extends InvoiceSellers
+    with TableInfo<$InvoiceSellersTable, InvoiceSellerRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InvoiceSellersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _invoiceIdMeta =
+      const VerificationMeta('invoiceId');
+  @override
+  late final GeneratedColumn<String> invoiceId = GeneratedColumn<String>(
+      'invoice_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sellerNameMeta =
+      const VerificationMeta('sellerName');
+  @override
+  late final GeneratedColumn<String> sellerName = GeneratedColumn<String>(
+      'seller_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sellerPanMeta =
+      const VerificationMeta('sellerPan');
+  @override
+  late final GeneratedColumn<String> sellerPan = GeneratedColumn<String>(
+      'seller_pan', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [invoiceId, sellerName, sellerPan];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'invoice_sellers';
+  @override
+  VerificationContext validateIntegrity(Insertable<InvoiceSellerRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('invoice_id')) {
+      context.handle(_invoiceIdMeta,
+          invoiceId.isAcceptableOrUnknown(data['invoice_id']!, _invoiceIdMeta));
+    } else if (isInserting) {
+      context.missing(_invoiceIdMeta);
+    }
+    if (data.containsKey('seller_name')) {
+      context.handle(
+          _sellerNameMeta,
+          sellerName.isAcceptableOrUnknown(
+              data['seller_name']!, _sellerNameMeta));
+    } else if (isInserting) {
+      context.missing(_sellerNameMeta);
+    }
+    if (data.containsKey('seller_pan')) {
+      context.handle(_sellerPanMeta,
+          sellerPan.isAcceptableOrUnknown(data['seller_pan']!, _sellerPanMeta));
+    } else if (isInserting) {
+      context.missing(_sellerPanMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {invoiceId};
+  @override
+  InvoiceSellerRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return InvoiceSellerRow(
+      invoiceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}invoice_id'])!,
+      sellerName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}seller_name'])!,
+      sellerPan: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}seller_pan'])!,
+    );
+  }
+
+  @override
+  $InvoiceSellersTable createAlias(String alias) {
+    return $InvoiceSellersTable(attachedDatabase, alias);
+  }
+}
+
+class InvoiceSellerRow extends DataClass
+    implements Insertable<InvoiceSellerRow> {
+  /// The invoice this was printed on.
+  final String invoiceId;
+
+  /// The registered business name as printed.
+  final String sellerName;
+
+  /// The PAN as printed, as nine digits.
+  final String sellerPan;
+  const InvoiceSellerRow(
+      {required this.invoiceId,
+      required this.sellerName,
+      required this.sellerPan});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['invoice_id'] = Variable<String>(invoiceId);
+    map['seller_name'] = Variable<String>(sellerName);
+    map['seller_pan'] = Variable<String>(sellerPan);
+    return map;
+  }
+
+  InvoiceSellersCompanion toCompanion(bool nullToAbsent) {
+    return InvoiceSellersCompanion(
+      invoiceId: Value(invoiceId),
+      sellerName: Value(sellerName),
+      sellerPan: Value(sellerPan),
+    );
+  }
+
+  factory InvoiceSellerRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return InvoiceSellerRow(
+      invoiceId: serializer.fromJson<String>(json['invoiceId']),
+      sellerName: serializer.fromJson<String>(json['sellerName']),
+      sellerPan: serializer.fromJson<String>(json['sellerPan']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'invoiceId': serializer.toJson<String>(invoiceId),
+      'sellerName': serializer.toJson<String>(sellerName),
+      'sellerPan': serializer.toJson<String>(sellerPan),
+    };
+  }
+
+  InvoiceSellerRow copyWith(
+          {String? invoiceId, String? sellerName, String? sellerPan}) =>
+      InvoiceSellerRow(
+        invoiceId: invoiceId ?? this.invoiceId,
+        sellerName: sellerName ?? this.sellerName,
+        sellerPan: sellerPan ?? this.sellerPan,
+      );
+  InvoiceSellerRow copyWithCompanion(InvoiceSellersCompanion data) {
+    return InvoiceSellerRow(
+      invoiceId: data.invoiceId.present ? data.invoiceId.value : this.invoiceId,
+      sellerName:
+          data.sellerName.present ? data.sellerName.value : this.sellerName,
+      sellerPan: data.sellerPan.present ? data.sellerPan.value : this.sellerPan,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InvoiceSellerRow(')
+          ..write('invoiceId: $invoiceId, ')
+          ..write('sellerName: $sellerName, ')
+          ..write('sellerPan: $sellerPan')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(invoiceId, sellerName, sellerPan);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is InvoiceSellerRow &&
+          other.invoiceId == this.invoiceId &&
+          other.sellerName == this.sellerName &&
+          other.sellerPan == this.sellerPan);
+}
+
+class InvoiceSellersCompanion extends UpdateCompanion<InvoiceSellerRow> {
+  final Value<String> invoiceId;
+  final Value<String> sellerName;
+  final Value<String> sellerPan;
+  final Value<int> rowid;
+  const InvoiceSellersCompanion({
+    this.invoiceId = const Value.absent(),
+    this.sellerName = const Value.absent(),
+    this.sellerPan = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  InvoiceSellersCompanion.insert({
+    required String invoiceId,
+    required String sellerName,
+    required String sellerPan,
+    this.rowid = const Value.absent(),
+  })  : invoiceId = Value(invoiceId),
+        sellerName = Value(sellerName),
+        sellerPan = Value(sellerPan);
+  static Insertable<InvoiceSellerRow> custom({
+    Expression<String>? invoiceId,
+    Expression<String>? sellerName,
+    Expression<String>? sellerPan,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (invoiceId != null) 'invoice_id': invoiceId,
+      if (sellerName != null) 'seller_name': sellerName,
+      if (sellerPan != null) 'seller_pan': sellerPan,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  InvoiceSellersCompanion copyWith(
+      {Value<String>? invoiceId,
+      Value<String>? sellerName,
+      Value<String>? sellerPan,
+      Value<int>? rowid}) {
+    return InvoiceSellersCompanion(
+      invoiceId: invoiceId ?? this.invoiceId,
+      sellerName: sellerName ?? this.sellerName,
+      sellerPan: sellerPan ?? this.sellerPan,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (invoiceId.present) {
+      map['invoice_id'] = Variable<String>(invoiceId.value);
+    }
+    if (sellerName.present) {
+      map['seller_name'] = Variable<String>(sellerName.value);
+    }
+    if (sellerPan.present) {
+      map['seller_pan'] = Variable<String>(sellerPan.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InvoiceSellersCompanion(')
+          ..write('invoiceId: $invoiceId, ')
+          ..write('sellerName: $sellerName, ')
+          ..write('sellerPan: $sellerPan, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5022,6 +5265,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $InventoryMovementsTable(this);
   late final $CustomerDetailsTable customerDetails =
       $CustomerDetailsTable(this);
+  late final $InvoiceSellersTable invoiceSellers = $InvoiceSellersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5039,7 +5283,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         creditNoteLines,
         products,
         inventoryMovements,
-        customerDetails
+        customerDetails,
+        invoiceSellers
       ];
 }
 
@@ -7582,6 +7827,150 @@ typedef $$CustomerDetailsTableProcessedTableManager = ProcessedTableManager<
     ),
     CustomerDetailRow,
     PrefetchHooks Function()>;
+typedef $$InvoiceSellersTableCreateCompanionBuilder = InvoiceSellersCompanion
+    Function({
+  required String invoiceId,
+  required String sellerName,
+  required String sellerPan,
+  Value<int> rowid,
+});
+typedef $$InvoiceSellersTableUpdateCompanionBuilder = InvoiceSellersCompanion
+    Function({
+  Value<String> invoiceId,
+  Value<String> sellerName,
+  Value<String> sellerPan,
+  Value<int> rowid,
+});
+
+class $$InvoiceSellersTableFilterComposer
+    extends Composer<_$AppDatabase, $InvoiceSellersTable> {
+  $$InvoiceSellersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get invoiceId => $composableBuilder(
+      column: $table.invoiceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sellerName => $composableBuilder(
+      column: $table.sellerName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sellerPan => $composableBuilder(
+      column: $table.sellerPan, builder: (column) => ColumnFilters(column));
+}
+
+class $$InvoiceSellersTableOrderingComposer
+    extends Composer<_$AppDatabase, $InvoiceSellersTable> {
+  $$InvoiceSellersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get invoiceId => $composableBuilder(
+      column: $table.invoiceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sellerName => $composableBuilder(
+      column: $table.sellerName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sellerPan => $composableBuilder(
+      column: $table.sellerPan, builder: (column) => ColumnOrderings(column));
+}
+
+class $$InvoiceSellersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $InvoiceSellersTable> {
+  $$InvoiceSellersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get invoiceId =>
+      $composableBuilder(column: $table.invoiceId, builder: (column) => column);
+
+  GeneratedColumn<String> get sellerName => $composableBuilder(
+      column: $table.sellerName, builder: (column) => column);
+
+  GeneratedColumn<String> get sellerPan =>
+      $composableBuilder(column: $table.sellerPan, builder: (column) => column);
+}
+
+class $$InvoiceSellersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $InvoiceSellersTable,
+    InvoiceSellerRow,
+    $$InvoiceSellersTableFilterComposer,
+    $$InvoiceSellersTableOrderingComposer,
+    $$InvoiceSellersTableAnnotationComposer,
+    $$InvoiceSellersTableCreateCompanionBuilder,
+    $$InvoiceSellersTableUpdateCompanionBuilder,
+    (
+      InvoiceSellerRow,
+      BaseReferences<_$AppDatabase, $InvoiceSellersTable, InvoiceSellerRow>
+    ),
+    InvoiceSellerRow,
+    PrefetchHooks Function()> {
+  $$InvoiceSellersTableTableManager(
+      _$AppDatabase db, $InvoiceSellersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$InvoiceSellersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$InvoiceSellersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$InvoiceSellersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> invoiceId = const Value.absent(),
+            Value<String> sellerName = const Value.absent(),
+            Value<String> sellerPan = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              InvoiceSellersCompanion(
+            invoiceId: invoiceId,
+            sellerName: sellerName,
+            sellerPan: sellerPan,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String invoiceId,
+            required String sellerName,
+            required String sellerPan,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              InvoiceSellersCompanion.insert(
+            invoiceId: invoiceId,
+            sellerName: sellerName,
+            sellerPan: sellerPan,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$InvoiceSellersTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $InvoiceSellersTable,
+    InvoiceSellerRow,
+    $$InvoiceSellersTableFilterComposer,
+    $$InvoiceSellersTableOrderingComposer,
+    $$InvoiceSellersTableAnnotationComposer,
+    $$InvoiceSellersTableCreateCompanionBuilder,
+    $$InvoiceSellersTableUpdateCompanionBuilder,
+    (
+      InvoiceSellerRow,
+      BaseReferences<_$AppDatabase, $InvoiceSellersTable, InvoiceSellerRow>
+    ),
+    InvoiceSellerRow,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7612,4 +8001,6 @@ class $AppDatabaseManager {
       $$InventoryMovementsTableTableManager(_db, _db.inventoryMovements);
   $$CustomerDetailsTableTableManager get customerDetails =>
       $$CustomerDetailsTableTableManager(_db, _db.customerDetails);
+  $$InvoiceSellersTableTableManager get invoiceSellers =>
+      $$InvoiceSellersTableTableManager(_db, _db.invoiceSellers);
 }

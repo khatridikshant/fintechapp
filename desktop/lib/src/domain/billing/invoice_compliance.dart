@@ -82,7 +82,16 @@ class InvoiceCompliance {
 
     // The seller's own identity. Without a PAN this is not a valid tax bill at
     // all, so it is reported first: the rest of the checks are moot without it.
-    if (seller.pan == null) {
+    //
+    // **Checked on the document, not only on the profile.** The invoice carries a
+    // copy of the seller details as they were when it was issued, and that copy is
+    // the one printed on the paper. A profile with a PAN does not rescue an
+    // invoice that was issued without a snapshot, because the record would still
+    // contradict the document if the details later change.
+    final stampedPan = invoice.sellerPan;
+    if (stampedPan == null || stampedPan.trim().isEmpty) {
+      issues.add(InvoiceComplianceIssue.sellerPanMissing);
+    } else if (seller.pan == null) {
       issues.add(InvoiceComplianceIssue.sellerPanMissing);
     }
 

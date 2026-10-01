@@ -9,6 +9,9 @@ import '../../domain/shared/book_backup.dart';
 import '../../domain/shared/book_backup_service.dart';
 import '../../domain/shared/book_year.dart';
 import '../database/app_database.dart';
+import '../database/business_database.dart';
+import '../database/open_business_database.dart';
+import '../database/sqlite_native.dart';
 
 /// Takes, verifies, and restores snapshots of **every** fiscal year's books.
 ///
@@ -52,6 +55,14 @@ class FileBookBackupService implements BookBackupService {
   /// Matches `accounting-FY-2082-83.db` and captures `FY-2082-83`.
   static final RegExp _booksFile = RegExp(r'^accounting-(FY-\d{4}-\d{2})\.db$');
 
+  /// The business-level database, which is backed up alongside the years.
+  ///
+  /// **It is in the same folder but is not a fiscal year**, so it needs its own
+  /// name and its own snapshot naming. Missing it would leave a restored machine
+  /// with no business name or PAN, and therefore unable to produce a valid tax
+  /// bill.
+  static final RegExp _businessFile = RegExp(r'^business\.db$');
+
   @override
   Future<List<BookYear>> knownYears() async {
     if (!await booksDirectory.exists()) return const [];
@@ -59,8 +70,23 @@ class FileBookBackupService implements BookBackupService {
     final years = <BookYear>[];
     for (final entity in await booksDirectory.list().toList()) {
       if (entity is! File) continue;
-      final match = _booksFile.firstMatch(p.basename(entity.path));
-      if (match == null) continue;
+      final name = p.basename(entity.path);
+
+      final match = _booksFile.firstMatch(name);
+      if (match == null) {
+        // The business details are covered by the same run, because a restore
+        // without them cannot produce a valid invoice.
+        if (_businessFile.hasMatch(name)) {
+          years.add(
+            BookYear(
+              fiscalYearLabel: BookYear.businessDetailsLabel,
+              filePath: entity.path,
+            ),
+          );
+        }
+        continue;
+      }
+
       years.add(
         BookYear(
           fiscalYearLabel: _labelFrom(match.group(1)!),
@@ -69,8 +95,15 @@ class FileBookBackupService implements BookBackupService {
       );
     }
 
-    // Newest year first, so a screen opens on the year in use.
-    years.sort((a, b) => b.fiscalYearLabel.compareTo(a.fiscalYearLabel));
+    // Newest year first, so a screen opens on the year in use. The business
+    // entry has no year to sort by, and is **not** put first: a screen that
+    // opened on "Business details" instead of the year in use would be worse
+    // than useless.
+    years.sort((a, b) {
+      if (a.isBusinessDetails) return 1;
+      if (b.isBusinessDetails) return -1;
+      return b.fiscalYearLabel.compareTo(a.fiscalYearLabel);
+    });
     return years;
   }
 
@@ -100,27 +133,44 @@ class FileBookBackupService implements BookBackupService {
     return BackupRun(backups: backups, failures: failures);
   }
 
-  /// Snapshots one fiscal year.
+  /// Snapshots one fiscal year, or the business details.
   ///
   /// The current year uses the connection already open; a closed year is opened
   /// read-only for the duration and closed again. Both go through the same
   /// snapshot and verification path, so a closed year is not treated as a lesser
   /// case.
   Future<BookBackup> _backupOneYear(BookYear year) async {
-    final isCurrent = year.fiscalYearLabel == currentFiscalYearLabel;
-
     final target = _freeFileFor(year.fiscalYearLabel, DateTime.now());
     final staging = File('${target.path}.staging');
 
-    AppDatabase? opened;
+    // Two different schema classes, closed the same way.
+    AppDatabase? openedYear;
+    BusinessDatabase? openedBusiness;
     try {
       if (await staging.exists()) await staging.delete();
 
-      final source = isCurrent
-          ? currentDatabase
-          : opened = AppDatabase(NativeDatabase(File(year.filePath)));
+      // **The business database must be opened as a `BusinessDatabase`, never as
+      // an `AppDatabase`.** Both wrap the same SQLite file, but opening
+      // `business.db` as an `AppDatabase` would run the *year* migrations against
+      // it -- its schema version is 1 and the app expects 11 -- writing year tables
+      // into the business file and corrupting it.
+      final isBusiness = year.isBusinessDetails;
+      final isCurrent =
+          !isBusiness && year.fiscalYearLabel == currentFiscalYearLabel;
 
-      await source.customStatement("VACUUM INTO '${_escape(staging.path)}'");
+      final String stagingStatement = "VACUUM INTO '${_escape(staging.path)}'";
+
+      if (isCurrent) {
+        await currentDatabase.customStatement(stagingStatement);
+      } else if (isBusiness) {
+        final business = openedBusiness =
+            BusinessDatabase(openExecutor(File(year.filePath)));
+        await business.customStatement(stagingStatement);
+      } else {
+        final app =
+            openedYear = AppDatabase(NativeDatabase(File(year.filePath)));
+        await app.customStatement(stagingStatement);
+      }
     } catch (error) {
       if (await staging.exists()) await staging.delete();
       throw BackupException(
@@ -128,7 +178,8 @@ class FileBookBackupService implements BookBackupService {
         cause: error,
       );
     } finally {
-      await opened?.close();
+      await openedYear?.close();
+      await openedBusiness?.close();
     }
 
     // Prove it before filing it. A snapshot that is not a database is worse than
@@ -199,11 +250,17 @@ class FileBookBackupService implements BookBackupService {
       );
     }
 
-    // A restore replaces that fiscal year's own books file, which is NOT the
-    // snapshot's file name. Using the snapshot name here would write a new file
-    // beside the books and leave the real ones untouched.
+    // A restore replaces that file's own books, which is NOT the snapshot's file
+    // name. Using the snapshot name here would write a new file beside the books
+    // and leave the real ones untouched.
+    final isBusiness = backup.fiscalYearLabel == BookYear.businessDetailsLabel;
     final target = File(
-      p.join(booksDirectory.path, _booksFileNameFor(backup.fiscalYearLabel)),
+      p.join(
+        booksDirectory.path,
+        isBusiness
+            ? businessDatabaseName
+            : _booksFileNameFor(backup.fiscalYearLabel),
+      ),
     );
     final isCurrentYear = backup.fiscalYearLabel == currentFiscalYearLabel;
 
@@ -214,7 +271,8 @@ class FileBookBackupService implements BookBackupService {
     }
 
     try {
-      // Close the connection so the current file can be replaced.
+      // Close the connection so the current file can be replaced. The business
+      // database is not the open connection, so nothing needs closing for it.
       if (isCurrentYear) await currentDatabase.close();
 
       await File(backup.filePath).copy(target.path);
@@ -270,8 +328,12 @@ class FileBookBackupService implements BookBackupService {
         .replaceAll(RegExp(r'[^0-9]'), '')
         .padRight(17, '0')
         .substring(0, 17);
+    // The business snapshot gets its own prefix so it is never mistaken for a
+    // year, and so `_describe` can label it correctly. `accounting-Business-
+    // details-...` would be parsed as a year and silently mislabelled.
+    final isBusiness = fiscalYearLabel == BookYear.businessDetailsLabel;
     final safeYear = fiscalYearLabel.replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-');
-    final base = 'accounting-$safeYear-$stamp';
+    final base = isBusiness ? 'business-$stamp' : 'accounting-$safeYear-$stamp';
 
     var candidate = File(p.join(backupDirectory.path, '$base$_extension'));
     var suffix = 2;
@@ -287,6 +349,20 @@ class FileBookBackupService implements BookBackupService {
   Future<BookBackup> _describe(File file) async {
     final stat = await file.stat();
     final name = p.basename(file.path);
+
+    // `business-20260930101032123.db` carries the moment only, so a listed
+    // business snapshot can say what it is.
+    if (RegExp(r'^business-\d').hasMatch(name)) {
+      return BookBackup(
+        fileName: name,
+        filePath: file.path,
+        fiscalYearLabel: BookYear.businessDetailsLabel,
+        takenAt: stat.modified,
+        fileSizeBytes: stat.size,
+        checksum: await _checksumOf(file),
+      );
+    }
+
     // `accounting-FY-2082-83-20260930101032123.db` carries both the year and the
     // moment, so a listed backup can say which year it belongs to.
     final match =

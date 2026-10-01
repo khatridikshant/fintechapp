@@ -9,10 +9,21 @@ import 'book_backup.dart';
 class BookYear {
   const BookYear({required this.fiscalYearLabel, required this.filePath});
 
+  /// The label carried by the business-level database, which holds the business's
+  /// own name, PAN, and VAT status.
+  ///
+  /// **Not a fiscal year, and must never be presented as one.** It is backed up
+  /// alongside the years because losing it leaves every invoice invalid, but it
+  /// has no fiscal-year meaning and no start or end date.
+  static const String businessDetailsLabel = 'Business details';
+
   /// For example `FY 2082/83`.
   final String fiscalYearLabel;
 
   final String filePath;
+
+  /// Whether this entry is the business-level database rather than a fiscal year.
+  bool get isBusinessDetails => fiscalYearLabel == businessDetailsLabel;
 
   /// The file name, without its folder.
   String get fileName => filePath.split(RegExp(r'[\\/]')).last;

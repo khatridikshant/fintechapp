@@ -2,6 +2,7 @@ import '../domain/accounting/chart_of_accounts.dart';
 import '../domain/accounting/journal_entry.dart';
 import '../domain/accounting/journal_line.dart';
 import '../domain/accounting/journal_repository.dart';
+import '../domain/billing/business_profile_repository.dart';
 import '../domain/billing/customer_repository.dart';
 import '../domain/billing/document_number.dart';
 import '../domain/billing/document_number_sequence.dart';
@@ -94,6 +95,7 @@ class IssueInvoice {
     required this.journal,
     required this.invoices,
     required this.unitOfWork,
+    this.sellers,
   });
 
   /// The fiscal year currently open for writing.
@@ -109,6 +111,18 @@ class IssueInvoice {
   final InvoiceRepository invoices;
 
   final UnitOfWork unitOfWork;
+
+  /// Where the business's own details come from.
+  ///
+  /// **Read by the use case rather than passed in by the caller**, so the snapshot
+  /// cannot be forgotten: the printed invoice is the evidence in an audit, and a
+  /// caller that remembered to stamp it only sometimes is worse than one that
+  /// never can.
+  ///
+  /// Optional so the use case can be exercised without a database. **The
+  /// application always supplies it**, and an invoice issued without a snapshot is
+  /// reported by `InvoiceCompliance` rather than passing unnoticed.
+  final BusinessProfileRepository? sellers;
 
   /// The journal entry id for an invoice.
   ///
@@ -146,8 +160,20 @@ class IssueInvoice {
         fiscalYear: fiscalYear,
       );
 
-      final issued = IssuedInvoice(invoice: invoice, number: number);
-      final entry = journalEntryFor(invoice, number);
+      // The seller's details are copied onto the invoice **before** it is
+      // recorded, so the stored document carries what was printed on it. Read
+      // inside the transaction: the profile a customer was shown and the one
+      // stamped must be the same.
+      final seller = await sellers?.load();
+      final stamped = seller == null
+          ? invoice
+          : invoice.stampedWithSeller(
+              name: seller.name,
+              pan: seller.panNumber,
+            );
+
+      final issued = IssuedInvoice(invoice: stamped, number: number);
+      final entry = journalEntryFor(stamped, number);
 
       // The journal entry is written first, because the invoice record holds a
       // foreign key to it.
@@ -158,7 +184,7 @@ class IssueInvoice {
       await invoices.save(issued);
 
       return InvoiceIssued(
-        invoice: invoice,
+        invoice: stamped,
         number: number,
         journalEntry: entry,
         issued: issued,

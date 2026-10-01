@@ -252,6 +252,35 @@ class Invoices extends Table {
       ];
 }
 
+/// The seller details **as printed on** a given invoice.
+///
+/// ## Why a separate table rather than two more columns on `invoices`
+///
+/// Adding a column to `invoices` would change the shape `createTable` produces for
+/// every database older than the new version, and that broke the migration tests
+/// when this was tried on `customers` (ADR 010). A table that did not exist before
+/// v11 is simply absent from every earlier snapshot, so the existing tests are
+/// untouched.
+///
+/// The alternative — regenerating the older snapshots to match — was tried and is
+/// the reason the pattern exists: it does not reliably propagate to
+/// `test/generated/`, and it rewrites the historical record of what each version
+/// contained.
+@DataClassName('InvoiceSellerRow')
+class InvoiceSellers extends Table {
+  /// The invoice this was printed on.
+  TextColumn get invoiceId => text().references(Invoices, #id)();
+
+  /// The registered business name as printed.
+  TextColumn get sellerName => text()();
+
+  /// The PAN as printed, as nine digits.
+  TextColumn get sellerPan => text()();
+
+  @override
+  Set<Column> get primaryKey => {invoiceId};
+}
+
 /// The lines of an issued invoice.
 ///
 /// Stored because an invoice must be reprintable. A journal line records an

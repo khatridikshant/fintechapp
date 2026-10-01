@@ -51,6 +51,23 @@ class DriftInvoiceRepository implements InvoiceRepository {
             ),
           );
 
+      // The seller details printed on this invoice.
+      //
+      // Written only when there is something to record. An invoice issued before
+      // this existed has no snapshot, and inventing one now would put a PAN on
+      // paper that never carried it.
+      final sellerName = invoice.sellerName;
+      final sellerPan = invoice.sellerPan;
+      if (sellerName != null && sellerPan != null) {
+        await _db.into(_db.invoiceSellers).insert(
+              InvoiceSellersCompanion.insert(
+                invoiceId: invoice.id,
+                sellerName: sellerName,
+                sellerPan: sellerPan,
+              ),
+            );
+      }
+
       var lineNumber = 1;
       for (final line in invoice.lines) {
         await _db.into(_db.invoiceLines).insert(
@@ -73,7 +90,11 @@ class DriftInvoiceRepository implements InvoiceRepository {
     final row = await (_db.select(_db.invoices)..where((t) => t.id.equals(id)))
         .getSingleOrNull();
     if (row == null) return null;
-    return _rebuild(row, await _linesFor(id));
+    return _rebuild(
+      row,
+      await _linesFor(id),
+      seller: await _sellerFor(id),
+    );
   }
 
   @override
@@ -87,7 +108,13 @@ class DriftInvoiceRepository implements InvoiceRepository {
 
     final issued = <IssuedInvoice>[];
     for (final row in rows) {
-      issued.add(_rebuild(row, await _linesFor(row.id)));
+      issued.add(
+        _rebuild(
+          row,
+          await _linesFor(row.id),
+          seller: await _sellerFor(row.id),
+        ),
+      );
     }
     return issued;
   }
@@ -104,9 +131,26 @@ class DriftInvoiceRepository implements InvoiceRepository {
 
     final issued = <IssuedInvoice>[];
     for (final row in rows) {
-      issued.add(_rebuild(row, await _linesFor(row.id)));
+      issued.add(
+        _rebuild(
+          row,
+          await _linesFor(row.id),
+          seller: await _sellerFor(row.id),
+        ),
+      );
     }
     return issued;
+  }
+
+  /// The seller snapshot for one invoice, or null when it was issued before
+  /// snapshots existed.
+  ///
+  /// **Nullable on the right**, because most invoices issued before v11 have no
+  /// snapshot row and inventing one would put a PAN on paper that never carried it.
+  Future<InvoiceSellerRow?> _sellerFor(String invoiceId) {
+    return (_db.select(_db.invoiceSellers)
+          ..where((t) => t.invoiceId.equals(invoiceId)))
+        .getSingleOrNull();
   }
 
   Future<List<InvoiceLineRow>> _linesFor(String invoiceId) {
@@ -122,7 +166,11 @@ class DriftInvoiceRepository implements InvoiceRepository {
   ///
   /// The `Invoice` constructor re-derives the totals, so a corrupt row set is
   /// caught here rather than returned as a plausible-looking invoice.
-  IssuedInvoice _rebuild(InvoiceRow row, List<InvoiceLineRow> lineRows) {
+  IssuedInvoice _rebuild(
+    InvoiceRow row,
+    List<InvoiceLineRow> lineRows, {
+    InvoiceSellerRow? seller,
+  }) {
     final lines = lineRows
         .map(
           (line) => InvoiceLine(
@@ -139,6 +187,10 @@ class DriftInvoiceRepository implements InvoiceRepository {
       customerId: row.customerId,
       lines: lines,
       vatRateBasisPoints: row.vatRateBasisPoints,
+      // Restored from the snapshot, so a historical invoice shows the seller
+      // details it was printed with rather than today's.
+      sellerName: seller?.sellerName,
+      sellerPan: seller?.sellerPan,
     );
 
     final number = DocumentNumber.of(
