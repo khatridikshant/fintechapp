@@ -6,6 +6,7 @@ import '../screens/backup_screen.dart';
 import '../screens/customer_screen.dart';
 import '../screens/invoice_screen.dart';
 import '../screens/payment_screen.dart';
+import '../screens/product_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
@@ -128,7 +129,14 @@ List<NavigationGroup> buildNavigation(
     NavigationGroup(
       title: 'Inventory',
       sections: <NavigationItem>[
-        NavigationItem(title: 'Products', icon: Icons.inventory_2_outlined),
+        NavigationItem(
+          title: 'Products',
+          icon: Icons.inventory_2_outlined,
+          route: services.createProduct == null
+              ? null
+              : (context) =>
+                  ProductScreen(createProduct: services.createProduct!),
+        ),
         NavigationItem(title: 'Stock', icon: Icons.warehouse_outlined),
         NavigationItem(
             title: 'Stock Movements', icon: Icons.swap_vert_outlined),

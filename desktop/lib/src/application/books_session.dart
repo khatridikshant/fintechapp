@@ -3,6 +3,7 @@ import '../domain/shared/book_backup_service.dart';
 import 'build_general_ledger.dart';
 import 'build_trial_balance.dart';
 import 'create_customer.dart';
+import 'create_product.dart';
 import 'issue_invoice.dart';
 import 'record_payment.dart';
 
@@ -63,6 +64,9 @@ abstract interface class BooksSession {
   /// Recording a payment against an invoice. Rebuilt per open year, because a
   /// payment belongs to the books of the year it was received in.
   RecordPayment get recordPayment;
+
+  /// Creating a product in the catalogue.
+  CreateProduct get createProduct;
 
   /// Opens [fiscalYear], closing whatever was open, and builds its use cases.
   ///

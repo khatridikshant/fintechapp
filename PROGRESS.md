@@ -1925,6 +1925,59 @@ counts are now accurate and the old "4 of 30" claim is marked superseded.
 Verified: **814 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
 build succeeds.
 
+### 4.40 The product form — and Gate 7's data entry is complete
+
+**The last of the four data-entry screens.** With it, a business can create a
+customer, invoice them, take payment, and define what it sells.
+
+| File | Contents |
+| --- | --- |
+| `application/create_product.dart` | `CreateProduct`, `ProductCreated`, `ProductRejected`. |
+| `presentation/screens/product_screen.dart` | The product form. |
+| `test/application/create_product_test.dart`, `test/presentation/product_screen_test.dart` | 7 and 8 tests. |
+
+**A product needed no code, and that is a distinction worth stating.** A customer
+is a **party** and gets a quotable reference and a PAN; a product is a **catalogue
+line** and is a counterparty on nothing. So `CreateProduct` allocates no code and
+opens no sequence, unlike `CreateCustomer`.
+
+**The form never asks for a cost, and there is a test saying so.** ADR 004 makes
+the running inventory *value* authoritative and derives the cost from it; a stored
+cost would be a second source of truth that drifts. The cost arrives when stock is
+received, through a movement.
+
+**Two price rules that differ on purpose, and both are tested:**
+
+| | Invoice line | Product |
+| --- | --- | --- |
+| Zero price | **refused** — a zero-value line is a data-entry mistake | **allowed** — giving stock away is legitimate |
+
+**The id is random**, for the same reason a customer's is: stock movements and
+invoices reference a product by id, so an id that changed would repoint historical
+stock and sales at the wrong item.
+
+### 4.41 Gate 7 status
+
+| Screen | State |
+| --- | --- |
+| Settings | ✅ business details, account |
+| Customers | ✅ create |
+| Invoices | ✅ issue, multiple lines |
+| Receipts | ✅ record payment |
+| Products | ✅ create |
+
+**7 of 32 navigation items now have real screens**, up from 4 at the start of this
+stretch. The sales cycle is complete end to end: create a customer → invoice →
+record payment.
+
+**Still absent in Gate 7**, and recorded so they are not mistaken for done: stock
+*movements* (receiving stock, adjusting it) have a tested use case but no screen;
+the same for credit notes and journal entries. Those are the remaining ways to
+change the books by hand.
+
+Verified: **829 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
+build succeeds.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -2837,7 +2890,7 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 9 | Cloud backup and restore | **Upload complete, restore not.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **814 Dart tests**, all passing, and **35 Laravel tests**, all
+**Test suite:** **829 Dart tests**, all passing, and **35 Laravel tests**, all
 passing with 97 assertions. `flutter analyze` reports no issues. `php artisan test`
 reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean. The newest Dart
 files are `test/presentation/invoice_screen_test.dart` (10),

@@ -2,6 +2,7 @@ import '../application/account_session.dart';
 import '../application/business_details.dart';
 import '../application/create_customer.dart';
 import '../application/issue_invoice.dart';
+import '../application/create_product.dart';
 import '../application/record_payment.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
@@ -29,6 +30,7 @@ class AppServices {
     this.createCustomer,
     this.issueInvoice,
     this.recordPayment,
+    this.createProduct,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -74,8 +76,8 @@ class AppServices {
   /// test rather than a normal state.
   final RecordPayment? recordPayment;
 
-  /// Recording a payment. Null when the books expose no such use case, which is a
-  /// test rather than a normal state.
+  /// Creating a product in the catalogue.
+  final CreateProduct? createProduct;
 
   /// Which fiscal years exist and which is open, so the shell can offer a year
   /// switcher. Concluded years open **read-only**.
