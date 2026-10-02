@@ -14,6 +14,7 @@ import 'src/domain/shared/book_upload_service.dart';
 import 'src/infrastructure/auth/http_auth_client.dart';
 import 'src/infrastructure/auth/secure_credential_store.dart';
 import 'src/infrastructure/backup/backup_service_fiscal_year_archive.dart';
+import 'src/infrastructure/backup/http_fiscal_year_concluder.dart';
 import 'src/infrastructure/database/drift_journal_repository.dart';
 import 'src/infrastructure/database/drift_unit_of_work.dart';
 import 'src/infrastructure/database/file_books_session.dart';
@@ -103,6 +104,14 @@ Future<void> main() async {
               // **No sign-in means no archive**, and therefore no close. Passing a
               // uploader that refuses is what makes that true.
               uploads: account.upload ?? const NoUploads(),
+              // Tells the server to keep only one snapshot of the year just
+              // closed. Read through a closure so the **current** session is used
+              // rather than the one captured when this object was built, which
+              // would be null after a later sign-in.
+              concluder: HttpFiscalYearConcluder(
+                transport: transport,
+                session: () => account.session,
+              ),
             ),
             transition: LocalFiscalYearTransition(
               booksDirectory: session.booksDirectory,

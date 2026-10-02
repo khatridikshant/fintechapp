@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BackupRevision;
 use App\Models\Book;
 use App\Services\BackupUploadVerifier;
+use App\Services\ConcludedFiscalYearPruner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,6 +33,7 @@ class BackupRevisionController extends Controller
 {
     public function __construct(
         private readonly BackupUploadVerifier $verifier,
+        private readonly ConcludedFiscalYearPruner $pruner,
     ) {}
 
     /**
@@ -238,6 +240,48 @@ class BackupRevisionController extends Controller
                 $revision->revision,
             ),
         ]);
+    }
+
+    /**
+     * Conclude a fiscal year and reduce it to the one snapshot that is kept.
+     *
+     * Called by the desktop **after** it has archived the year and opened the
+     * next one. The ordering is deliberate: the archive upload and the local
+     * transition are the parts that must succeed, and neither depends on this
+     * call. Pruning is housekeeping, so a failure here reports itself and leaves
+     * the extras in place rather than blocking a close that already succeeded.
+     *
+     * The year must already have a stored snapshot. Concluding a year that was
+     * never backed up is refused, because an archive that does not exist cannot
+     * be reduced to one copy.
+     */
+    public function concludeYear(Request $request, Book $book): JsonResponse
+    {
+        $this->assertOwnership($request, $book);
+
+        // From the body, because a label like "FY 2082/83" cannot be a URL path
+        // segment. See the note on the route.
+        $validated = $request->validate([
+            'fiscal_year_label' => ['required', 'string', 'max:32'],
+        ]);
+        $fiscalYearLabel = $validated['fiscal_year_label'];
+
+        try {
+            $result = $this->pruner->prune($book, $fiscalYearLabel);
+        } catch (\RuntimeException $e) {
+            // A refusal, not a fault. The extras stay exactly where they were.
+            return response()->json([
+                'message' => 'The fiscal year was not concluded on the server.',
+                'reason' => $e->getMessage(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return response()->json([
+            'fiscal_year_label' => $fiscalYearLabel,
+            'kept_revision' => $result['kept_revision'],
+            'removed_revisions' => $result['removed_revisions'],
+            'bytes_reclaimed' => $result['bytes_reclaimed'],
+        ], Response::HTTP_OK);
     }
 
     /**

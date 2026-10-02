@@ -31,6 +31,58 @@ abstract interface class FiscalYearArchive {
   /// Checked before any work is done, so a year is not closed halfway because the
   /// connection dropped at the end.
   Future<bool> isAvailable();
+
+  /// Tells the server the year is concluded, and lets it drop the duplicate
+  /// snapshots it holds of it.
+  ///
+  /// ## Why this is separate from [archive], and why it runs later
+  ///
+  /// **A concluded year is immutable**, so every snapshot of it the server holds
+  /// is byte-identical, and only the newest is worth keeping. But the server can
+  /// only be told this **after** the next year's books exist locally.
+  ///
+  /// Doing it during [archive] would leave the two sides disagreeing if the
+  /// transition then failed: the server would record the year as concluded while
+  /// this computer still had it open and writable, and the year could then be
+  /// edited after being declared final.
+  ///
+  /// ## Failure is not fatal
+  ///
+  /// Returns normally whether or not the server accepted, and reports what
+  /// happened. **The extra copies cost disk and nothing else** -- the archive
+  /// itself is already confirmed by then -- so a refusal here must not fail a
+  /// close that has otherwise succeeded. It is housekeeping, not correctness.
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear);
+}
+
+/// Tells a server that a fiscal year is concluded, so it can keep only one
+/// snapshot of it.
+///
+/// Separate from [FiscalYearArchive] because the two happen at different times:
+/// the archive must be confirmed **before** the transition, and this **after** it.
+/// Splitting them keeps that ordering visible in the types rather than implied by
+/// the order of two calls inside one method.
+abstract interface class FiscalYearConcluder {
+  /// Reports the server concluding [fiscalYear].
+  ///
+  /// Returns rather than throwing for every outcome, because **none of them can
+  /// fail a close**: by the time this runs the archive is already confirmed and
+  /// the next year's books already exist, so the record is safe. The duplicates
+  /// that may remain cost disk and nothing else.
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear);
+}
+
+/// What the server said when it was told the year was concluded.
+enum ConcludeOutcome {
+  /// The year was concluded and the duplicates dropped.
+  concluded,
+
+  /// The server could not be reached. The local close stands and the copies
+  /// remain; the next attempt can pick this up.
+  unreachable,
+
+  /// The server refused, with a reason. Nothing was deleted.
+  refused,
 }
 
 /// Creates and activates the next fiscal year's database, with opening balances.
@@ -57,10 +109,18 @@ class FiscalYearConcluded extends ConcludeFiscalYearOutcome {
     required this.closed,
     required this.nextYear,
     required this.openingBalances,
+    this.serverOutcome = ConcludeOutcome.unreachable,
   });
 
   final YearEndClosing closed;
   final FiscalYear nextYear;
+
+  /// What the server said when told the year was concluded.
+  ///
+  /// **The close succeeded regardless.** This reports only whether the duplicate
+  /// snapshots on the server were dropped, so a screen can mention it without
+  /// implying the year failed to close.
+  final ConcludeOutcome serverOutcome;
 
   /// What carried forward. Balance-sheet accounts only.
   final Map<Account, Money> openingBalances;
@@ -179,10 +239,21 @@ class ConcludeFiscalYear {
       openingBalances: opening,
     );
 
+    // **Last, and deliberately.** The server is told the year is concluded only
+    // once the next year's books exist here. Doing it earlier would let a
+    // failure in between leave the two sides disagreeing: the server holding a
+    // year as final while this computer still had it open and writable.
+    //
+    // Best-effort by design. The archive is already confirmed, so the record is
+    // safe; the duplicates that remain cost disk and nothing else, and failing a
+    // close over housekeeping would be the worse outcome.
+    final outcome = await archive.conclude(fiscalYear);
+
     return FiscalYearConcluded(
       closed: closing,
       nextYear: _nextYear,
       openingBalances: opening,
+      serverOutcome: outcome,
     );
   }
 

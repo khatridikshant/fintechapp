@@ -26,10 +26,25 @@ class BackupServiceFiscalYearArchive implements FiscalYearArchive {
   BackupServiceFiscalYearArchive({
     required this.backups,
     required this.uploads,
-  });
+    FiscalYearConcluder? concluder,
+  }) : _concluder = concluder;
 
   final BackupActions backups;
   final UploadActions uploads;
+
+  /// Tells the server to keep only one snapshot of a concluded year.
+  ///
+  /// Optional, and **defaults to reporting the server as unreachable**. A caller
+  /// that supplies none gets a close that still works and reports that the
+  /// duplicates were not dropped, rather than an error.
+  final FiscalYearConcluder? _concluder;
+
+  @override
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear) async =>
+      _concluder?.conclude(fiscalYear) ??
+      // **Not an exception.** Without a concluder the close has still happened
+      // and the archive is still safe; only the housekeeping was skipped.
+      Future<ConcludeOutcome>.value(ConcludeOutcome.unreachable);
 
   @override
   Future<bool> isAvailable() async => uploads.canUpload;

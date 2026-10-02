@@ -152,6 +152,10 @@ class _Archive implements FiscalYearArchive {
   Future<bool> isAvailable() async => available;
 
   @override
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear) async =>
+      ConcludeOutcome.concluded;
+
+  @override
   Future<void> archive(FiscalYear fiscalYear, File databaseFile) async {
     final failure = failWith;
     if (failure != null) throw StateError(failure);

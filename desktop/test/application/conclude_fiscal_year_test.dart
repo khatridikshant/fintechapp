@@ -193,7 +193,61 @@ void main() {
         accounts: const ChartOfAccounts().all,
       )();
 
-      expect(order, <String>['archive', 'transition']);
+      expect(order, <String>['archive', 'transition', 'conclude']);
+    });
+
+    test('the server is told last, so a failure cannot strand a closed year',
+        () async {
+      // The ordering is the safety property, and it is the reverse of the obvious
+      // one. Telling the server a year is concluded **before** the transition
+      // means a failure in between leaves the server holding a year as final while
+      // this computer can still open, edit and upload it. The consequence is a
+      // year that is simultaneously read-only and editable.
+      final order = <String>[];
+
+      await ConcludeFiscalYear(
+        fiscalYear: year,
+        databaseFile: dbFile,
+        journal: journal,
+        unitOfWork: DriftUnitOfWork(db),
+        archive: _OrderRecordingArchive(order),
+        transition: _OrderRecordingTransition(order),
+        accounts: const ChartOfAccounts().all,
+      )();
+
+      expect(
+        order.indexOf('conclude'),
+        greaterThan(order.indexOf('transition')),
+        reason:
+            'the server must not be told until the next year exists locally',
+      );
+    });
+
+    test('a server that cannot be reached does not fail the close', () async {
+      // The archive is already confirmed by this point, so the record is safe.
+      // The duplicates that remain cost disk and nothing else, and turning a
+      // successful close into a failure over housekeeping would be the worse
+      // outcome for the user.
+      final order = <String>[];
+      final journal = DriftJournalRepository(db);
+
+      final result = await ConcludeFiscalYear(
+        fiscalYear: year,
+        databaseFile: dbFile,
+        journal: journal,
+        unitOfWork: DriftUnitOfWork(db),
+        archive: _UnreachableConcludeArchive(),
+        transition: _OrderRecordingTransition(order),
+        accounts: const ChartOfAccounts().all,
+      )();
+
+      expect(result, isA<FiscalYearConcluded>());
+      expect(
+        (result as FiscalYearConcluded).serverOutcome,
+        ConcludeOutcome.unreachable,
+      );
+      expect(order, contains('transition'),
+          reason: 'the year must still close');
     });
   });
 
@@ -255,6 +309,10 @@ class _Archive implements FiscalYearArchive {
   Future<bool> isAvailable() async => available;
 
   @override
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear) async =>
+      ConcludeOutcome.concluded;
+
+  @override
   Future<void> archive(FiscalYear fiscalYear, File databaseFile) async {
     calls++;
     final failure = failWith;
@@ -285,6 +343,34 @@ class _OrderRecordingArchive implements FiscalYearArchive {
   @override
   Future<void> archive(FiscalYear fiscalYear, File databaseFile) async =>
       order.add('archive');
+
+  /// Recorded so the ordering test can see it.
+  ///
+  /// **It comes after the transition, deliberately.** Telling the server a year is
+  /// final before the next year's books exist locally would let a failure in
+  /// between leave the server holding a closed year that this computer can still
+  /// edit.
+  @override
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear) async {
+    order.add('conclude');
+    return ConcludeOutcome.concluded;
+  }
+}
+
+/// An archive that stores the snapshot but cannot reach the server afterwards.
+///
+/// Stands for the ordinary offline case: the close works, and only the
+/// housekeeping on the server is skipped.
+class _UnreachableConcludeArchive implements FiscalYearArchive {
+  @override
+  Future<bool> isAvailable() async => true;
+
+  @override
+  Future<void> archive(FiscalYear fiscalYear, File databaseFile) async {}
+
+  @override
+  Future<ConcludeOutcome> conclude(FiscalYear fiscalYear) async =>
+      ConcludeOutcome.unreachable;
 }
 
 class _OrderRecordingTransition implements FiscalYearTransition {

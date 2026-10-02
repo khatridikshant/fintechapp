@@ -65,4 +65,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // anything over its books.
     Route::get('/backup-revisions/{revision}/download', [BackupRevisionController::class, 'download'])
         ->name('api.backup-revisions.download');
+
+    // Conclude a fiscal year and reduce it to one snapshot.
+    //
+    // Called by the desktop **after** it has archived the year and opened the next
+    // one. A concluded year is immutable, so every snapshot of it is identical and
+    // the extras are duplicates rather than history -- keeping them costs disk and
+    // preserves nothing. The server keeps the latest and tombstones the rest.
+    //
+    // **The label travels in the body, not the path.** Every fiscal year label in
+    // this application contains a slash -- "FY 2082/83" -- and a slash inside a URL
+    // path segment is a separator, so the router never matches the route and the
+    // request 404s. Percent-encoding does not help, because the router decodes
+    // before it matches. Putting it in the body sidesteps the problem rather than
+    // slugging it and having to unslug it, which would be a second way to be wrong.
+    Route::post('/books/{book}/fiscal-years/conclude', [BackupRevisionController::class, 'concludeYear'])
+        ->name('api.fiscal-years.conclude');
 });
