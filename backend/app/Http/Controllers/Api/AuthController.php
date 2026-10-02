@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Book;
+use App\Models\Company;
 use App\Models\User;
+use App\Services\SessionLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +29,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly SessionLimit $sessionLimit,
+    ) {}
+
     /**
      * The shortest password accepted.
      *
@@ -87,34 +94,67 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:'.self::MIN_PASSWORD_LENGTH, 'confirmed'],
             'device_name' => ['nullable', 'string', 'max:255'],
+
+            /**
+             * The registered business.
+             *
+             * Required, because the PAN is what makes the account identifiable to
+             * a tax authority and it cannot be derived from anything else. It was
+             * previously only ever seen inside the uploaded SQLite, which meant the
+             * server could not check that two accounts were claiming the same
+             * taxpayer -- that is now enforceable.
+             *
+             * Nine digits, matching `NepaliPan` in the desktop domain.
+             */
+            'company_name' => ['required', 'string', 'max:255'],
+            'company_pan' => ['required', 'string', 'size:9', 'unique:companies,pan'],
+            'vat_registered' => ['required', 'boolean'],
         ], [
-            // **Deliberately does not say "already taken".** Login was written so
-            // that an unknown address and a wrong password are indistinguishable,
-            // and a registration error confirming that an address exists would
-            // hand back exactly that information. This wording reveals only that
-            // the details were refused. A 422-versus-201 difference still shows
-            // *something* was wrong, so making registration fully
-            // non-enumerating would need an email-verification flow, which is not
-            // built and is not pretended to be.
+            /**
+             * The same anti-enumeration wording as the email rule, for the same
+             * reason: confirming "that PAN is already registered" would tell an
+             * anonymous caller which taxpayers are customers.
+             */
+            'company_pan.unique' => 'An account cannot be created with those details.',
             'email.unique' => 'An account cannot be created with those details.',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-        ]);
+        // The company exists before the user, so `users.company_id` is never
+        // briefly dangling. Both, plus the book, in one transaction: a user
+        // without a company, or without a book, is an account the desktop cannot
+        // use.
+        $user = DB::transaction(function () use ($validated): User {
+            $company = Company::create([
+                'name' => $validated['company_name'],
+                'pan' => $validated['company_pan'],
+                'vat_registered' => $validated['vat_registered'],
+            ]);
 
-        // ADR 003: one book per account. Created here because the desktop has
-        // nothing to upload a backup against until a book exists.
-        $book = $user->books()->create(['name' => 'Primary']);
+            $user = User::create([
+                'name' => $validated['name'],
+                'username' => $validated['username'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'company_id' => $company->id,
+            ]);
+
+            // ADR 003: one book per account. Created here because the desktop has
+            // nothing to upload a backup against until a book exists.
+            $user->books()->create(['name' => 'Primary']);
+
+            return $user;
+        });
+
+        $book = $user->books()->first();
 
         return response()->json([
-            'token' => $this->issue($user, $validated['device_name'] ?? null),
+            'token' => $this->issueAndLimit($user, $validated['device_name'] ?? null),
             'user' => $this->describe($user),
+            'company' => $this->describeCompany($user->company),
             'book' => $this->describeBook($book),
         ], 201);
     }
@@ -152,10 +192,28 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'token' => $this->issue($user, $validated['device_name'] ?? null),
+            'token' => $this->issueAndLimit($user, $validated['device_name'] ?? null),
             'user' => $this->describe($user),
+            'company' => $this->describeCompany($user->company),
             'book' => $this->describeBook($user->books()->first()),
         ]);
+    }
+
+    /**
+     * Mint a token, then apply the account's session limit.
+     *
+     * **Last sign-in wins**, at the default limit of one. Signing in always
+     * succeeds -- the password is what authenticates, not a token -- so a session
+     * left behind by a machine that no longer exists revokes itself here rather
+     * than locking the owner out with no way back in.
+     */
+    private function issueAndLimit(User $user, ?string $deviceName): string
+    {
+        $token = $user->createToken($deviceName ?: self::UNKNOWN_DEVICE);
+
+        $this->sessionLimit->apply($user, (int) $token->accessToken->getKey());
+
+        return $token->plainTextToken;
     }
 
     /**
@@ -214,6 +272,32 @@ class AuthController extends Controller
     /**
      * @return array<string, mixed>
      */
+    /**
+     * The company as the desktop sees it.
+     *
+     * The PAN and the VAT flag are the reason this exists: they are now server
+     * data rather than something buried in an uploaded file, so a signed-in user
+     * can be told what the server believes their registered business to be.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function describeCompany(?Company $company): ?array
+    {
+        if (! $company) {
+            return null;
+        }
+
+        return [
+            'id' => $company->id,
+            'name' => $company->name,
+            'pan' => $company->pan,
+            // A real boolean. A VAT-registered business charging no VAT is not a
+            // valid tax invoice, so this flag has to survive the trip intact --
+            // the string "0" would be truthy in the desktop's Dart code too.
+            'vat_registered' => (bool) $company->vat_registered,
+        ];
+    }
+
     private function describeBook(?Book $book): ?array
     {
         return $book ? ['id' => $book->id, 'name' => $book->name] : null;

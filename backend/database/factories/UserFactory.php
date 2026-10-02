@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Company;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -27,7 +28,16 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            // **Unique**, because users.username has a unique index. unique() is
+            // necessary rather than merely tidy: two factories created in one test
+            // would otherwise collide on a NOT NULL and UNIQUE column and fail for a
+            // reason that has nothing to do with the test.
+            'username' => fake()->unique()->userName(),
             'email_verified_at' => now(),
+            // A company, because company_id is set for every registered account.
+            // Nullable in the schema only so the column could be added without
+            // stranding existing rows mid-migration.
+            'company_id' => Company::factory(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];

@@ -16,6 +16,9 @@ class BackendSession {
     required this.token,
     required this.bookId,
     this.accountLabel,
+    this.companyName,
+    this.companyPan,
+    this.vatRegistered,
   });
 
   /// The server root, for example `http://127.0.0.1:8123`. Requests are built
@@ -35,6 +38,28 @@ class BackendSession {
 
   /// Who is signed in, for display only. Never used to decide anything.
   final String? accountLabel;
+
+  /// The registered business this session acts for.
+  ///
+  /// **Server-authoritative.** The PAN and the VAT registration now live in the
+  /// server's `companies` table rather than only inside the uploaded SQLite, which
+  /// means this is the value the server believes. It is carried for display and so
+  /// a later screen need not fetch it again; nothing here decides anything from it.
+  ///
+  /// Null when the server sent no company, which an older server will not. Read as
+  /// absent rather than as "not VAT registered" -- those are different claims.
+  final String? companyName;
+
+  /// The taxpayer's Permanent Account Number, from the server.
+  final String? companyPan;
+
+  /// Whether this business is registered for VAT, from the server.
+  ///
+  /// **Nullable on purpose.** A false here means "not registered"; null means the
+  /// server did not say. Collapsing those would let an absent answer be read as a
+  /// definite one, and a VAT-registered business charging no VAT is not a valid tax
+  /// invoice.
+  final bool? vatRegistered;
 
   /// True when this session can actually be used to send something.
   ///

@@ -82,6 +82,7 @@ class HttpAuthClient implements AuthActions {
         final book = decoded['book'];
         final bookId = book is Map ? book['id'] : null;
         final user = decoded['user'];
+        final company = decoded['company'];
 
         // A token without a book id is not a usable session: the upload endpoint
         // is keyed by book, so there would be nothing to send to. Refusing it is
@@ -94,6 +95,22 @@ class HttpAuthClient implements AuthActions {
           );
         }
 
+        // The company the session acts for. Optional, because an older server
+        // sends no `company` and refusing to sign in over it would break every
+        // desktop already deployed against one.
+        final companyName = company is Map ? company['name'] : null;
+        final companyPan = company is Map ? company['pan'] : null;
+        final vatRegistered = company is Map ? company['vat_registered'] : null;
+
+        // Shown where the account is described: the registered business first,
+        // because that is what distinguishes one account from another, then the
+        // sign-in address, and only then the device.
+        final label = companyName is String && companyName.isNotEmpty
+            ? companyName
+            : (user is Map && user['email'] is String
+                ? user['email'] as String
+                : (deviceName ?? 'signed in'));
+
         return SignInResult(
           status: SignInStatus.signedIn,
           message: 'Signed in.',
@@ -101,9 +118,16 @@ class HttpAuthClient implements AuthActions {
             serverBaseUrl: serverBaseUrl,
             token: token,
             bookId: '$bookId',
-            accountLabel: user is Map && user['email'] is String
-                ? user['email'] as String
-                : (deviceName ?? 'signed in'),
+            accountLabel: label,
+            companyName: companyName is String && companyName.isNotEmpty
+                ? companyName
+                : null,
+            companyPan: companyPan is String && companyPan.isNotEmpty
+                ? companyPan
+                : null,
+            // **Only a real boolean counts.** The string "0" is truthy in Dart, so
+            // a loose cast would report an unregistered business as registered.
+            vatRegistered: vatRegistered is bool ? vatRegistered : null,
           ),
         );
 

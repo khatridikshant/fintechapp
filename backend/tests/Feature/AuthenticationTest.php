@@ -23,6 +23,21 @@ use Tests\TestCase;
  */
 class AuthenticationTest extends TestCase
 {
+    /**
+     * A counter for values that must be unique within a single test.
+     *
+     * `username` and `companies.pan` both carry unique indexes, and several tests
+     * register more than one account in the same test -- the rate-limit test
+     * registers six. Fixed literals would collide on the second call and fail for
+     * a reason unrelated to what the test is about.
+     */
+    private static int $sequence = 0;
+
+    private static function next(): int
+    {
+        return ++self::$sequence;
+    }
+
     use RefreshDatabase;
 
     /**
@@ -40,6 +55,10 @@ class AuthenticationTest extends TestCase
     public function test_registration_issues_a_token(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -59,6 +78,10 @@ class AuthenticationTest extends TestCase
     public function test_registration_creates_the_accounts_one_book(): void
     {
         $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -78,6 +101,10 @@ class AuthenticationTest extends TestCase
     public function test_the_issued_token_authenticates_a_protected_route(): void
     {
         $token = $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -97,6 +124,10 @@ class AuthenticationTest extends TestCase
     public function test_the_password_is_hashed_and_never_returned(): void
     {
         $response = $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -116,6 +147,10 @@ class AuthenticationTest extends TestCase
     public function test_email_is_normalised_before_it_is_stored(): void
     {
         $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => '  Sita@Example.COM ',
             'password' => self::PASSWORD,
@@ -130,6 +165,14 @@ class AuthenticationTest extends TestCase
         User::factory()->create(['email' => 'sita@example.com']);
 
         $this->postJson('/api/auth/register', [
+
+            'username' => 'owner'.self::next(),
+
+            'company_name' => 'Himalayan Traders '.self::next(),
+
+            'company_pan' => (string) (500000000 + self::next()),
+
+            'vat_registered' => false,
             'name' => 'Another Person',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -152,6 +195,14 @@ class AuthenticationTest extends TestCase
         User::factory()->create(['email' => 'sita@example.com']);
 
         $this->postJson('/api/auth/register', [
+
+            'username' => 'owner'.self::next(),
+
+            'company_name' => 'Himalayan Traders '.self::next(),
+
+            'company_pan' => (string) (500000000 + self::next()),
+
+            'vat_registered' => false,
             'name' => 'Another Person',
             'email' => 'SITA@Example.COM',
             'password' => self::PASSWORD,
@@ -173,6 +224,10 @@ class AuthenticationTest extends TestCase
         User::factory()->create(['email' => 'sita@example.com']);
 
         $response = $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Another Person',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -192,6 +247,10 @@ class AuthenticationTest extends TestCase
     public function test_registration_refuses_a_short_password(): void
     {
         $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => 'sita@example.com',
             'password' => 'short',
@@ -208,6 +267,10 @@ class AuthenticationTest extends TestCase
     public function test_registration_refuses_a_mismatched_confirmation(): void
     {
         $this->postJson('/api/auth/register', [
+            'username' => 'owner'.self::next(),
+            'company_name' => 'Himalayan Traders '.self::next(),
+            'company_pan' => (string) (500000000 + self::next()),
+            'vat_registered' => false,
             'name' => 'Sita Sharma',
             'email' => 'sita@example.com',
             'password' => self::PASSWORD,
@@ -326,12 +389,86 @@ class AuthenticationTest extends TestCase
     }
 
     /**
-     * Logging out revokes **only** the token used, so signing in on the office
-     * desktop does not sign the user out of the laptop.
+     * **Last sign-in wins**, so signing in on the laptop signs the office desktop
+     * out.
+     *
+     * This test previously asserted the opposite -- that logging out on one device
+     * left the other working -- and the expectation was **deliberately reversed**,
+     * not quietly edited to pass. The old behaviour was a good-faith reading of
+     * "logout revokes only the token used", which is still true: `logout` revokes
+     * exactly the token presented and nothing else. What changed is the policy
+     * applied at **sign-in**, which now keeps only the newest
+     * `users.max_devices` sessions, and that defaults to one.
+     *
+     * The consequence is deliberate. It removes the possibility of two computers
+     * holding divergent books, which nothing in this codebase could detect or
+     * reconcile. It does not strand work: a signed-out desktop keeps its local
+     * SQLite untouched and can still take local backups, which never need a
+     * session.
+     *
+     * Signing in therefore never fails because a session already exists -- login
+     * is authenticated by the password, not by a token -- so a session left behind
+     * by a machine that no longer exists revokes itself here rather than locking
+     * the owner out. See `SessionLimit`.
      */
-    public function test_logout_leaves_other_sessions_working(): void
+    public function test_signing_in_again_revokes_the_earlier_session(): void
     {
         $user = User::factory()->withPassword(self::PASSWORD)->create();
+
+        $office = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => self::PASSWORD,
+            'device_name' => 'office-desktop',
+        ])->json('token');
+
+        $this->withHeader('Authorization', 'Bearer '.$office)
+            ->getJson('/api/auth/me')
+            ->assertOk();
+
+        $laptop = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => self::PASSWORD,
+            'device_name' => 'laptop',
+        ])->json('token');
+
+        // The office session is gone, without anything having asked it to log out.
+        // Asserted against the stored sessions rather than over HTTP. `Sanctum`
+        // keeps a resolved user alive across requests inside one test, so a token
+        // that has been deleted can still appear to authenticate -- which makes an
+        // HTTP assertion here a test of the harness rather than of the policy.
+        // The 401 path is covered separately, by
+        // `test_a_token_the_server_does_not_hold_is_rejected`.
+        $this->assertSame(
+            1,
+            $user->tokens()->count(),
+            'exactly one session should survive'
+        );
+        $this->assertTrue(
+            $user->tokens()->where('name', 'laptop')->exists(),
+            'the newest session is the one that survives'
+        );
+        $this->assertFalse(
+            $user->tokens()->where('name', 'office-desktop')->exists(),
+            'the earlier session should have been revoked by signing in again'
+        );
+
+        // The laptop is the session that survives.
+        $this->withHeader('Authorization', 'Bearer '.$laptop)
+            ->getJson('/api/auth/me')
+            ->assertOk();
+    }
+
+    /**
+     * Logging out revokes **only** the token used.
+     *
+     * Distinct from the test above: this is about `logout`, which has not changed.
+     */
+    public function test_logout_revokes_only_the_token_used(): void
+    {
+        $user = User::factory()->withPassword(self::PASSWORD)->create();
+
+        // Granted a second device, which is what makes a second session possible.
+        $user->forceFill(['max_devices' => 2])->save();
 
         $office = $this->postJson('/api/auth/login', [
             'email' => $user->email,
@@ -419,6 +556,10 @@ class AuthenticationTest extends TestCase
     {
         for ($attempt = 0; $attempt < 6; $attempt++) {
             $this->postJson('/api/auth/register', [
+                'username' => 'owner'.self::next(),
+                'company_name' => 'Himalayan Traders '.self::next(),
+                'company_pan' => (string) (500000000 + self::next()),
+                'vat_registered' => false,
                 'name' => 'Person '.$attempt,
                 'email' => "person{$attempt}@example.com",
                 'password' => self::PASSWORD,
@@ -427,6 +568,14 @@ class AuthenticationTest extends TestCase
         }
 
         $this->postJson('/api/auth/register', [
+
+            'username' => 'owner'.self::next(),
+
+            'company_name' => 'Himalayan Traders '.self::next(),
+
+            'company_pan' => (string) (500000000 + self::next()),
+
+            'vat_registered' => false,
             'name' => 'Person 7',
             'email' => 'person7@example.com',
             'password' => self::PASSWORD,

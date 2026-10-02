@@ -78,12 +78,27 @@ class SecureCredentialStore implements CredentialStore {
       if (base == null) return null;
 
       final label = decoded['account'];
+      final companyName = decoded['company'];
+      final companyPan = decoded['pan'];
+      final vat = decoded['vat'];
 
       return BackendSession(
         serverBaseUrl: base,
         token: token,
         bookId: bookId,
         accountLabel: label is String && label.isNotEmpty ? label : null,
+        // Restored rather than re-fetched, so a signed-in desktop shows which
+        // business it is acting for before it has network access. Optional: a
+        // store written before these existed simply has none, and an absent
+        // company is not a reason to discard a working session.
+        companyName: companyName is String && companyName.isNotEmpty
+            ? companyName
+            : null,
+        companyPan:
+            companyPan is String && companyPan.isNotEmpty ? companyPan : null,
+        // `is bool` and nothing looser: the string "0" is truthy in Dart, so
+        // accepting it would report an unregistered business as VAT registered.
+        vatRegistered: vat is bool ? vat : null,
       );
     } catch (error) {
       // A corrupt or unreadable store is the same problem as no store: signing in
@@ -103,6 +118,14 @@ class SecureCredentialStore implements CredentialStore {
           'token': session.token,
           'book': session.bookId,
           'account': session.accountLabel,
+          // Stored so a restored session knows which business it acts for
+          // without a network call. These are display values the server already
+          // considers authoritative; nothing here decides anything from them.
+          'company': session.companyName,
+          'pan': session.companyPan,
+          // Null is written as null rather than omitted, so "the server did not
+          // say" and "not VAT registered" stay distinguishable after a restore.
+          'vat': session.vatRegistered,
         }),
       );
     } catch (error) {
