@@ -1978,6 +1978,97 @@ change the books by hand.
 Verified: **829 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
 build succeeds.
 
+### 4.42 The last three ways to change the books by hand
+
+**Gate 7's data entry is now complete.** Stock movements, credit notes, and
+journal entries all have screens.
+
+| File | Contents |
+| --- | --- |
+| `presentation/screens/stock_movement_screen.dart` | Receiving stock, or writing it off. |
+| `presentation/screens/credit_note_screen.dart` | Reducing an invoice already sent. |
+| `presentation/screens/journal_entry_screen.dart` | A manual entry straight into the accounts. |
+| `test/presentation/books_entry_screens_test.dart` | 6 tests, **against the real use cases**. |
+
+**These run against the real use cases over a real database, not stubs.** A stub
+would only prove the screen forwards its arguments; using the real thing also
+proves the screen and the use case agree on what the fields *mean* — which is
+exactly where a screen that guessed would show up. An earlier attempt with
+hand-written stubs needed so much scaffolding that it was replaced rather than
+finished, which is the honest reason the file is small.
+
+**Three things the screens deliberately refuse to decide:**
+
+- **The value of stock, not a unit price.** ADR 004 makes the running inventory
+  *value* authoritative; the screen asks for a quantity and a total, and there is a
+  test asserting it never asks for a unit price.
+- **Whether stock may go negative.** The repository refuses inside the transaction;
+  the screen cannot know the current level and does not pre-judge it.
+- **How much of an invoice may be credited.** `IssueCreditNote` checks it against
+  what is still outstanding, accounting for payments received.
+
+**The one rule a screen *prompts* rather than enforces** is that debits must equal
+credits, shown as a live difference. That is not duplicated logic: the difference is
+made visible while typing, and `JournalEntry` still decides. A test posts an
+unbalanced entry and asserts **the ledger stays empty**.
+
+**One navigation item added that `ui.txt` does not list:** *Credit Notes*, beside
+*Invoices*. `IssueCreditNote` exists, and a business with no way to issue one
+cannot correct an invoice it has already billed. Recorded as a deliberate
+deviation rather than left silent.
+
+Verified: **835 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
+build succeeds.
+
+### 4.43 Concluding a fiscal year — the ordering guarantee
+
+**The specification's sixteen steps, of which the local half is now built and
+tested.** What matters is not that the year closes but that it closes in the
+right order, so that is what the tests are about.
+
+| File | Contents |
+| --- | --- |
+| `domain/accounting/year_end.dart` | `ClosingEntry`, `YearEndClosing`, `YearEndBlocker`, `YearEndValidation`. |
+| `application/conclude_fiscal_year.dart` | `ConcludeFiscalYear`, the `FiscalYearArchive` and `FiscalYearTransition` ports. |
+| `test/application/conclude_fiscal_year_test.dart` | 8 tests. |
+
+**The ordering is the whole feature**, and the specification is explicit three
+times over: *"Only after server confirmation may the local application create and
+activate the next fiscal-year SQLite database"*, *"shall never delete or discard
+the previous fiscal-year database before the server has confirmed successful
+archival"*, and *"shall not partially complete the year transition"*. So the flow is
+validate → post closing entries → **archive** → *only then* create the next year.
+
+**Three tests hold that line, and two are mutation-worthy:**
+
+- An **unreachable** archive stops the close **before anything is written**, so
+  there is no half-closed year to repair.
+- A **failed** archive leaves the year open and creates no next year.
+- The archive is proven to happen **before** the transition, by recording the call
+  order rather than assuming it.
+
+**Why the ports exist:** the archive is a server call, so putting it behind an
+interface is what makes the ordering testable without a network. It also means a
+close cannot quietly proceed when the archive is unconfigured — which is the whole
+risk.
+
+**Two details that would have been wrong quietly:**
+
+- **A fiscal-year label advances both parts.** `FY 2082/83` is followed by
+  `FY 2083/84`; a Nepali year is named for both Gregorian years it touches.
+- **Revenue closes by crediting the nominal account; an expense closes by
+  debiting it.** Reversing that reports a profit as a loss, and every total would
+  still balance — so nothing else would catch it. The test asserts the direction.
+
+**Not yet built**, recorded so this is not mistaken for a finished feature: the
+**screen** for concluding a year, and the **real** implementations of
+`FiscalYearArchive` (uploading to the server) and `FiscalYearTransition`
+(creating next year's database). The logic is done and tested; the plumbing and
+the button are not.
+
+Verified: **843 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
+build succeeds.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -2885,12 +2976,12 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, and Balance Sheet complete.** Cash Flow and the rest are not started. |
 | 5 | Billing | **Complete for the core cycle**, and now **compliant with the Nepali invoice rules** — see 4.35. Debit notes and refunds are not started; see section 5. |
 | 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
-| 7 | Complete offline workflow | **Partial.** The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, Backup screen, and **Settings** exist and are wired to real use cases. **Nothing can yet be entered**: there is no form for a customer, product, invoice, or payment, so the business cannot be run through the application. |
-| 8 | Fiscal-year conclusion and archival | **Partial.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
+| 7 | Complete offline workflow | **Complete.** Every way of changing the books has a screen: customers, invoices, payments, products, stock movements, credit notes, journal entries. The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, Backup screen, and **Settings** exist and are wired to real use cases. A business can be run through it end to end. |
+| 8 | Fiscal-year conclusion and archival | **Logic done.** The close, its blocking checks, the closing entries, and the archive-before-transition ordering are built and tested (4.43). **The screen and the two server-backed implementations are not.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
 | 9 | Cloud backup and restore | **Upload complete, restore not.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **829 Dart tests**, all passing, and **35 Laravel tests**, all
+**Test suite:** **843 Dart tests**, all passing, and **35 Laravel tests**, all
 passing with 97 assertions. `flutter analyze` reports no issues. `php artisan test`
 reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean. The newest Dart
 files are `test/presentation/invoice_screen_test.dart` (10),

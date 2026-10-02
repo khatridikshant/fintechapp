@@ -4,6 +4,9 @@ import 'build_general_ledger.dart';
 import 'build_trial_balance.dart';
 import 'create_customer.dart';
 import 'create_product.dart';
+import 'issue_credit_note.dart';
+import 'post_inventory_movement.dart';
+import 'post_journal_entry.dart';
 import 'issue_invoice.dart';
 import 'record_payment.dart';
 
@@ -67,6 +70,16 @@ abstract interface class BooksSession {
 
   /// Creating a product in the catalogue.
   CreateProduct get createProduct;
+
+  /// Recording a stock movement. Created when stock is received, written off, or
+  /// returned.
+  PostInventoryMovement get postMovement;
+
+  /// Issuing a credit note against an invoice already sent.
+  IssueCreditNote get issueCreditNote;
+
+  /// Posting a manual journal entry.
+  PostJournalEntry get postEntry;
 
   /// Opens [fiscalYear], closing whatever was open, and builds its use cases.
   ///

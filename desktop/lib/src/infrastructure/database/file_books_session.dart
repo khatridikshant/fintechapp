@@ -6,6 +6,9 @@ import '../../application/business_details.dart';
 import '../../application/create_customer.dart';
 import '../../application/issue_invoice.dart';
 import '../../application/create_product.dart';
+import '../../application/issue_credit_note.dart';
+import '../../application/post_inventory_movement.dart';
+import '../../application/post_journal_entry.dart';
 import '../../application/record_payment.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
@@ -142,6 +145,32 @@ class FileBooksSession implements BooksSession {
   CreateCustomer get createCustomer => CreateCustomer(
         customers: DriftCustomerRepository(_database),
         codes: DriftCustomerCodeSequence(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  PostInventoryMovement get postMovement => PostInventoryMovement(
+        fiscalYear: _openYear.fiscalYear,
+        inventory: DriftInventoryRepository(_database),
+        journal: DriftJournalRepository(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  IssueCreditNote get issueCreditNote => IssueCreditNote(
+        fiscalYear: _openYear.fiscalYear,
+        invoices: DriftInvoiceRepository(_database),
+        payments: DriftPaymentRepository(_database),
+        creditNotes: DriftCreditNoteRepository(_database),
+        numbers: DriftDocumentNumberSequence(_database),
+        journal: DriftJournalRepository(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  PostJournalEntry get postEntry => PostJournalEntry(
+        fiscalYear: _openYear.fiscalYear,
+        journal: DriftJournalRepository(_database),
         unitOfWork: DriftUnitOfWork(_database),
       );
 

@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../app_services.dart';
 import '../finance_app_shell.dart';
 import '../screens/backup_screen.dart';
+import '../screens/credit_note_screen.dart';
 import '../screens/customer_screen.dart';
+import '../screens/journal_entry_screen.dart';
+import '../screens/stock_movement_screen.dart';
 import '../screens/invoice_screen.dart';
 import '../screens/payment_screen.dart';
 import '../screens/product_screen.dart';
@@ -65,7 +68,13 @@ List<NavigationGroup> buildNavigation(
     NavigationGroup(
       title: 'Accounting',
       sections: <NavigationItem>[
-        NavigationItem(title: 'Journal', icon: Icons.menu_book_outlined),
+        NavigationItem(
+          title: 'Journal',
+          icon: Icons.menu_book_outlined,
+          route: services.postEntry == null
+              ? null
+              : (context) => JournalEntryScreen(postEntry: services.postEntry!),
+        ),
         NavigationItem(
             title: 'Chart of Accounts', icon: Icons.account_tree_outlined),
         NavigationItem(
@@ -106,6 +115,18 @@ List<NavigationGroup> buildNavigation(
                   InvoiceScreen(issueInvoice: services.issueInvoice!),
         ),
         NavigationItem(title: 'Sales', icon: Icons.trending_up_outlined),
+        // Credit notes reduce an invoice already sent. Not in ui.txt's navigation
+        // list, but `IssueCreditNote` exists and a business with no way to issue
+        // one cannot correct a mistake it has already billed.
+        NavigationItem(
+          title: 'Credit Notes',
+          icon: Icons.receipt_long_outlined,
+          route: services.issueCreditNote == null
+              ? null
+              : (context) => CreditNoteScreen(
+                    issueCreditNote: services.issueCreditNote!,
+                  ),
+        ),
         NavigationItem(
           title: 'Customers',
           icon: Icons.people_outline,
@@ -139,7 +160,13 @@ List<NavigationGroup> buildNavigation(
         ),
         NavigationItem(title: 'Stock', icon: Icons.warehouse_outlined),
         NavigationItem(
-            title: 'Stock Movements', icon: Icons.swap_vert_outlined),
+            title: 'Stock Movements',
+            icon: Icons.swap_vert_outlined,
+            route: services.postMovement == null
+                ? null
+                : (context) => StockMovementScreen(
+                      postMovement: services.postMovement!,
+                    )),
       ],
     ),
     NavigationGroup(

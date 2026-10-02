@@ -116,6 +116,15 @@ void main() {
         // where the money landed. The screen cannot post the entry itself, and
         // nothing here decides the accounting.
         'domain/accounting/chart_of_accounts.dart',
+        // `CreditNote`, `JournalEntry`, `JournalLine` and `InventoryMovement`: the
+        // credit-note, journal and stock screens each build one from what was
+        // typed and hand it to its use case. All are value types. What decides
+        // whether they may be posted -- balance, creditable amount, negative
+        // stock -- stays with the use case in every case.
+        'domain/billing/credit_note.dart',
+        'domain/accounting/journal_entry.dart',
+        'domain/accounting/journal_line.dart',
+        'domain/inventory/inventory_movement.dart',
         // `SignInResult` and `SignInStatus`: the Settings screen has to say which
         // of the three outcomes happened -- refused, unreachable, or a bad
         // address -- because they ask different things of the user. Sending the

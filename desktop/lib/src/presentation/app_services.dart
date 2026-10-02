@@ -1,7 +1,10 @@
 import '../application/account_session.dart';
 import '../application/business_details.dart';
 import '../application/create_customer.dart';
+import '../application/issue_credit_note.dart';
 import '../application/issue_invoice.dart';
+import '../application/post_inventory_movement.dart';
+import '../application/post_journal_entry.dart';
 import '../application/create_product.dart';
 import '../application/record_payment.dart';
 import '../application/books_session.dart';
@@ -31,6 +34,9 @@ class AppServices {
     this.issueInvoice,
     this.recordPayment,
     this.createProduct,
+    this.postMovement,
+    this.issueCreditNote,
+    this.postEntry,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -78,6 +84,15 @@ class AppServices {
 
   /// Creating a product in the catalogue.
   final CreateProduct? createProduct;
+
+  /// Recording a stock movement.
+  final PostInventoryMovement? postMovement;
+
+  /// Issuing a credit note.
+  final IssueCreditNote? issueCreditNote;
+
+  /// Posting a manual journal entry.
+  final PostJournalEntry? postEntry;
 
   /// Which fiscal years exist and which is open, so the shell can offer a year
   /// switcher. Concluded years open **read-only**.
