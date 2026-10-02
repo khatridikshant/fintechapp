@@ -1,6 +1,7 @@
 import '../domain/fiscal/fiscal_year.dart';
 import '../domain/shared/book_backup_service.dart';
 import 'build_general_ledger.dart';
+import 'build_reports.dart';
 import 'build_trial_balance.dart';
 import 'create_customer.dart';
 import 'create_product.dart';
@@ -80,6 +81,23 @@ abstract interface class BooksSession {
 
   /// Posting a manual journal entry.
   PostJournalEntry get postEntry;
+
+  /// The four remaining reports, for the open year.
+  ///
+  /// `ConcludeFiscalYear` is deliberately **absent** from this interface: it needs
+  /// a signed-in uploader, which belongs to the account session rather than the
+  /// books, so the composition root builds it. See `main.dart`.
+  ///
+  /// All four read only, so they are safe on a concluded year.
+  BuildCashFlow get cashFlow;
+
+  BuildSalesSummary get sales;
+
+  BuildInventorySummary get inventoryReport;
+
+  /// The VAT figures. **Input VAT is always zero**, because there are no purchase
+  /// records yet, so this is not yet a complete return.
+  BuildTaxSummary get tax;
 
   /// Opens [fiscalYear], closing whatever was open, and builds its use cases.
   ///

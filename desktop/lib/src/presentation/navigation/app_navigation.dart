@@ -4,12 +4,14 @@ import '../app_services.dart';
 import '../finance_app_shell.dart';
 import '../screens/backup_screen.dart';
 import '../screens/credit_note_screen.dart';
+import '../screens/conclude_fiscal_year_screen.dart';
 import '../screens/customer_screen.dart';
 import '../screens/journal_entry_screen.dart';
 import '../screens/stock_movement_screen.dart';
 import '../screens/invoice_screen.dart';
 import '../screens/payment_screen.dart';
 import '../screens/product_screen.dart';
+import '../screens/financial_reports_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
@@ -189,12 +191,29 @@ List<NavigationGroup> buildNavigation(
       sections: <NavigationItem>[
         NavigationItem(title: 'Profit & Loss', icon: Icons.show_chart_outlined),
         NavigationItem(title: 'Balance Sheet', icon: Icons.assignment_outlined),
+        // The four reports below are built. They share one screen, and each entry
+        // opens it on its own report, so the navigation reads the way `ui.txt`
+        // describes while only one widget exists.
         NavigationItem(
-            title: 'Cash Flow', icon: Icons.waterfall_chart_outlined),
-        NavigationItem(title: 'Sales Reports', icon: Icons.bar_chart_outlined),
+          title: 'Cash Flow',
+          icon: Icons.waterfall_chart_outlined,
+          route: _reportsRoute(services, FinancialReport.cashFlow),
+        ),
         NavigationItem(
-            title: 'Inventory Reports', icon: Icons.donut_small_outlined),
-        NavigationItem(title: 'Tax Reports', icon: Icons.receipt_outlined),
+          title: 'Sales Reports',
+          icon: Icons.bar_chart_outlined,
+          route: _reportsRoute(services, FinancialReport.sales),
+        ),
+        NavigationItem(
+          title: 'Inventory Reports',
+          icon: Icons.donut_small_outlined,
+          route: _reportsRoute(services, FinancialReport.inventory),
+        ),
+        NavigationItem(
+          title: 'Tax Reports',
+          icon: Icons.receipt_outlined,
+          route: _reportsRoute(services, FinancialReport.tax),
+        ),
       ],
     ),
     NavigationGroup(
@@ -229,7 +248,15 @@ List<NavigationGroup> buildNavigation(
                   ),
         ),
         NavigationItem(title: 'Sync', icon: Icons.sync_outlined),
-        NavigationItem(title: 'Fiscal Year', icon: Icons.event_outlined),
+        NavigationItem(
+          title: 'Fiscal Year',
+          icon: Icons.event_outlined,
+          route: services.concludeYear == null
+              ? null
+              : (context) => ConcludeFiscalYearScreen(
+                    concludeYear: services.concludeYear!,
+                  ),
+        ),
         // Required by the MIT and BSD-3 licences of every dependency.
         NavigationItem(
           title: 'Licences',
@@ -246,6 +273,28 @@ List<NavigationItem> allNavigationItemsFor(AppServices services) =>
     buildNavigation(services)
         .expand((group) => group.sections)
         .toList(growable: false);
+
+/// Opens the shared reports screen on one report, or null when the books expose
+/// none of them.
+///
+/// Null rather than a disabled-looking-but-live route, so the entry says
+/// "unavailable" instead of opening an error.
+WidgetBuilder? _reportsRoute(AppServices services, FinancialReport report) {
+  if (services.cashFlow == null ||
+      services.sales == null ||
+      services.inventoryReport == null ||
+      services.tax == null) {
+    return null;
+  }
+  return (context) => FinancialReportsScreen(
+        cashFlow: services.cashFlow!,
+        sales: services.sales!,
+        inventory: services.inventoryReport!,
+        tax: services.tax!,
+        fiscalYearLabel: services.session?.openYear.fiscalYear.label,
+        initialReport: report,
+      );
+}
 
 /// The General Ledger navigation item, or null when it has no screen.
 NavigationItem? _ledgerItemFor(AppServices services) {

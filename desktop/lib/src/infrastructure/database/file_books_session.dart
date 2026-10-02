@@ -12,6 +12,7 @@ import '../../application/post_journal_entry.dart';
 import '../../application/record_payment.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
+import '../../application/build_reports.dart';
 import '../../application/build_trial_balance.dart';
 import '../../domain/accounting/chart_of_accounts.dart';
 import '../../domain/fiscal/fiscal_year.dart';
@@ -123,6 +124,13 @@ class FileBooksSession implements BooksSession {
   @override
   OpenYear get openYear => _openYear;
 
+  /// The open year's database file, for archiving.
+  ///
+  /// Exposed so the composition root can hand it to [ConcludeFiscalYear], which
+  /// must archive **this** file and not one it derives itself.
+  File get currentYearFile =>
+      _fileFor(booksDirectory, _openYear.fiscalYear.label);
+
   @override
   TrialBalanceLoader get trialBalance => BuildTrialBalance(
         fiscalYear: _openYear.fiscalYear,
@@ -134,6 +142,37 @@ class FileBooksSession implements BooksSession {
         fiscalYear: _openYear.fiscalYear,
         journal: DriftJournalRepository(_database),
         chart: const ChartOfAccounts(),
+      );
+
+  /// The four remaining reports, all reading the open year's books.
+  ///
+  /// **Built fresh on each access, like every other loader here**, so a report can
+  /// never be left holding a repository bound to a year that has since been
+  /// concluded.
+  @override
+  BuildCashFlow get cashFlow => BuildCashFlow(
+        fiscalYear: _openYear.fiscalYear,
+        journal: DriftJournalRepository(_database),
+      );
+
+  @override
+  BuildSalesSummary get sales => BuildSalesSummary(
+        fiscalYear: _openYear.fiscalYear,
+        invoices: DriftInvoiceRepository(_database),
+        creditNotes: DriftCreditNoteRepository(_database),
+      );
+
+  @override
+  BuildInventorySummary get inventoryReport => BuildInventorySummary(
+        fiscalYear: _openYear.fiscalYear,
+        inventory: DriftInventoryRepository(_database),
+      );
+
+  @override
+  BuildTaxSummary get tax => BuildTaxSummary(
+        fiscalYear: _openYear.fiscalYear,
+        invoices: DriftInvoiceRepository(_database),
+        creditNotes: DriftCreditNoteRepository(_database),
       );
 
   @override

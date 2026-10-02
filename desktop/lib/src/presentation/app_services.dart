@@ -1,5 +1,6 @@
 import '../application/account_session.dart';
 import '../application/business_details.dart';
+import '../application/conclude_fiscal_year.dart';
 import '../application/create_customer.dart';
 import '../application/issue_credit_note.dart';
 import '../application/issue_invoice.dart';
@@ -9,6 +10,7 @@ import '../application/create_product.dart';
 import '../application/record_payment.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
+import '../application/build_reports.dart';
 import '../application/build_trial_balance.dart';
 import '../domain/shared/book_backup_service.dart';
 import '../domain/shared/book_upload_service.dart';
@@ -37,6 +39,11 @@ class AppServices {
     this.postMovement,
     this.issueCreditNote,
     this.postEntry,
+    this.concludeYear,
+    this.cashFlow,
+    this.sales,
+    this.inventoryReport,
+    this.tax,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -94,9 +101,25 @@ class AppServices {
   /// Posting a manual journal entry.
   final PostJournalEntry? postEntry;
 
+  /// Concluding the open fiscal year.
+  final ConcludeFiscalYear? concludeYear;
+
   /// Which fiscal years exist and which is open, so the shell can offer a year
   /// switcher. Concluded years open **read-only**.
   final BooksSession? session;
+
+  /// The four remaining reports: cash flow, sales, stock held, and VAT.
+  ///
+  /// Grouped into one screen, so they are carried here as four use cases rather
+  /// than as a screen. The shell decides how to present them; this layer only
+  /// says what it is allowed to ask for.
+  final BuildCashFlow? cashFlow;
+  final BuildSalesSummary? sales;
+  final BuildInventorySummary? inventoryReport;
+
+  /// The VAT figures. **Not yet a complete return**, because the purchase side is
+  /// not built and input VAT is therefore always zero.
+  final BuildTaxSummary? tax;
 
   /// Every use case for the selected year, rebuilt from [session].
   ///
@@ -121,6 +144,22 @@ class AppServices {
         createCustomer: session.createCustomer,
         issueInvoice: session.issueInvoice,
         recordPayment: session.recordPayment,
+        // **Also from the open year.** These were once dropped here, which meant
+        // switching fiscal year silently removed the catalogue, the stock, the
+        // credit-note and the year-end screens. Carried through explicitly, and
+        // asserted by `app_services_test.dart`, so it cannot happen again.
+        createProduct: session.createProduct,
+        postMovement: session.postMovement,
+        issueCreditNote: session.issueCreditNote,
+        postEntry: session.postEntry,
+        // **Carried through, not rebuilt.** Concluding a year needs a signed-in
+        // uploader, which belongs to the account session rather than the books, so
+        // it is built in the composition root. See `main.dart`.
+        concludeYear: concludeYear,
+        cashFlow: session.cashFlow,
+        sales: session.sales,
+        inventoryReport: session.inventoryReport,
+        tax: session.tax,
       );
 
   /// The same services, re-read after signing in or out.
@@ -139,5 +178,16 @@ class AppServices {
         createCustomer: createCustomer,
         issueInvoice: issueInvoice,
         recordPayment: recordPayment,
+        // Carried through unchanged, and for the same reason as [forSession]:
+        // signing in must not remove any capability.
+        createProduct: createProduct,
+        postMovement: postMovement,
+        issueCreditNote: issueCreditNote,
+        postEntry: postEntry,
+        concludeYear: concludeYear,
+        cashFlow: cashFlow,
+        sales: sales,
+        inventoryReport: inventoryReport,
+        tax: tax,
       );
 }

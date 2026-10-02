@@ -2100,7 +2100,9 @@ Everything else. Specifically, none of the following exist:
 - **The link from a sale to stock.** A product cannot yet be put on an invoice
   line, so issuing an invoice does not move stock automatically. Selling and stock
   movement are still two manual operations.
-- Cash Flow and every other report beyond the four above.
+- ~~Cash Flow and every other report beyond the four above.~~ **Built 2026-10-02:**
+    cash flow, sales, stock held, and VAT. Input VAT remains zero, because the
+    purchase side of this application does not exist.
 - **The Flutter UI.** Not "any" — the shell, navigation, theme, licences screen,
   Trial Balance, General Ledger, fiscal-year selector, and Backup screen are built
   and wired to real data. See 4.20 to 4.25. **Still missing: any screen that
@@ -2926,6 +2928,78 @@ passed.** Whenever a verification is about to confirm something inconvenient —
 a registration was restored, a build was fixed, a file is unchanged — write down
 first what result would make it fail, and confirm the check can produce it.
 
+### 7.26 A copy method that silently drops fields, and the two tests that prove it
+
+`AppServices` has two methods that rebuild the whole bundle: `forSession`, called
+when the fiscal year changes, and `forAccount`, called on sign-in and sign-out. Both
+are written as a field-by-field constructor call, and both **omitted five fields**
+that the class declares: `createProduct`, `postMovement`, `issueCreditNote`,
+`postEntry` and `concludeYear`.
+
+**Nothing failed.** There is no error, no warning, and no failing test. Switching
+fiscal year silently removed the catalogue, the stock, the credit-note, the
+manual-journal and the year-end screens from the navigation, and signing in or out
+did the same. The application would still start, still take backups, and still pass
+all 889 tests. A user would conclude that the application had lost the feature.
+
+Why it survived so long, and why it will happen again:
+
+- **A constructor call with many optional fields has no failure mode for a missing
+  one.** Dart cannot distinguish "deliberately null" from "forgotten", because both
+  are null.
+- **The list of what a screen needs lives in `app_navigation.dart`, thousands of
+  lines from where the fields are copied.** Nothing connects the two.
+- **The tests that exercised a year switch checked the reports** — the two that had
+  always been wired — and not the five that had been dropped.
+
+The fix is not the five lines. It is `test/presentation/app_services_test.dart`,
+which asserts every field by name after both copies, so a future omission is a
+**named** failure ("reason: credit note") rather than a silent disappearance. The
+test builds a **real** `FileBooksSession` on a real directory, because a fake would
+only prove the fake can be copied faithfully.
+
+The general rule, and this is the second time in this project that a field list
+drifted from a capability list: **when a container is copied field by field, the
+copy needs a test that enumerates the fields, or the next addition will be
+invisible.** The same reasoning as 7.25 seen from the write side — a check that
+cannot fail looks like a check that passed, and "the code compiled" is such a check.
+
+### 7.27 A whole-year report must still respect the year it belongs to
+
+`BuildCashFlow.load()` takes an optional date range. With no range it read **every
+entry in the database**, which for the single-year-per-file design happens to be one
+fiscal year — so it looked right, and all the tests passed.
+
+It was wrong, and the widget test found it by printing what was on screen: for a
+year with a 100,000 opening-balance entry and a 20,000 sale, the statement showed
+**opening cash Rs 0.00 and received Rs 120,000.00**. The opening entry was being
+reported as money received *during* the year.
+
+That is the most misleading way a cash statement can be wrong, because the closing
+figure stays correct — 115,000 either way — so only the split between opening,
+received and paid was false, and a reader checking the total would find nothing
+wrong.
+
+The fix has two parts, and the second is the transferable one:
+
+1. `from` now defaults to `fiscalYear.startDate`, and the sales and VAT reports do
+   the same, because a document dated outside the year belongs to another year's
+   books.
+2. **The opening entry is dated on the year's first day, not the day before**, so
+   "strictly before the start" does not catch it. Rather than shifting the date to
+   fit the rule, the boundary is stated: `openingIncludesBoundary` is true **only**
+   for the whole-year view, and an explicit caller-supplied range keeps the strict
+   rule, because there the caller chose the boundary.
+
+Inventory was deliberately **not** given a year boundary: stock is a balance as at
+today, and the opening entry is exactly what makes that balance right. Filtering it
+would have been the change that looked like a fix and was not.
+
+**A total that survives an error is not a check on the error.** The closing figure
+was right throughout, which is why every use-case test passed. Only the screen,
+which asserted a specific line rather than a total, could see it.
+
+
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.
@@ -2973,7 +3047,7 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 1 | Domain model | Accounting, reporting, fiscal, chart of accounts, document numbering, **and the Nepali billing rules** complete: PAN handling, configurable tax rules, invoice compliance, amount in words, HS code, and `BusinessProfile`. |
 | 2 | Double-entry accounting engine | Complete and tested. |
 | 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork`, **ten schema migrations (v1 through v10)**, and a **separate business-level database** for the business profile. |
-| 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, and Balance Sheet complete.** Cash Flow and the rest are not started. |
+| 4 | Financial reports | **Trial Balance, General Ledger, Profit & Loss, Balance Sheet, Cash Flow, Sales, Stock Held, and VAT all complete** (the last four on 2026-10-02). **The VAT report is not yet a complete return**: input VAT is zero because the purchase side is not built. |
 | 5 | Billing | **Complete for the core cycle**, and now **compliant with the Nepali invoice rules** — see 4.35. Debit notes and refunds are not started; see section 5. |
 | 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
 | 7 | Complete offline workflow | **Complete.** Every way of changing the books has a screen: customers, invoices, payments, products, stock movements, credit notes, journal entries. The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, Backup screen, and **Settings** exist and are wired to real use cases. A business can be run through it end to end. |
@@ -3069,3 +3143,4 @@ build output; deleting them breaks the migration tests.
 | 2026-09-30 | **Learned what a Nepali invoice legally requires, and implemented it.** The specification set the standard: tax rules *"shall not be treated as permanently fixed application constants"*, so the rules became `NepalTaxRules` — data with a version string — rather than a `const int vatStandardRate` that would be silently wrong the year the Finance Act changed it. Implemented: the two legal document forms (Rule 17 tax invoice and the Rule 17(Ka) abbreviated retail invoice, limited to a ceiling of NPR 10,000); the seller's PAN gating everything, since a bill without it is not a valid tax bill; the buyer's PAN required when the buyer is VAT-registered, the document is a full tax invoice, or the total reaches the threshold, with a **malformed PAN reported as missing rather than printed**; a VAT-registered business charging no VAT; total in words in lakh and crore; and the HS code added by the 46th amendment. **Nothing was inferred where the sources conflict** — VAT registration thresholds are reported inconsistently (NPR 20 lakh vs 30 lakh for services), so no threshold is implemented at all and the flag is stated by the owner; guessing would produce confidently wrong compliance advice. **Corrected a retention error**: Income Tax Act §81(2), verified against the statutory text, is five years **from the expiry of the income year**, not from the transaction date, and VAT's commonly cited six years is the binding period — `BACKUP_AND_RETENTION.md` had flattened this into one undifferentiated "six years". Compliance is **advisory, not blocking**: refusing to issue an invoice at closing time would push the owner to work around the application entirely. |
 | 2026-09-30 | **The tests caught two real defects in new code, both before shipping.** `amountInWords` produced **"Rupees Ten Hundred Crore"** for Rs 100,000, because the divisor list and the name list were **misaligned** — `units[0]` was crore while `names[0]` was the empty string — so every lakh and crore figure on every invoice would have been wrong. And the abbreviated-invoice ceiling test **never actually reached the ceiling**: it derived a price from `rupees * 1.13` and assumed that equalled NPR 10,000, but VAT is rounded per paisa so it does not for most inputs, meaning a compliance boundary test was passing without exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% = Rs 10,000.00) and asserts the total first. Both are the same lesson as 7.21 and 7.25 from the other direction: **a test that does not reach the condition it names is not a test.** Mutation-checked both — making the ceiling exclusive, and restoring the misaligned lists, each fail. 749 Dart tests. | Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella — `webauthn_secure_storage`'s umbrella was clean while its sub-package carried the ATL and the WinRT include. 712 Dart tests, 35 Laravel tests, analyze clean, Pint clean, Windows build green. | It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories — `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
 | 2026-10-01 | **Customer identity decided and recorded: a random internal id plus a separate sequential business code** (`C-0001`), chosen by the owner after being offered a single sequential identifier and a name-based key. Recorded in **ADR 010**. **This closes the open question in 7.16** — ids must not collide if two installations ever sync, and a random id cannot, so that risk is closed now rather than after data exists. **Duplicate detection came from the PAN, not the name**: a unique index on `pan_number` is the one key that cannot produce a false collision, because two businesses cannot share a PAN, whereas a Nepali name repeats and changes on marriage — making it identity would repoint history. Also **fixed a duplication I had introduced myself**: a new `Party` type sat alongside the existing `Customer`, which already covered the same ground and was wired into `IssueInvoice`, `RecordPayment`, and three test files; `Party` is deleted and its PAN and VAT handling folded into `Customer`. |
+| 2026-10-02 | **Built the four remaining reports: cash flow, sales, stock held, and VAT.** These were the last four navigation entries in `ui.txt` still showing as dead placeholders. A cash statement is **deliberately not derivable from the profit and loss report** and the two are *supposed* to disagree: a sale on credit moves no cash and a payment of an old invoice is cash without a sale, so the statement reads only the bank and cash accounts, and it is derived from the chart of accounts rather than from hardcoded account ids, so a business that adds a second cash box is covered without a code change. Output VAT follows **invoices issued, not cash received**, because waiting for the cash would understate the liability. **Input VAT is zero, and that is recorded as a limitation rather than hidden**: there are no purchase records in the application at all, so there is nothing to compute input VAT from, and a figure that merely looked computed would be worse than a stated gap. Sales and VAT credit notes are **subtracted, not ignored**, since a credit note reduces what has been sold on exactly the documents a business issues when something has gone wrong. VAT is computed on the amount **excluding** VAT and rounds half-up once, in paisa. A credit note landing in a period with no sales yields a **negative** taxable figure rather than being clamped to zero, because clamping would hide a credit the business is entitled to carry forward. One screen serves all four, and the four navigation entries each open it on its own report. **Two real defects surfaced on the way, both found by tests rather than review.** `AppServices.forSession` and `forAccount` — the two methods that rebuild the whole service bundle — **silently dropped five declared fields** (`createProduct`, `postMovement`, `issueCreditNote`, `postEntry`, `concludeYear`), so changing fiscal year or signing in quietly removed the catalogue, stock, credit-note, journal and year-end screens from the navigation; nothing failed and all tests passed. `test/presentation/app_services_test.dart` now asserts every field by name, because the fix is not the five lines but the test that makes the next omission a **named** failure (recorded as **7.26**). And `BuildCashFlow` with no date range read every entry as one undifferentiated period, which put the **opening-balance entry into "received"** — opening cash Rs 0.00 and received Rs 120,000.00, where the truth was Rs 100,000 and Rs 20,000. The closing figure stayed correct throughout, so **every use-case test passed**; only a widget test that printed the screen could see it. Defaulting the period to the fiscal year exposed the second half: the opening entry is dated *on* the first day rather than the day before, so `openingIncludesBoundary` now states that boundary for the whole-year view, while an explicit caller-supplied range keeps the strict rule (**7.27**). Inventory deliberately got no year boundary, because stock is a balance as at today and the opening entry is exactly what makes that balance correct — filtering it would have been the change that looked like a fix and was not. The presentation-layer architecture test caught the new domain import and it was **added to the allowlist with its justification** rather than the import being worked around. 34 new tests, 889 total, analyze clean, Windows debug build green. |

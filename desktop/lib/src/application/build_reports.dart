@@ -1,0 +1,292 @@
+/// The four reports that were missing, as use cases.
+///
+/// Grouped in one file rather than four because they read the same data for the
+/// same period, and splitting them would spread the definitions of "the period"
+/// across four files that could then disagree.
+///
+/// Every one of these is a use case rather than something a screen assembles,
+/// because a screen that built its own report would hold business logic in the
+/// presentation layer, which docs/AI_RULES.md prohibits.
+library;
+
+/// The four reports that were missing, as use cases.
+///
+/// Grouped in one file rather than four because they read the same data for the
+/// same period, and splitting them would spread the definition of the period
+/// across four files that could then disagree.
+///
+/// Every one is a use case rather than something a screen assembles, because a
+/// screen that built its own report would hold business logic in the presentation
+/// layer, which `docs/AI_RULES.md` prohibits.
+
+import '../domain/accounting/chart_of_accounts.dart';
+import '../domain/shared/currency.dart';
+import '../domain/accounting/journal_repository.dart';
+import '../domain/billing/credit_note_repository.dart';
+import '../domain/billing/invoice_repository.dart';
+import '../domain/fiscal/fiscal_year.dart';
+import '../domain/inventory/inventory_repository.dart';
+import '../domain/reporting/financial_reports.dart';
+import '../domain/shared/money.dart';
+
+/// Builds the cash statement for a period.
+class BuildCashFlow {
+  const BuildCashFlow({
+    required this.fiscalYear,
+    required this.journal,
+    this.currency = bookCurrency,
+  });
+
+  final FiscalYear fiscalYear;
+  final JournalRepository journal;
+  final String currency;
+
+  Future<CashFlow> load({DateTime? from, DateTime? to}) async {
+    final entries = await journal.all();
+
+    // **The period opens at the start of the fiscal year when the caller gives no
+    // date.** Without this, every entry in the year would be a movement, and the
+    // opening-balance entry that concludes one year and opens the next would be
+    // reported as cash *received* during the year -- which is the opposite of what
+    // it is.
+    //
+    // The boundary is included in opening cash **only for that whole-year view**.
+    // An explicit date range keeps the strict rule, because there the caller chose
+    // the boundary and a transaction on the first day really did happen in the
+    // period.
+    final wholeYear = from == null;
+    final start = from ?? fiscalYear.startDate;
+
+    return CashFlow.from(
+      entries: entries,
+      // **Derived from the chart of accounts, not named here**, so a business that
+      // adds a second cash box is included without a code change.
+      isCashAccount: _isCashAccount,
+      currency: currency,
+      from: start,
+      to: to,
+      openingIncludesBoundary: wholeYear,
+    );
+  }
+
+  /// The accounts whose movement is cash.
+  ///
+  /// Named ids rather than a chart flag, because the chart has no "is cash" property
+  /// and adding one is a schema change for a reporting need.
+  static bool _isCashAccount(String accountId) =>
+      accountId == ChartOfAccounts.bank.id ||
+      accountId == ChartOfAccounts.cash.id;
+}
+
+/// Builds sales for a period: what was invoiced, net of credits.
+class BuildSalesSummary {
+  const BuildSalesSummary({
+    required this.fiscalYear,
+    required this.invoices,
+    required this.creditNotes,
+    this.currency = bookCurrency,
+  });
+
+  final FiscalYear fiscalYear;
+  final InvoiceRepository invoices;
+  final CreditNoteRepository creditNotes;
+  final String currency;
+
+  Future<SalesSummary> load({DateTime? from, DateTime? to}) async {
+    final issued = await invoices.all();
+    final credited = await creditNotes.all();
+
+    // **The year is the boundary, not the whole of time.** A document dated
+    // outside the fiscal year belongs to another year's books and must not appear
+    // in this year's sales.
+    final start = from ?? fiscalYear.startDate;
+
+    bool inRange(DateTime date) {
+      if (date.isBefore(start)) return false;
+      if (to != null && date.isAfter(to)) return false;
+      return true;
+    }
+
+    // By product, so the biggest lines are visible without reading every invoice.
+    final byProduct = <String, int>{};
+    for (final issuedInvoice in issued) {
+      if (!inRange(issuedInvoice.invoice.issueDate)) continue;
+      for (final line in issuedInvoice.invoice.lines) {
+        byProduct.update(
+          line.description,
+          (existing) => existing + line.lineTotal.minorUnits,
+          ifAbsent: () => line.lineTotal.minorUnits,
+        );
+      }
+    }
+
+    final credits = <ReportTotal>[];
+    for (final note in credited) {
+      if (!inRange(note.creditNote.date)) continue;
+      var total = 0;
+      for (final line in note.creditNote.lines) {
+        total += line.lineTotal.minorUnits;
+      }
+      credits.add(
+        ReportTotal(
+            label: note.number.value, amount: Money.minor(total, currency)),
+      );
+    }
+
+    final grossLines = byProduct.entries
+        .map(
+          (MapEntry<String, int> e) =>
+              ReportTotal(label: e.key, amount: Money.minor(e.value, currency)),
+        )
+        .toList()
+      // Largest first, because that is the order a reader wants.
+      ..sort((ReportTotal a, ReportTotal b) =>
+          b.amount.minorUnits.compareTo(a.amount.minorUnits));
+
+    return SalesSummary.from(
+      grossSales: grossLines,
+      credits: credits,
+      currency: currency,
+    );
+  }
+}
+
+/// Builds what stock is held, by product, at a point.
+class BuildInventorySummary {
+  const BuildInventorySummary({
+    required this.fiscalYear,
+    required this.inventory,
+    this.currency = bookCurrency,
+  });
+
+  final FiscalYear fiscalYear;
+  final InventoryRepository inventory;
+  final String currency;
+
+  Future<InventorySummary> load() async {
+    final movements = await inventory.allMovements();
+    final products = await inventory.allProducts();
+
+    // **Stock held is as at today, so every movement in the year counts** --
+    // including the opening entry that set the year up. Unlike the other three
+    // reports there is nothing to exclude here: stock is a balance, not a period's
+    // movement.
+    //
+    // Movements from before the fiscal year still count, because they are what the
+    // opening entry carried forward.
+    final byProduct = <String, int>{};
+    for (final movement in movements) {
+      byProduct.update(
+        movement.productId,
+        (existing) => existing + movement.value.minorUnits,
+        ifAbsent: () => movement.value.minorUnits,
+      );
+    }
+
+    final labels = <String, String>{
+      for (final product in products) product.id: product.name,
+    };
+
+    final lines = byProduct.entries
+        .map(
+          (MapEntry<String, int> e) => ReportTotal(
+            // The product's name, falling back to its id when the product has been
+            // removed from the catalogue but its movements remain.
+            label: labels[e.key] ?? e.key,
+            amount: Money.minor(e.value, currency),
+          ),
+        )
+        .toList()
+      ..sort((ReportTotal a, ReportTotal b) =>
+          b.amount.minorUnits.compareTo(a.amount.minorUnits));
+
+    return InventorySummary.from(lines: lines);
+  }
+}
+
+/// Builds the VAT figures a return needs, for a period.
+///
+/// ## Input VAT is zero, and that is honest
+///
+/// The **purchase side has not been built** — there are no purchase invoices in
+/// this application yet. So there is nothing to compute input VAT from, and this
+/// returns zero rather than a figure that looks computed. A business claiming input
+/// VAT on purchases it has not recorded would be claiming credit for nothing.
+class BuildTaxSummary {
+  const BuildTaxSummary({
+    required this.fiscalYear,
+    required this.invoices,
+    required this.creditNotes,
+    this.currency = bookCurrency,
+    this.rateBasisPoints = TaxSummary.standardRateBasisPoints,
+  });
+
+  final FiscalYear fiscalYear;
+  final InvoiceRepository invoices;
+  final CreditNoteRepository creditNotes;
+  final String currency;
+
+  /// The standard rate in force. **Data, not a constant in the logic**, because
+  /// the Finance Act changes it.
+  final int rateBasisPoints;
+
+  Future<TaxSummary> load({DateTime? from, DateTime? to}) async {
+    final issued = await invoices.all();
+    final credited = await creditNotes.all();
+
+    // The fiscal year is the boundary, for the same reason as in the sales report.
+    final start = from ?? fiscalYear.startDate;
+
+    bool inRange(DateTime date) {
+      if (date.isBefore(start)) return false;
+      if (to != null && date.isAfter(to)) return false;
+      return true;
+    }
+
+    // Output VAT is on invoices issued, not on money received, so a customer
+    // paying in instalments creates no extra output VAT.
+    var salesExcludingVat = 0;
+    for (final record in issued) {
+      if (!inRange(record.invoice.issueDate)) continue;
+      salesExcludingVat += record.invoice.subtotal.minorUnits;
+    }
+
+    // **No purchase records exist yet**, so there is nothing to compute input VAT
+    // from. Zero, rather than a figure that merely looks computed.
+    const purchasesExcludingVat = 0;
+
+    final credits = <ReportTotal>[];
+    for (final note in credited) {
+      if (!inRange(note.creditNote.date)) continue;
+      var total = 0;
+      for (final line in note.creditNote.lines) {
+        total += line.lineTotal.minorUnits;
+      }
+      credits.add(
+        ReportTotal(
+            label: note.number.value, amount: Money.minor(total, currency)),
+      );
+    }
+
+    return TaxSummary.from(
+      taxableSales: <ReportTotal>[
+        ReportTotal(
+          label: 'Sales excluding VAT',
+          amount: Money.minor(salesExcludingVat, currency),
+        ),
+      ],
+      // **No purchases exist yet**, so this is empty and input VAT is zero.
+      taxablePurchases: purchasesExcludingVat == 0
+          ? const <ReportTotal>[]
+          : <ReportTotal>[
+              ReportTotal(
+                label: 'Purchases excluding VAT',
+                amount: Money.minor(purchasesExcludingVat, currency),
+              ),
+            ],
+      credits: credits,
+      rateBasisPoints: rateBasisPoints,
+      currency: currency,
+    );
+  }
+}

@@ -136,6 +136,12 @@ void main() {
         'domain/billing/business_profile.dart',
         'domain/accounting/account.dart',
         'domain/reporting/general_ledger.dart',
+        // `CashFlow`, `SalesSummary`, `InventorySummary`, `TaxSummary` and
+        // `ReportTotal`: the four remaining reports, which the screen has to name in
+        // order to display them. All are **value types with no behaviour** -- the
+        // decisions are behind `BuildCashFlow` and friends. Same rule as the ledger
+        // above: only the shape crosses the boundary.
+        'domain/reporting/financial_reports.dart',
       };
 
       final offenders = <String>[];

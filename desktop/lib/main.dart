@@ -5,12 +5,19 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'src/application/account_session.dart';
+import 'src/application/conclude_fiscal_year.dart';
+import 'src/domain/accounting/chart_of_accounts.dart';
+import 'src/domain/shared/book_backup.dart';
 import 'src/domain/fiscal/nepali_fiscal_calendar.dart';
 import 'src/domain/shared/book_upload.dart';
 import 'src/domain/shared/book_upload_service.dart';
 import 'src/infrastructure/auth/http_auth_client.dart';
 import 'src/infrastructure/auth/secure_credential_store.dart';
+import 'src/infrastructure/backup/backup_service_fiscal_year_archive.dart';
+import 'src/infrastructure/database/drift_journal_repository.dart';
+import 'src/infrastructure/database/drift_unit_of_work.dart';
 import 'src/infrastructure/database/file_books_session.dart';
+import 'src/infrastructure/database/local_fiscal_year_transition.dart';
 import 'src/infrastructure/http/http_transport.dart';
 import 'src/infrastructure/sync/http_backup_uploader.dart';
 import 'src/presentation/app_services.dart';
@@ -82,6 +89,26 @@ Future<void> main() async {
           // the normal case -- this is null and the account session's uploader is
           // used instead.
           upload: _uploadsFrom(Platform.environment, supportDirectory),
+          // Concluding a year needs **both** the books and a signed-in uploader
+          // to archive to, and the uploader belongs to the account session — so
+          // this is built here, in the composition root, rather than on the
+          // session.
+          concludeYear: ConcludeFiscalYear(
+            fiscalYear: session.openYear.fiscalYear,
+            databaseFile: session.currentYearFile,
+            journal: DriftJournalRepository(session.database),
+            unitOfWork: DriftUnitOfWork(session.database),
+            archive: BackupServiceFiscalYearArchive(
+              backups: session.backup,
+              // **No sign-in means no archive**, and therefore no close. Passing a
+              // uploader that refuses is what makes that true.
+              uploads: account.upload ?? const NoUploads(),
+            ),
+            transition: LocalFiscalYearTransition(
+              booksDirectory: session.booksDirectory,
+            ),
+            accounts: const ChartOfAccounts().all,
+          ),
         ).forSession(session),
       ),
     );
@@ -217,4 +244,30 @@ class StartupFailureApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A uploader that can do nothing, used when nobody is signed in.
+///
+/// **A fiscal year must not be concluded without an archive**, so this exists to
+/// make that true rather than to allow a close with nowhere to put the result:
+/// [isAvailable] reports false and the close stops before writing anything.
+class NoUploads implements UploadActions {
+  const NoUploads();
+
+  @override
+  bool get canUpload => false;
+
+  @override
+  BackendSession? get session => null;
+
+  @override
+  Future<UploadResult> upload(BookBackup backup) async => UploadResult(
+        backup: backup,
+        status: UploadStatus.unreachable,
+        message: 'Nobody is signed in, so there is nowhere to archive to.',
+      );
+
+  @override
+  Future<List<UploadRecord>> uploadsFor(String fiscalYearLabel) async =>
+      const <UploadRecord>[];
 }

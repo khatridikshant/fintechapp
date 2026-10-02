@@ -58,4 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // to confirm the server holds it.
     Route::get('/backup-revisions/{revision}', [BackupRevisionController::class, 'show'])
         ->name('api.backup-revisions.show');
+
+    // The snapshot itself. This is the missing half of recovery: without it an
+    // upload is write-only and a lost computer stays unrecoverable. It carries the
+    // verified checksum in a header so the desktop can check it before writing
+    // anything over its books.
+    Route::get('/backup-revisions/{revision}/download', [BackupRevisionController::class, 'download'])
+        ->name('api.backup-revisions.download');
 });

@@ -170,6 +170,77 @@ class BackupRevisionController extends Controller
     }
 
     /**
+     * Download one stored snapshot.
+     *
+     * The missing half of recovery: an upload with no download leaves the
+     * off-machine copy **write-only**, so a lost computer is still unrecoverable.
+     *
+     * Three things happen before a byte is sent, in this order:
+     *
+     * 1. Ownership is checked, so no user can fetch another user's books.
+     * 2. The object must actually exist on the disk. A row pointing at a missing
+     *    file is a broken record, and downloading it would hand the desktop a
+     *    truncated file that looks like a snapshot.
+     * 3. The bytes are hashed **as they are read**, and compared with what the
+     *    upload verified. A file that has changed on the server since it was
+     *    stored is refused, because the checksum is what makes a restore
+     *    trustworthy.
+     *
+     * The checksum is sent as a header so the desktop can verify before it writes
+     * anything over its books.
+     */
+    public function download(Request $request, BackupRevision $revision): Response
+    {
+        $this->assertOwnership($request, $revision->book);
+
+        $disk = Storage::disk('backups');
+
+        if (! $disk->exists($revision->object_key)) {
+            return response()->json([
+                'message' => 'The stored file is missing from the server.',
+                'reason' => 'A revision record exists but the snapshot it points at is '
+                    .'not there, so there is nothing that can safely be restored.',
+            ], Response::HTTP_GONE);
+        }
+
+        $path = $disk->path($revision->object_key);
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            return response()->json([
+                'message' => 'The stored file could not be read.',
+            ], Response::HTTP_GOES_AWAY);
+        }
+
+        $actual = hash('sha256', $contents);
+        if ($actual !== $revision->checksum) {
+            return response()->json([
+                'message' => 'The stored file no longer matches its checksum.',
+                'reason' => sprintf(
+                    'The server holds a file whose SHA-256 is %s, but %s was '
+                    .'recorded when it was stored. It has changed since, so it '
+                    .'cannot be trusted as a restore source.',
+                    $actual,
+                    $revision->checksum,
+                ),
+            ], Response::HTTP_CONFLICT);
+        }
+
+        return response($contents, Response::HTTP_OK, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Length' => (string) strlen($contents),
+            'X-Backup-Checksum' => $actual,
+            'X-Backup-Revision' => (string) $revision->revision,
+            'X-Backup-Fiscal-Year' => $revision->fiscal_year_label,
+            'Content-Disposition' => sprintf(
+                'attachment; filename="backup-%s-r%d.db"',
+                $this->slug($revision->fiscal_year_label),
+                $revision->revision,
+            ),
+        ]);
+    }
+
+    /**
      * Refuse a book the caller does not own.
      *
      * Done here rather than in middleware so a future route cannot forget it.
