@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../application/business_details.dart';
 import '../../application/create_customer.dart';
 import '../../application/issue_invoice.dart';
+import '../../application/record_payment.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
 import '../../application/build_trial_balance.dart';
@@ -20,7 +21,9 @@ import 'drift_customer_code_sequence.dart';
 import 'drift_customer_repository.dart';
 import 'drift_business_profile_repository.dart';
 import 'drift_document_number_sequence.dart';
+import 'drift_credit_note_repository.dart';
 import 'drift_invoice_repository.dart';
+import 'drift_payment_repository.dart';
 import 'drift_journal_repository.dart';
 import 'drift_unit_of_work.dart';
 import 'open_business_database.dart';
@@ -137,6 +140,16 @@ class FileBooksSession implements BooksSession {
   CreateCustomer get createCustomer => CreateCustomer(
         customers: DriftCustomerRepository(_database),
         codes: DriftCustomerCodeSequence(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  RecordPayment get recordPayment => RecordPayment(
+        fiscalYear: _openYear.fiscalYear,
+        invoices: DriftInvoiceRepository(_database),
+        payments: DriftPaymentRepository(_database),
+        creditNotes: DriftCreditNoteRepository(_database),
+        journal: DriftJournalRepository(_database),
         unitOfWork: DriftUnitOfWork(_database),
       );
 

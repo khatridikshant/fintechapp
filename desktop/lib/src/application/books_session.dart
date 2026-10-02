@@ -4,6 +4,7 @@ import 'build_general_ledger.dart';
 import 'build_trial_balance.dart';
 import 'create_customer.dart';
 import 'issue_invoice.dart';
+import 'record_payment.dart';
 
 /// One fiscal year the application can open.
 class OpenYear {
@@ -58,6 +59,10 @@ abstract interface class BooksSession {
   /// Rebuilt per open year, because an invoice belongs to the books of the year it
   /// is dated in.
   IssueInvoice get issueInvoice;
+
+  /// Recording a payment against an invoice. Rebuilt per open year, because a
+  /// payment belongs to the books of the year it was received in.
+  RecordPayment get recordPayment;
 
   /// Opens [fiscalYear], closing whatever was open, and builds its use cases.
   ///

@@ -108,6 +108,14 @@ void main() {
         // crosses the boundary.
         'domain/billing/invoice.dart',
         'domain/billing/invoice_line.dart',
+        // `Payment`: the receipt screen builds one from what was typed and hands
+        // it to `RecordPayment`. A value type; the entry and the balance are the
+        // use case's.
+        'domain/billing/payment.dart',
+        // `ChartOfAccounts`: only for `bank` and `cash`, so the person can say
+        // where the money landed. The screen cannot post the entry itself, and
+        // nothing here decides the accounting.
+        'domain/accounting/chart_of_accounts.dart',
         // `SignInResult` and `SignInStatus`: the Settings screen has to say which
         // of the three outcomes happened -- refused, unreachable, or a bad
         // address -- because they ask different things of the user. Sending the

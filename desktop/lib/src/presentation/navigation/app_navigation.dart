@@ -5,6 +5,7 @@ import '../finance_app_shell.dart';
 import '../screens/backup_screen.dart';
 import '../screens/customer_screen.dart';
 import '../screens/invoice_screen.dart';
+import '../screens/payment_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
@@ -136,7 +137,14 @@ List<NavigationGroup> buildNavigation(
     NavigationGroup(
       title: 'Payments',
       sections: <NavigationItem>[
-        NavigationItem(title: 'Receipts', icon: Icons.receipt_long_outlined),
+        NavigationItem(
+          title: 'Receipts',
+          icon: Icons.receipt_long_outlined,
+          route: services.recordPayment == null
+              ? null
+              : (context) =>
+                  PaymentScreen(recordPayment: services.recordPayment!),
+        ),
         NavigationItem(title: 'Payments', icon: Icons.paid_outlined),
         NavigationItem(title: 'Transfers', icon: Icons.compare_arrows_outlined),
       ],

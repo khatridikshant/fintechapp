@@ -2,6 +2,7 @@ import '../application/account_session.dart';
 import '../application/business_details.dart';
 import '../application/create_customer.dart';
 import '../application/issue_invoice.dart';
+import '../application/record_payment.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
 import '../application/build_trial_balance.dart';
@@ -27,6 +28,7 @@ class AppServices {
     this.businessDetails,
     this.createCustomer,
     this.issueInvoice,
+    this.recordPayment,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -68,6 +70,13 @@ class AppServices {
   /// test rather than a normal state.
   final IssueInvoice? issueInvoice;
 
+  /// Recording a payment. Null when the books expose no such use case, which is a
+  /// test rather than a normal state.
+  final RecordPayment? recordPayment;
+
+  /// Recording a payment. Null when the books expose no such use case, which is a
+  /// test rather than a normal state.
+
   /// Which fiscal years exist and which is open, so the shell can offer a year
   /// switcher. Concluded years open **read-only**.
   final BooksSession? session;
@@ -94,6 +103,7 @@ class AppServices {
         // were added.
         createCustomer: session.createCustomer,
         issueInvoice: session.issueInvoice,
+        recordPayment: session.recordPayment,
       );
 
   /// The same services, re-read after signing in or out.
@@ -110,5 +120,7 @@ class AppServices {
         account: account,
         businessDetails: businessDetails,
         createCustomer: createCustomer,
+        issueInvoice: issueInvoice,
+        recordPayment: recordPayment,
       );
 }

@@ -1837,6 +1837,94 @@ clean, Windows build succeeds.
   **no business name or PAN**, which would leave every invoice invalid until the
   details are re-entered.
 
+### 4.38 The first two data-entry forms: customers and invoices
+
+**Gate 7, and the first change that makes the application usable rather than
+readable.** Everything before this could *compute* everything and *store*
+everything, but a user could type into nothing except Settings.
+
+| File | Contents |
+| --- | --- |
+| `domain/billing/customer_code.dart` | `CustomerCode`, printed as `C-0001`. |
+| `domain/billing/customer_code_sequence.dart` | The port for allocating them. |
+| `application/create_customer.dart` | `CreateCustomer`, `CustomerCreated`, `CustomerRejected`. |
+| `presentation/screens/customer_screen.dart` | The customer form. |
+| `presentation/screens/invoice_screen.dart` | The invoice form. |
+| `test/application/create_customer_test.dart`, `test/presentation/customer_screen_test.dart`, `test/presentation/invoice_screen_test.dart` | 12, 10, and 10 tests. |
+
+**A customer code needed its own sequence, and this was not obvious.** Document
+numbers restart each fiscal year, which is correct for documents. **A customer code
+must not**: `C-0001` issued again next year would name two different customers and
+make every old invoice ambiguous. So `customer_code_sequence` is a separate
+lifetime counter (ADR 010), and a new table at schema v12.
+
+**The code is allocated inside the transaction, after validation.** A refused
+customer must not burn a reference — a gap in the sequence is harmless, two
+customers sharing a reference is not. **Mutation-tested**: moving the allocation
+before validation fails three tests, so the tests are real.
+
+**The screens decide nothing.** Neither form computes a total, chooses a number, or
+builds a journal entry; both hand typed input to a use case and render what came
+back. If a screen calculated a total, the figure on the bill and the figure in the
+ledger could disagree, with only one of them quietly wrong.
+
+**Three defects the tests caught:**
+
+1. **The invoice form could never clear after issuing.** `_clear()` disposed
+   controllers that were still attached to live `TextFormField`s, which throws
+   during the rebuild and takes the frame down with it. It now clears text in
+   place, which is also what the user sees rather than new empty fields.
+2. **A test asserted unreachable behaviour.** "Will not submit an invoice with no
+   lines" could never fire, because the form deliberately always keeps a row.
+   Replaced with the property that actually matters: *the form always offers a
+   row, and the only row is not removable.*
+3. **A failure I first read as a screen bug was my own fake.** `JournalEntry`
+   refuses an unbalanced entry, so a stub with no lines threw *inside* the use case
+   and the screen correctly reported a problem instead of the issued number. Worth
+   recording because it presented exactly like a UI fault.
+
+**One deliberate convenience, documented in the screen.** The customer form strips
+hyphens from a typed PAN (`301-234-567` → `301234567`), because on a laptop
+nobody types them. The domain still has the final say.
+
+**The architecture guard was extended, not silenced.** `invoice.dart` and
+`invoice_line.dart` are added to the allow-list with a reason: both are value types
+the screen constructs and hands over, and the screen reads **none** of the totals.
+
+Verified: **807 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
+build succeeds.
+
+### 4.39 The payment form — and a receivable can now be settled
+
+**The last step that makes billing end to end.** An issued invoice left a
+receivable outstanding forever until a payment could be recorded; now it can be.
+
+| File | Contents |
+| --- | --- |
+| `presentation/screens/payment_screen.dart` | The receipt form. |
+| `test/presentation/payment_screen_test.dart` | 7 tests. |
+
+**The screen decides nothing about the accounting**, the same rule as the other two
+forms. In particular it does **not** decide whether the amount is too much:
+`RecordPayment` allows exactly the outstanding balance and refuses one paisa more,
+**accounting for credit notes already issued**. A screen that rounded or tidied the
+figure would turn a correct refusal into an accepted overpayment — so there is a
+test asserting `5000.50` reaches the use case as exactly 500050 paisa.
+
+**The screen does offer one choice: bank or cash.** A person has to say where the
+money landed, and nothing more. The entry itself is the use case's.
+
+**On success it reports what is still outstanding**, from the balance the use case
+returned rather than a subtraction done in the UI — and says plainly when the
+invoice is fully settled, which is the thing the user most wants to know.
+
+**`PROGRESS.md` was corrected in the same session**, having gone stale again: it
+claimed 762 tests and 4 screens with entries, when there were 807 and six. The
+counts are now accurate and the old "4 of 30" claim is marked superseded.
+
+Verified: **814 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
+build succeeds.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -1981,11 +2069,14 @@ This is the next bounded task, ready to hand to an agent verbatim.
 > document is a valid Nepali tax invoice and what is missing, and
 > `NepalTaxRules.current` carries the rate and thresholds.
 >
-> The use case already exists and is tested — `IssueInvoice` — so this is
-> presentation work, not accounting work. It is also what turns this from an
-> application you can read reports in into one you can run a business in, and it
-> is the largest remaining gap: **4 of 30 navigation items have a screen, and
-> nothing can be entered at all.**
+> **Superseded by 4.38 — the invoice form is built.** Kept for the record.
+  >
+  > The use case already exists and is tested — `IssueInvoice` — so this was
+  > presentation work, not accounting work. It is what turns this from an
+  > application you can read reports in into one you can run a business in, and it
+  > was the largest remaining gap: at the time **4 of 30 navigation items had a
+  > screen, and nothing could be entered at all.** Now 6 of 32 do, and a customer
+  > can be created and invoiced.
 >
 > Nothing is blocked any more. The Windows build succeeds (4.33) and the
 > toolchain is registered (4.34). **Do not spend this task on the installer, and
@@ -2746,9 +2837,12 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 9 | Cloud backup and restore | **Upload complete, restore not.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **762 Dart tests**, all passing, and **35 Laravel tests**, all
+**Test suite:** **814 Dart tests**, all passing, and **35 Laravel tests**, all
 passing with 97 assertions. `flutter analyze` reports no issues. `php artisan test`
-reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean.
+reports `{"tests":35,"passed":35,"assertions":97}`. Pint is clean. The newest Dart
+files are `test/presentation/invoice_screen_test.dart` (10),
+`test/application/create_customer_test.dart` (12), and
+`test/presentation/customer_screen_test.dart` (10) — see 4.38.
 
 **Build status: `flutter build windows --debug` succeeds** and produces
 `financeapp.exe`, **with no optional Visual Studio component required** — the
