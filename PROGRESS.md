@@ -2205,31 +2205,30 @@ finished code.
   this repository. **See 7.19 before editing any markdown file from a shell.**
 
 ## 6. Next task
-
 This is the next bounded task, ready to hand to an agent verbatim.
 
 > **Give a signed-in desktop the divergence table, and say plainly when two
 > computers disagree.**
 >
-> Everything else below is done. The whole feature set the specification asked for
-> is built; what is left is the honesty work, and this is the highest-value piece
-> of it.
+> Everything else the specification asked for is built. What is left is the
+> honesty work, and this is the highest-value piece of it.
 >
 > **The problem.** Two computers holding the same books can diverge — invoice #5
-> on the desktop, payment #6 on the laptop, and now two internally consistent
-> databases that are not the same books. Every upload of both is accepted, because
-> each file really is a valid snapshot. A restore replaces one with the other
-> without saying so. Nothing in the codebase detects this: ADR 007 assumes "one
-> book, one active installation" in prose, and nothing enforces it.
+> on the desktop, payment #6 on the laptop — leaving two internally consistent
+> databases that are *not* the same books. Every upload of both is accepted,
+> because each file genuinely is a valid snapshot. A restore replaces one with the
+> other without saying so. ADR 007 assumes "one book, one active installation" in
+> prose and nothing enforces it.
 >
-> **Now partly prevented.** ADR 011's `max_devices` rule makes concurrent
+> **Partly prevented already.** ADR 011's `max_devices` rule makes concurrent
 > divergence unlikely by revoking the earlier session on sign-in. It does not make
-> it impossible — a device signed out but never synced is invisible to it — so
+> it impossible — a device that signed out without syncing is invisible to it — so
 > detection is still needed.
 >
-> **The signal already exists on both sides.** The server stores a SHA-256 per
-> revision, and the desktop already computes one for every snapshot. Comparing
-> them distinguishes four cases with no merge machinery at all:
+> **Done.** `Divergence` and `SyncComparison` in `domain/sync/divergence.dart`
+> classify all four cases from three checksums, with 14 tests. The constructor is
+> private, so `divergence` can never contradict its own inputs; see 7.31 for the
+> defect that prompted that.
 >
 > | Local vs last upload | Server vs last upload | What to do |
 > | --- | --- | --- |
@@ -2238,22 +2237,22 @@ This is the next bounded task, ready to hand to an agent verbatim.
 > | differs | unchanged | An ordinary upload. |
 > | differs | differs | **Stop.** Both changed. Do not pick a winner. |
 >
-> **Prerequisite, and build it first:** each device must record the revision it
-> last successfully pushed and the checksum it pushed. The uploader computes the
-> checksum and reads the revision already; it does not record the confirmed
-> outcome.
+> **The prerequisite is already satisfied, so no new plumbing is needed.** The
+> upload log records an `UploadRecord` with the confirmed `remoteRevision` and
+> `checksum`, and the server's revision index already returns a checksum per
+> revision. What remains is a use case that reads both sides, and a screen that
+> acts on the classification.
 >
 > **Required behaviour:**
 >
-> 1. A `409` from upload becomes a question, not an error. Today it is reported
->    as "a newer archive of this year exists", which reads like a backup hiccup
->    when it is the only trace of divergent books.
-> 2. On a genuine both-changed state, **refuse to proceed and explain**. Do not
->    offer "keep mine" / "take theirs" there: it is not a choice, it is choosing
->    whose work to destroy. Say what each side contains and let them reconcile.
+> 1. A `409` from upload becomes a question, not an error. Today it is reported as
+>    "a newer archive of this year exists", which reads like a backup hiccup when it
+>    is the only trace of divergent books.
+> 2. On `bothChanged`, **refuse and explain**. Do not offer "keep mine" / "take
+>    theirs": it is not a choice, it is choosing whose work to destroy. Say what
+>    each side contains and let them reconcile.
 > 3. **Keep the server's chain authoritative.** "Take theirs" always downloads; it
->    never pushes local books under a new revision. Otherwise the local book races
->    the server's record of what happened.
+>    never pushes local books under a new revision.
 > 4. **Never auto-merge.** For double entry with document numbering, a wrong merge
 >    is worse than a refusal. Preserve both and show the difference.
 >
@@ -2269,12 +2268,12 @@ This is the next bounded task, ready to hand to an agent verbatim.
 > Laravel Boost. Do not run `vs_installer.exe modify --add` (4.34).**
 >
 > **After that, Gate 10**, which is untouched and least specified: deployment
-> hardening, retention enforcement against
-> `docs/BACKUP_AND_RETENTION.md`, recovery drills, observability, and the
-> installer and update strategy. The open question recorded in ADR 011 about
-> **which copy of the PAN is authoritative** — server or local `business.db` — is
-> a decision needed before any filing work, and encryption at rest is more pressing
-> now that the PAN is server-held rather than only inside the user's own file.
+> hardening, retention enforcement against `docs/BACKUP_AND_RETENTION.md`, recovery
+> drills, observability, and the installer and update strategy. Two decisions are
+> needed before any filing work: which copy of the PAN is authoritative — the
+> server's `companies` row or local `business.db` — and encryption at rest, which
+> is more pressing now that the PAN is server-held rather than only inside the
+> user's own file.
 ## 7. Decisions and discoveries that affect future work
 
 ### 7.1 The desktop framework was chosen: Flutter
@@ -3012,17 +3011,17 @@ ERROR: column "username" of relation "users" contains null values
 
 The in-memory test suite passed throughout, and could never have caught it.
 `RefreshDatabase` migrates an *empty* schema and every user is created afterwards
-by a factory that supplies the field — so the column is never populated by
-anything other than the factory. **The database the tests run against has the same
-shape as a brand-new installation and never the shape of a real one.**
+by a factory that supplies the field — so the column is never populated by anything
+other than the factory. **The database the tests run against has the same shape as
+a brand-new installation and never the shape of a real one.**
 
 Two more failures surfaced only on PostgreSQL, in the same migration:
 
 - **`HAVING` cannot reference an aggregate alias.** `->having('total', '>', 1)` works
   on SQLite and is rejected by PostgreSQL.
-- **`split_part` is PostgreSQL-only.** The natural way to backfill a username from
-  an address is `split_part(email, '@', 1)`, which does not exist in SQLite — so
-  the version that worked on PostgreSQL broke all sixty tests, and the version that
+- **`split_part` is PostgreSQL-only.** The natural way to backfill a username from an
+  address is `split_part(email, '@', 1)`, which does not exist in SQLite — so the
+  version that worked on PostgreSQL broke all sixty tests, and the version that
   fixed that would have needed a driver check.
 
 The portable answer is to do the backfill **in PHP**, chunked, rather than in SQL:
@@ -3047,21 +3046,21 @@ and cannot be repaired. A `PersonalAccessToken` row *is* the session, and counti
 those is correct by construction.
 
 **Refusing the sign-in when the allowance was spent** was the second. It is the
-safer-looking option and it is the dangerous one: a token belonging to a machine
-that no longer exists — reinstalled, replaced, stolen, or simply never signed out —
+safer-looking option and it is the dangerous one: a token belonging to a machine that
+no longer exists — reinstalled, replaced, stolen, or simply never signed out —
 permanently consumes the only slot. The owner is locked out of their own account
-with no device list to revoke from and no expiry to clear it, and the only remedy
-is a hand-written `DELETE`.
+with no device list to revoke from and no expiry to clear it, and the only remedy is
+a hand-written `DELETE`.
 
 **The shipped rule** is one line: on sign-in, keep the newest `max_devices` sessions
 and revoke the rest. Login is authenticated by the **password**, not by a token, so
-signing in always succeeds — and a stale session revokes *itself* on the next
-sign-in instead of locking anyone out. That property is the whole reason for the
-shape, and it is not obvious from the code; it is written in ADR 011.
+signing in always succeeds — and a stale session revokes *itself* on the next sign-in
+instead of locking anyone out. That property is the whole reason for the shape, and
+it is not obvious from the code; it is written in ADR 011.
 
-The other half was recognising that **nothing is lost** when a session is revoked.
-A signed-out desktop keeps its local SQLite untouched, and local backups never need
-a session. An earlier draft of this entry claimed work was "stranded" and "at risk";
+The other half was recognising that **nothing is lost** when a session is revoked. A
+signed-out desktop keeps its local SQLite untouched, and local backups never need a
+session. An earlier draft of this entry claimed work was "stranded" and "at risk";
 that was wrong, and correcting it changed the recommendation from *warn before
 signing out* to *refuse the new sign-in*, because the concern it rested on did not
 exist.
@@ -3073,16 +3072,87 @@ device left the first working — the exact opposite of the new policy. It was
 **deliberately reversed and split**, not edited until green, because the policy
 changed on purpose and the record needs to say so.
 
-Its replacement then failed for a second reason, which is worth more than the
-policy: it asserted a `401` over HTTP, and got `200`. The revocation was working
-perfectly — the surviving token was the newest one, as intended. **`Sanctum` keeps a
-resolved user alive across requests within a single test**, so a token deleted
-mid-test still appeared to authenticate. The assertion now reads the stored
-sessions directly, and points at the test that covers a genuinely invalid token.
+Its replacement then failed for a second reason, which is worth more than the policy:
+it asserted a `401` over HTTP, and got `200`. The revocation was working perfectly —
+the surviving token was the newest one, as intended. **`Sanctum` keeps a resolved
+user alive across requests within a single test**, so a token deleted mid-test still
+appeared to authenticate. The assertion now reads the stored sessions directly, and
+points at the test that covers a genuinely invalid token.
 
-A failure that looks like a product defect and is a harness artefact is worth as
-much to record as a real one: had the test been "fixed" by loosening the
-assertion, the HTTP path would have shipped unverified.
+A failure that looks like a product defect and is a harness artefact is worth as much
+to record as a real one: had the test been "fixed" by loosening the assertion, the
+HTTP path would have shipped unverified.
+
+### 7.31 The classification was right; the meaning of "needs attention" was not
+
+`Divergence` is the pure function that decides whether two copies of the same books
+have drifted. It is four cases, and all four are specified by tests — including the
+two that no code path can currently produce, since `serverOnly` and `bothChanged` can
+only arise from a second computer.
+
+The first version of that enum read:
+
+```dart
+bool get needsAttention => this != Divergence.none;
+```
+
+which makes `localOnly` **need attention**. It is wrong, and the test caught it. "Only
+this computer changed" needs no decision from anybody — the upload just happens, and
+it is the action the application already takes. Marking it as needing attention means
+prompting the user to confirm work that has no alternative, and **a prompt that is
+always answered the same way is a prompt people stop reading.** That is worse than no
+prompt, because it spends the user's attention on a non-event and leaves none for the
+case where the answer actually varies.
+
+So the rule is narrower than "not the ordinary case":
+
+| | needs a decision | can be resolved without asking |
+|---|---|---|
+| `none` | no | yes |
+| `localOnly` | **no** | **yes** |
+| `serverOnly` | yes | no |
+| `bothChanged` | yes | no — it must stop |
+
+The lesson is not about enums. It is that a predicate named after an *effect on the
+user* ("needs attention") has to be derived from what the user can do about each case,
+not from a coarse grouping like "is this the normal one". The four cases were right;
+the label on two of them was not, and no amount of reading the code would have shown
+that — the code was internally consistent and externally unhelpful.
+
+**Verified by mutation.** Replacing the checksum comparison with a revision-number
+comparison — precisely the mistake the type's own documentation warns against — fails
+four tests, including the one asserting that another device re-uploading identical
+bytes is *not* a divergence. A test that passes only because the implementation and
+the expectation were written from the same idea is worth nothing; this one had to be
+broken to be shown to work.
+
+### 7.32 An invalid line range deleted 628 lines of this file
+
+Rewriting section 6 to replace a stale "next task" block, the PowerShell used a slice
+whose **start index was greater than its end index**. PowerShell does not reject that;
+it walks it in descending order, so the range returned two lines instead of a range,
+and everything between section 6 and section 8 — the `## 7` heading and entries
+**7.1 through 7.28**, the accumulated discoveries of many sessions — was silently
+dropped.
+
+**Nothing failed.** The write succeeded, the file stayed valid UTF-8, and no test in
+the repository reads `PROGRESS.md`. The loss was found only because the next command
+printed the section-6 text and the heading list, and `## 7.` was not in it.
+
+Two lessons, both about checks that cannot fail:
+
+- **Verify counts, not just success.** The write reported success and reported a line
+  count. A line count of 2,518 where the file had been 3,146 is the whole signal, and
+  it was not compared against anything. Compare before/after counts, always — the
+  cheapest possible invariant for an edit to a document.
+- **A descending slice is a silent delete in every language that allows one.** Build
+  replacements as `head + new + tail` with each part asserted, never as a single slice
+  from computed indices.
+
+Recovered from `git show HEAD:PROGRESS.md`, which is the only reason the loss was
+survivable: **the accumulated discoveries were in git but not yet committed, and the
+edit sat on top of them.** This file is read by the next agent and nothing else reads
+it, so nothing would have told anyone it had been truncated.
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.
@@ -3134,7 +3204,7 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 5 | Billing | **Complete for the core cycle**, and now **compliant with the Nepali invoice rules** — see 4.35. Debit notes and refunds are not started; see section 5. |
 | 6 | Inventory and COGS | **Complete.** Products, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. Locations and transfers are not modelled; see section 5. |
 | 7 | Complete offline workflow | **Complete.** Every way of changing the books has a screen: customers, invoices, payments, products, stock movements, credit notes, journal entries. The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, Backup screen, and **Settings** exist and are wired to real use cases. A business can be run through it end to end. |
-| 8 | Fiscal-year conclusion and archival | **Logic done.** The close, its blocking checks, the closing entries, and the archive-before-transition ordering are built and tested (4.43). **The screen, the archive, and the server-backed prune are now built.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
+| 8 | Fiscal-year conclusion and archival | **Logic done.** The close, its blocking checks, the closing entries, and the archive-before-transition ordering are built and tested (4.43). **The screen, the archive, and the server-backed prune are all built.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** — nothing closes a year, and no retention or archival policy is enforced. |
 | 9 | Cloud backup and restore | **Upload and restore both complete.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** — there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
@@ -3227,4 +3297,4 @@ build output; deleting them breaks the migration tests.
 | 2026-09-30 | **The tests caught two real defects in new code, both before shipping.** `amountInWords` produced **"Rupees Ten Hundred Crore"** for Rs 100,000, because the divisor list and the name list were **misaligned** — `units[0]` was crore while `names[0]` was the empty string — so every lakh and crore figure on every invoice would have been wrong. And the abbreviated-invoice ceiling test **never actually reached the ceiling**: it derived a price from `rupees * 1.13` and assumed that equalled NPR 10,000, but VAT is rounded per paisa so it does not for most inputs, meaning a compliance boundary test was passing without exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% = Rs 10,000.00) and asserts the total first. Both are the same lesson as 7.21 and 7.25 from the other direction: **a test that does not reach the condition it names is not a test.** Mutation-checked both — making the ceiling exclusive, and restoring the misaligned lists, each fail. 749 Dart tests. | Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella — `webauthn_secure_storage`'s umbrella was clean while its sub-package carried the ATL and the WinRT include. 712 Dart tests, 35 Laravel tests, analyze clean, Pint clean, Windows build green. | It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories — `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
 | 2026-10-01 | **Customer identity decided and recorded: a random internal id plus a separate sequential business code** (`C-0001`), chosen by the owner after being offered a single sequential identifier and a name-based key. Recorded in **ADR 010**. **This closes the open question in 7.16** — ids must not collide if two installations ever sync, and a random id cannot, so that risk is closed now rather than after data exists. **Duplicate detection came from the PAN, not the name**: a unique index on `pan_number` is the one key that cannot produce a false collision, because two businesses cannot share a PAN, whereas a Nepali name repeats and changes on marriage — making it identity would repoint history. Also **fixed a duplication I had introduced myself**: a new `Party` type sat alongside the existing `Customer`, which already covered the same ground and was wired into `IssueInvoice`, `RecordPayment`, and three test files; `Party` is deleted and its PAN and VAT handling folded into `Customer`. |
 | 2026-10-02 | **Built the four remaining reports: cash flow, sales, stock held, and VAT.** These were the last four navigation entries in `ui.txt` still showing as dead placeholders. A cash statement is **deliberately not derivable from the profit and loss report** and the two are *supposed* to disagree: a sale on credit moves no cash and a payment of an old invoice is cash without a sale, so the statement reads only the bank and cash accounts, and it is derived from the chart of accounts rather than from hardcoded account ids, so a business that adds a second cash box is covered without a code change. Output VAT follows **invoices issued, not cash received**, because waiting for the cash would understate the liability. **Input VAT is zero, and that is recorded as a limitation rather than hidden**: there are no purchase records in the application at all, so there is nothing to compute input VAT from, and a figure that merely looked computed would be worse than a stated gap. Sales and VAT credit notes are **subtracted, not ignored**, since a credit note reduces what has been sold on exactly the documents a business issues when something has gone wrong. VAT is computed on the amount **excluding** VAT and rounds half-up once, in paisa. A credit note landing in a period with no sales yields a **negative** taxable figure rather than being clamped to zero, because clamping would hide a credit the business is entitled to carry forward. One screen serves all four, and the four navigation entries each open it on its own report. **Two real defects surfaced on the way, both found by tests rather than review.** `AppServices.forSession` and `forAccount` — the two methods that rebuild the whole service bundle — **silently dropped five declared fields** (`createProduct`, `postMovement`, `issueCreditNote`, `postEntry`, `concludeYear`), so changing fiscal year or signing in quietly removed the catalogue, stock, credit-note, journal and year-end screens from the navigation; nothing failed and all tests passed. `test/presentation/app_services_test.dart` now asserts every field by name, because the fix is not the five lines but the test that makes the next omission a **named** failure (recorded as **7.26**). And `BuildCashFlow` with no date range read every entry as one undifferentiated period, which put the **opening-balance entry into "received"** — opening cash Rs 0.00 and received Rs 120,000.00, where the truth was Rs 100,000 and Rs 20,000. The closing figure stayed correct throughout, so **every use-case test passed**; only a widget test that printed the screen could see it. Defaulting the period to the fiscal year exposed the second half: the opening entry is dated *on* the first day rather than the day before, so `openingIncludesBoundary` now states that boundary for the whole-year view, while an explicit caller-supplied range keeps the strict rule (**7.27**). Inventory deliberately got no year boundary, because stock is a balance as at today and the opening entry is exactly what makes that balance correct — filtering it would have been the change that looked like a fix and was not. The presentation-layer architecture test caught the new domain import and it was **added to the allowlist with its justification** rather than the import being worked around. 34 new tests, 889 total, analyze clean, Windows debug build green. |
-| 2026-10-02 | **Pruned a concluded fiscal year to one snapshot, and made the server company-aware.** The first is the closer: a concluded year is immutable (`PRAGMA query_only`), so **every snapshot of it is byte-identical** and the extras are duplicates rather than history — re-uploading a frozen file just writes the same bytes under a new name. `ConcludedFiscalYearPruner` keeps the newest revision and deletes the rest, **after** re-hashing the survivor on disk and comparing it to the recorded checksum; missing, unreadable or changed means it throws and deletes nothing. Files go, **rows are tombstoned** with `superseded_by_revision` and `pruned_at`, so the server can still answer what happened to a copy. It runs **after** the fiscal transition, deliberately: telling the server a year is final before the next year's books exist locally would leave it holding a closed year this computer can still edit. `FiscalYearConcluded.serverOutcome` carries the result, and **a server that cannot be reached does not fail the close** — the archive is confirmed by then and the extras cost only disk. This also means `STATUS_ARCHIVED`, declared but never assigned since the table was created, is now actually used. Two bugs surfaced immediately: constructor-injecting `Filesystem` resolves to the **default** disk rather than `backups`, so the pruner reported every stored file as missing; and the route **404'd, because every fiscal year label contains a slash** (`FY 2081/82`) and a slash inside a URL path segment is a separator — percent-encoding does not help, as the router decodes before matching. The label now travels in the request body. The second half is **companies**: the PAN was previously visible only *inside* the uploaded SQLite, so the server could not tell a user who they were, could not stop two accounts claiming the same taxpayer, and could not file anything on their behalf. A `companies` table now holds `name`, a **unique nine-digit `pan`** (matching `NepaliPan`, because a mistyped PAN that reaches an invoice looks valid) and `vat_registered`; `users.company_id` points at it. A company is a legal entity, not the person signing in — which is what lets an owner and an accountant, or an accountant with several clients, exist at all. The duplicate-PAN error deliberately uses the same generic wording as a duplicate email, because confirming which taxpayers are customers is itself a disclosure. Also added: unique `username`, and `max_devices` enforcing **newest-wins** — on sign-in keep the newest N sessions, revoke the rest. That one rule is safe *because login is authenticated by the password, not a token*, so signing in always succeeds and a session left by a machine that no longer exists revokes itself rather than locking the owner out permanently. `test_logout_leaves_other_sessions_working` was **deliberately reversed and split** rather than edited until green, and its replacement then failed for a second, more interesting reason: it asserted a 401 and got 200 while the revocation was in fact working, because `Sanctum` keeps a resolved user alive across requests within one test. Recorded as **7.28–7.30**, with ADR 011. **The most valuable finding was the one only the live database could give:** `username NOT NULL` with no backfill passed all 60 tests and failed against the live database's 19 existing accounts, because `RefreshDatabase` migrates an *empty* schema — a migration is only tested against a database that already contains data. Two more PostgreSQL-only failures followed (`HAVING` on an aggregate alias, and `split_part`), fixed by backfilling in chunked PHP so one code path serves both drivers. Verified live: 19 users / 19 books / 15 revisions preserved, usernames backfilled with suffixes where the local part collided, and **both unique constraints proven to bite** by deliberately violating them. 898 Dart tests, 60 Laravel tests, Pint clean. |
+| 2026-10-02 | **Built the company model, and lost 628 lines of this file doing it.** Two things happened, and the second is the one that matters. First: the four missing reports (cash flow, sales, stock held, VAT) — these were the last dead navigation entries in `ui.txt`. A cash statement is **deliberately not derivable from profit and loss** and the two are *supposed* to disagree, because a credit sale moves no cash and a payment of an old invoice is cash without a sale. Output VAT follows **invoices issued, not cash received**. **Input VAT is zero and that is recorded as a limitation, not hidden**: no purchase records exist in the application at all. Second: a concluded year is **immutable** (`PRAGMA query_only`), so every snapshot of it is byte-identical and the extras are duplicates rather than history — `ConcludedFiscalYearPruner` now keeps the newest revision and deletes the rest, **after** re-hashing the survivor on disk, tombstoning the rows rather than deleting them, and running **after** the fiscal transition so the server can never hold a closed year this computer still allows editing. Three real defects surfaced: `AppServices.forSession`/`forAccount` **silently dropped five declared fields**, so changing year or signing in removed the catalogue, stock, credit-note, journal and year-end screens from the navigation with nothing failing; `BuildCashFlow` with no date range put the **opening-balance entry into "received"** — opening Rs 0.00 against a truth of Rs 100,000 — and the closing figure stayed correct throughout, so **every use-case test passed** and only a widget test could see it; and `AppServices` needed a `company_id` because **a company is a legal entity, not the person signing in**, which is what lets an owner and an accountant exist at all. Both were found by tests, and both are recorded with mutation checks in 7.26, 7.27 and 7.31. The live-database migration then produced the finding no test could: `username NOT NULL` with no backfill **passed all 60 tests and failed against 19 real accounts**, because `RefreshDatabase` migrates an *empty* schema — **a migration is only tested against a database that already contains data** (7.28). Two more PostgreSQL-only failures followed (`HAVING` on an aggregate alias, `split_part`), fixed by backfilling in chunked PHP so one code path serves both drivers. **And then I destroyed this document.** Rewriting section 6, the PowerShell slice had a start index greater than its end index — which PowerShell does not reject, it walks descending, so the "range" returned two lines and everything between section 6 and section 8 was dropped: **the `## 7` heading and entries 7.1 through 7.28, the accumulated discoveries of many sessions.** The write succeeded, the file stayed valid UTF-8, and no test reads this file, so nothing complained. It was found only because the next command printed the section-6 text and `## 7.` was not in it, and recovered only because the lost content was in `git show HEAD` — **the discoveries were committed but the edits on top of them were not**. A descending slice is a silent delete; build replacements as `head + new + tail` and **compare before/after line counts**, because a write reporting success is not evidence of a correct write. Restored and re-applied with verified bounds: 3,299 lines, entries 1–32 with no gaps or duplicates, ascending, all sections present. Also built: `Divergence`/`SyncComparison` classifying all four drift cases from three checksums rather than revision numbers, 14 tests, mutation-verified — and the discovery that `needsAttention` was true for `localOnly`, which is wrong, because prompting a user to confirm work with no alternative teaches them to ignore the prompt (7.31). 912 Dart tests, 60 Laravel tests, both analyzers clean. |
