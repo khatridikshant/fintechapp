@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../http/http_transport.dart';
+import 'api_url.dart';
 
 /// A licence authorisation as the server issued it.
 class LicenceAuthorisation {
@@ -74,12 +75,18 @@ class HttpLicenceAuthorisationClient {
     required String installationId,
     String? deviceName,
   }) async {
-    final uri = serverBaseUrl.replace(
-      path: '/api/books/$bookId/licence-authorisation',
-      // **The installation travels as a query parameter**, because this is a GET
-      // and a GET has no body. Building the URI explicitly avoids the trap where a
-      // second argument to a GET client is quietly sent as a query string anyway.
-      queryParameters: {
+    final uri = apiUrl(
+      serverBaseUrl,
+      // **The route exactly as Laravel registers it** (`php artisan route:list`):
+      // `GET api/books/{book}/licence-authorisation`. It is spelled here rather
+      // than assembled from segments so a change to the route is a one-line diff
+      // that fails the test below, instead of a mismatch discovered at runtime.
+      '/api/books/$bookId/licence-authorisation',
+      // The installation travels as a **query parameter**, because this is a GET
+      // and a GET has no body. The backend validates `installation_id` as a
+      // `uuid`, which is why `_installationId` produces a real UUID rather than an
+      // arbitrary string — an unparseable value is a 422, not a licence.
+      {
         'installation_id': installationId,
         if (deviceName != null) 'device_name': deviceName,
       },

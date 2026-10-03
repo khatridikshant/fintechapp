@@ -249,17 +249,36 @@ Future<void> main() async {
 const String licencePublicKey =
     'hNJ0abFa9Z/kTmL8bfQCCFAwG5hUFgp37/oxG3TAKB0=';
 
-/// A stable id for this installation.
+/// A stable id for this installation, in **UUID form**.
 ///
 /// Derived from the OS-provided per-user support directory, so it **survives
-/// restarts** Ã¢â‚¬â€ a licence is bound to an installation, so an id that changed per
+/// restarts** — a licence is bound to an installation, so an id that changed per
 /// launch would lock the user out every time they started the application.
 ///
 /// Never regenerated, and never taken from the network: the server is told what it
 /// is, rather than being allowed to choose it.
+///
+/// ## Why a real UUID and not any stable string
+///
+/// The backend validates the parameter with Laravel's `uuid` rule. An earlier
+/// version returned `'inst-<32 hex characters>'`, which is stable and unique but
+/// **not a UUID**, so every sign-in would have failed validation with a 422 and no
+/// licence would ever be issued. The failure would look like a server fault.
+///
+/// ## Why it is derived rather than stored
+///
+/// Deriving from a path the OS already gives us means there is no file to lose,
+/// no registry key to migrate, and no risk of the stored value and the derived one
+/// disagreeing. The cost is that it changes if the user moves their application
+/// data, which would need a new licence — a trade recorded rather than hidden.
 String _installationId(String supportDirectoryPath) {
-  final digest = sha256.convert(utf8.encode(supportDirectoryPath));
-  return 'inst-${digest.toString().substring(0, 32)}';
+  final digest = sha256.convert(utf8.encode(supportDirectoryPath)).toString();
+
+  // Formatted 8-4-4-4-12 rather than emitted raw, because the `uuid` rule checks
+  // the shape and not merely the character set.
+  return '${digest.substring(0, 8)}-${digest.substring(8, 12)}-'
+      '${digest.substring(12, 16)}-${digest.substring(16, 20)}-'
+      '${digest.substring(20, 32)}';
 }
 
 /// A name for this installation, so the server can identify it.

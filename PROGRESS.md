@@ -2246,6 +2246,30 @@ implementation in infrastructure â€” so a screen can learn *whether* it may
 never *how* that was decided. The whitelist entry was added deliberately, which is
 what that test is for.
 
+**The desktop and the backend must speak the same URL, and two ways they did not
+were found and fixed.**
+
+- **`Uri.replace(path: ...)` discarded the server's base path.** A deployment at
+  `https://host/finance` — an ordinary way to put Laravel behind a reverse proxy —
+  would have had every request sent to `https://host/api/...`, producing a 404 that
+  reads as a wiring fault rather than as a URL bug. All request URLs now go through
+  one `apiUrl` helper that **appends** to the trimmed server address, so the desktop
+  and the Laravel routes cannot drift apart in how they are assembled.
+- **`installation_id` was not a UUID.** The controller validates it with Laravel's
+  `uuid` rule; `_installationId()` returned `'inst-<32 hex>'`, which is stable and
+  unique but not a UUID, so **every sign-in would have failed with a 422 and no
+  licence would ever have been issued** — reported to the user as a server problem.
+  It is now formatted 8-4-4-4-12, and **both halves are pinned**: a Dart test
+  asserts the desktop's UUID is accepted, and a PHP test asserts a non-UUID is
+  rejected with a validation error.
+
+Two tests now exist purely to stop the halves drifting: `LicenceAuthorisationClientTest`
+pins the request path, the parameter names and the query string to what
+`php artisan route:list` actually shows, and `LicenceRouteContractTest` asserts from
+the **server's** side that the route exists and that the desktop's UUID form is the
+one accepted. A renamed route would otherwise surface as "no licence found", which
+sends the user to their supplier when the fault is on this side.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -4592,9 +4616,9 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 9 | Cloud backup and restore | **Upload and restore both complete.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** Ã¢â‚¬â€ there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **1135 Dart tests**, all passing, and **78 Laravel tests**, all
-passing with 204 assertions. `flutter analyze` reports no issues. `php artisan test`
-reports `{"tests":78,"passed":78,"assertions":204}`. Pint is clean. The newest Dart
+**Test suite:** **1155 Dart tests**, all passing, and **81 Laravel tests**, all
+passing with 208 assertions. `flutter analyze` reports no issues. `php artisan test`
+reports `{"tests":81,"passed":81,"assertions":208}`. Pint is clean. The newest Dart
 files are `test/presentation/licence_gate_widget_test.dart` (8),
 `test/infrastructure/licence_gate_test.dart` (17), and
 `test/application/sale_to_stock_test.dart` (15) — see 4.49 and 4.46.

@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../domain/shared/auth_service.dart';
 import '../../domain/shared/book_upload.dart';
 import '../../domain/shared/sign_in.dart';
+import '../http/api_url.dart';
 import '../http/http_transport.dart';
 
 /// Signs in and out over HTTP.
@@ -188,9 +189,7 @@ class HttpAuthClient implements AuthActions {
     return loopback.contains(server.host);
   }
 
-  static Uri _apiUrl(Uri server, String path) => Uri.parse(
-        '${server.toString().replaceAll(RegExp(r'/+$'), '')}$path',
-      );
+  static Uri _apiUrl(Uri server, String path) => apiUrl(server, path);
 
   static Map<String, Object?>? _decode(String body) {
     if (body.trim().isEmpty) return null;
