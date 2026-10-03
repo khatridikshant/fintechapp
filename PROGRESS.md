@@ -2270,6 +2270,35 @@ the **server's** side that the route exists and that the desktop's UUID form is 
 one accepted. A renamed route would otherwise surface as "no licence found", which
 sends the user to their supplier when the fault is on this side.
 
+**The user never types the server address.** The owner asked for it to come from the
+backend rather than be entered, and the sign-in screen has no such field. The
+address is a **compile-time constant**:
+
+```bash
+flutter run --dart-define=FINANCEAPP_SERVER=https://licence.example
+```
+
+with `http://127.0.0.1:8000` as the default. That default is not arbitrary: it is
+`APP_URL` in `backend/.env` **and** the port `php artisan serve` uses with no
+arguments. The file previously named **8123**, and `desktop/README.md` names **8124**
+for the live-check tool — three numbers for one local server, which is how a
+developer ends up with a sign-in reporting "could not reach the server" and no idea
+why. 8124 is deliberate and stays: the live check uses it precisely so it does not
+clash with the real server. One number now covers the application.
+
+The field is gone for a reason beyond convenience: **a mistyped address produces a
+"no licence" answer that blames the user's supplier**, which is a far worse failure
+than being unable to configure anything. A widget test asserts the field is absent
+from the tree, not merely off screen.
+
+The `https://` validation that came with that field was removed too, and it was
+**wrong twice over**. It duplicated — and contradicted — the loopback-aware check
+already in `HttpAuthClient`, which permits plain `http` for `localhost` and
+`127.0.0.1` precisely because that traffic never leaves the machine. A form-level
+`https` rule would have refused the local development server the application is
+meant to talk to. The check stays where it belongs: in the client that actually
+sends the password.
+
 ## 5. What has NOT been done
 
 Everything else. Specifically, none of the following exist:
@@ -4616,7 +4645,7 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 9 | Cloud backup and restore | **Upload and restore both complete.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** Ã¢â‚¬â€ there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **1155 Dart tests**, all passing, and **81 Laravel tests**, all
+**Test suite:** **1157 Dart tests**, all passing, and **81 Laravel tests**, all
 passing with 208 assertions. `flutter analyze` reports no issues. `php artisan test`
 reports `{"tests":81,"passed":81,"assertions":208}`. Pint is clean. The newest Dart
 files are `test/presentation/licence_gate_widget_test.dart` (8),

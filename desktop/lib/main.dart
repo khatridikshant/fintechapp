@@ -160,12 +160,11 @@ Future<void> main() async {
           // authorisation allows. No network call happens per launch.
           recheck: () async => licenceGate.evaluate(),
           signIn: ({
-            required String serverUrl,
             required String email,
             required String password,
           }) async {
             final result = await account.signIn(
-              serverBaseUrl: Uri.parse(serverUrl),
+              serverBaseUrl: serverBaseUrl,
               email: email,
               password: password,
             );
@@ -178,7 +177,7 @@ Future<void> main() async {
             if (session == null) throw StateError('Sign-in did not complete.');
 
             final fetched = await licenceClient.fetch(
-              serverBaseUrl: Uri.parse(serverUrl),
+              serverBaseUrl: serverBaseUrl,
               token: session.token,
               bookId: session.bookId,
               installationId: installationId,
@@ -229,6 +228,48 @@ Future<void> main() async {
     runApp(StartupFailureApp(error: error));
   }
 }
+
+/// Where the backend lives.
+///
+/// ## Why the user is never asked
+///
+/// The address is compiled into the build. A user asked to retype it on every
+/// machine would get it wrong, and **a wrong address produces a "no licence"
+/// answer that blames their supplier** — which is a much worse failure than being
+/// unable to configure anything.
+///
+/// The default is the local Laravel development server. Point a build at a real
+/// deployment with:
+///
+/// ```
+/// flutter run  --dart-define=FINANCEAPP_SERVER=https://licence.example
+/// flutter build windows --dart-define=FINANCEAPP_SERVER=https://licence.example
+/// ```
+///
+/// **Plain `http` is permitted only for loopback**, and the check lives in
+/// [HttpAuthClient] rather than here: a password and a bearer token on clear text
+/// to another machine are readable by anyone on the network. See [_isSafeServer].
+const String configuredServer =
+    String.fromEnvironment('FINANCEAPP_SERVER', defaultValue: '');
+
+/// The address the application actually uses.
+///
+/// **Defaults to the port `php artisan serve` uses with no arguments — 8000** —
+/// which is also `APP_URL` in `backend/.env`. Earlier comments in this file and in
+/// `README.md` named 8123 and 8124; three different numbers for one local server is
+/// how a developer ends up with a sign-in that reports "could not reach the server"
+/// and no idea why.
+///
+/// **One place to change it** if the local port moves: either run
+/// `php artisan serve --port=<n>` and pass the same number here, or pass it per
+/// build:
+///
+/// ```
+/// flutter run --dart-define=FINANCEAPP_SERVER=http://127.0.0.1:8124
+/// ```
+final Uri serverBaseUrl = Uri.parse(
+  configuredServer.isEmpty ? 'http://127.0.0.1:8000' : configuredServer,
+);
 
 /// The public key that verifies a licence authorisation.
 ///
@@ -298,7 +339,7 @@ String get _deviceName => 'desktop-${Platform.operatingSystem}';
 /// does, a session can be supplied through the environment:
 ///
 /// ```
-/// FINANCEAPP_SERVER=http://127.0.0.1:8123
+/// FINANCEAPP_SERVER=http://127.0.0.1:8000
 /// FINANCEAPP_TOKEN=<the token /api/auth/login returned>
 /// FINANCEAPP_BOOK=<the book id /api/auth/register returned>
 /// ```

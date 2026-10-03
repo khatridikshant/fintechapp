@@ -33,8 +33,12 @@ class LicenceRequiredScreen extends StatefulWidget {
 
   /// Called when the user asks to sign in. Supplied by the caller, because signing
   /// in needs a transport and a server address and this screen owns neither.
+  ///
+  /// **No server address parameter, deliberately.** The address is compiled into
+  /// the build rather than typed: a user asked to retype it on every machine would
+  /// get it wrong, and a wrong address produces a "no licence" answer that blames
+  /// their supplier. Changing it is a build-time concern, not a user one.
   final Future<void> Function({
-    required String serverUrl,
     required String email,
     required String password,
   }) onSignIn;
@@ -47,7 +51,6 @@ class LicenceRequiredScreen extends StatefulWidget {
 }
 
 class _LicenceRequiredScreenState extends State<LicenceRequiredScreen> {
-  final _serverController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -57,7 +60,6 @@ class _LicenceRequiredScreenState extends State<LicenceRequiredScreen> {
 
   @override
   void dispose() {
-    _serverController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -73,7 +75,6 @@ class _LicenceRequiredScreenState extends State<LicenceRequiredScreen> {
 
     try {
       await widget.onSignIn(
-        serverUrl: _serverController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -129,26 +130,6 @@ class _LicenceRequiredScreenState extends State<LicenceRequiredScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextFormField(
-                        controller: _serverController,
-                        decoration: const InputDecoration(
-                          labelText: 'Server address',
-                          hintText: 'https://your-server.example',
-                        ),
-                        keyboardType: TextInputType.url,
-                        validator: (value) {
-                          final text = (value ?? '').trim();
-                          if (text.isEmpty) return 'Enter the server address.';
-                          if (!text.startsWith('https://')) {
-                            // **Refused here rather than at the request.** Sending a
-                            // password over plain http is not a warning, it is the
-                            // whole session being readable.
-                            return 'The address must start with https://.';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
                       TextFormField(
                         controller: _emailController,
                         decoration: const InputDecoration(labelText: 'Email'),

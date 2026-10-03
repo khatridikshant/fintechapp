@@ -28,7 +28,6 @@ void main() {
   AppServices gated(
     Future<LicenceAccess> Function() recheck, {
     Future<void> Function({
-      required String serverUrl,
       required String email,
       required String password,
     })? signIn,
@@ -37,7 +36,6 @@ void main() {
         recheck: recheck,
         signIn: signIn ??
             ({
-              required String serverUrl,
               required String email,
               required String password,
             }) async {},
@@ -88,41 +86,44 @@ void main() {
       );
     });
 
-    testWidgets('signing in is offered with server, email and password',
-        (tester) async {
+    testWidgets('signing in asks only for an email and a password', (tester) async {
+      // **The server address is not a user question.** It is compiled into the
+      // build, so there is nothing to mistype — and a wrong address would produce a
+      // "no licence" answer that blames the supplier rather than the setting.
       await tester.pumpWidget(
         FinanceApp(services: gated(() async => locked)),
       );
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(TextFormField, 'Server address'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+
+      // Asserted by absence: a field that is merely off screen would still be in
+      // the tree, and a user could still be shown it.
+      expect(find.text('Server address'), findsNothing);
+      expect(find.widgetWithText(TextFormField, 'Server address'), findsNothing);
     });
 
-    testWidgets('a plain-http server is refused before any request', (tester) async {
-      var called = false;
+    testWidgets('the credentials reach the sign-in path unchanged', (tester) async {
+      String? seenEmail;
+      String? seenPassword;
       await tester.pumpWidget(
         FinanceApp(
           services: gated(
             () async => locked,
             signIn: ({
-              required String serverUrl,
               required String email,
               required String password,
             }) async {
-              called = true;
+              seenEmail = email;
+              seenPassword = password;
             },
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Server address'),
-        'http://insecure.example',
-      );
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Email'),
         'owner@example.com',
@@ -134,15 +135,67 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
       await tester.pumpAndSettle();
 
-      // **Never sent.** A password on clear text is the whole session readable.
-      expect(called, isFalse);
-      // Matched exactly rather than by substring, because the hint text also
-      // contains "https://" and a substring match would pass whether or not the
-      // validation had fired Ã¢â‚¬â€ the check-that-cannot-fail shape 7.25 records.
-      expect(
-        find.text('The address must start with https://.'),
-        findsOneWidget,
+      expect(seenEmail, 'owner@example.com');
+      expect(seenPassword, 'correct-horse');
+    });
+
+    testWidgets('an empty form does not call the server', (tester) async {
+      var called = false;
+      await tester.pumpWidget(
+        FinanceApp(
+          services: gated(
+            () async => locked,
+            signIn: ({
+              required String email,
+              required String password,
+            }) async {
+              called = true;
+            },
+          ),
+        ),
       );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.pumpAndSettle();
+
+      // **Validated before the request**, so an empty password never reaches the
+      // network — and the user sees which field is wrong.
+      expect(called, isFalse);
+    });
+
+    testWidgets('a failed sign-in is reported, not swallowed', (tester) async {
+      // **A blank form with a disabled button looks identical to a frozen
+      // application**, and the user has no way to tell which it is.
+      await tester.pumpWidget(
+        FinanceApp(
+          services: gated(
+            () async => locked,
+            signIn: ({
+              required String email,
+              required String password,
+            }) async {
+              throw StateError('Those details were not accepted.');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Email'),
+        'owner@example.com',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Password'),
+        'wrong-password',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('were not accepted'), findsOneWidget);
+      // The books are still closed, which is the point.
+      expect(find.byType(ListView), findsNothing);
     });
   });
 

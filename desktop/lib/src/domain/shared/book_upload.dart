@@ -21,7 +21,7 @@ class BackendSession {
     this.vatRegistered,
   });
 
-  /// The server root, for example `http://127.0.0.1:8123`. Requests are built
+  /// The server root, for example `http://127.0.0.1:8000`. Requests are built
   /// from this, so it must not include a trailing `/api`.
   final Uri serverBaseUrl;
 

@@ -174,8 +174,11 @@ class AppServices {
   final Future<LicenceAccess> Function()? recheckLicence;
 
   /// Signs in and stores the licence authorisation. Null when [recheckLicence] is.
+  ///
+  /// **No server address parameter.** The address is compiled into the build, so
+  /// there is nothing for a user to mistype and no way to point the application at
+  /// the wrong server by accident.
   final Future<void> Function({
-    required String serverUrl,
     required String email,
     required String password,
   })? signInForLicence;
@@ -196,7 +199,6 @@ class AppServices {
   AppServices withLicenceGate({
     required Future<LicenceAccess> Function() recheck,
     required Future<void> Function({
-      required String serverUrl,
       required String email,
       required String password,
     }) signIn,
@@ -215,7 +217,6 @@ class AppServices {
   AppServices _copy({
     Future<LicenceAccess> Function()? recheckLicence,
     Future<void> Function({
-      required String serverUrl,
       required String email,
       required String password,
     })? signInForLicence,

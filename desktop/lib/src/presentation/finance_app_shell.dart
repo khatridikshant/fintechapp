@@ -129,7 +129,6 @@ class FinanceAppShellState extends State<FinanceAppShell> {
   /// the gate would be indistinguishable from one that passed it, and the second
   /// is the one worth being able to claim.
   static Future<void> _refuseSignIn({
-    required String serverUrl,
     required String email,
     required String password,
   }) async {
