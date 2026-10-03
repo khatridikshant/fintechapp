@@ -1,6 +1,7 @@
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:financeapp/src/application/issue_credit_note.dart';
 import 'package:financeapp/src/application/issue_invoice.dart';
+import 'package:financeapp/src/application/issue_purchase.dart';
 import 'package:financeapp/src/application/post_inventory_movement.dart';
 import 'package:financeapp/src/application/record_payment.dart';
 import 'package:financeapp/src/domain/accounting/account_type.dart';
@@ -11,12 +12,16 @@ import 'package:financeapp/src/domain/billing/document_type.dart';
 import 'package:financeapp/src/domain/billing/invoice.dart';
 import 'package:financeapp/src/domain/billing/invoice_line.dart';
 import 'package:financeapp/src/domain/billing/payment.dart';
+import 'package:financeapp/src/domain/billing/purchase.dart';
+import 'package:financeapp/src/domain/billing/purchase_line.dart';
+import 'package:financeapp/src/domain/billing/supplier.dart';
 import 'package:financeapp/src/domain/fiscal/nepali_fiscal_calendar.dart';
 import 'package:financeapp/src/domain/inventory/inventory_movement.dart';
 import 'package:financeapp/src/domain/inventory/product.dart';
 import 'package:financeapp/src/domain/reporting/trial_balance.dart';
 import 'package:financeapp/src/domain/shared/money.dart';
 import 'package:financeapp/src/infrastructure/database/app_database.dart';
+import 'package:financeapp/src/infrastructure/database/drift_account_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_credit_note_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_customer_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_document_number_sequence.dart';
@@ -24,6 +29,8 @@ import 'package:financeapp/src/infrastructure/database/drift_inventory_repositor
 import 'package:financeapp/src/infrastructure/database/drift_invoice_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_journal_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_payment_repository.dart';
+import 'package:financeapp/src/infrastructure/database/drift_purchase_repository.dart';
+import 'package:financeapp/src/infrastructure/database/drift_supplier_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_unit_of_work.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,6 +43,7 @@ import '../generated/schema_v5.dart' as v5;
 import '../generated/schema_v6.dart' as v6;
 import '../generated/schema_v7.dart' as v7;
 import '../generated/schema_v8.dart' as v8;
+import '../generated/schema_v9.dart' as v9;
 
 /// Migration tests.
 ///
@@ -261,7 +269,7 @@ void main() {
     test('v8 movements survive the constraint change', () async {
       // The CHECK on inventory_movements is relaxed, which SQLite cannot do in
       // place, so the table is rebuilt. This proves the existing rows come
-      // across intact — including the ones with a null journal entry.
+      // across intact â€” including the ones with a null journal entry.
       final schema = await verifier.schemaAt(8);
 
       final previous = v8.DatabaseAtV8(schema.newConnection());
@@ -1055,6 +1063,131 @@ void main() {
       await verifier.migrateAndValidate(db, 9);
 
       expect(await db.select(db.customers).get(), isEmpty);
+
+      await db.close();
+    });
+  });
+
+  /// Migration to the current version, covering v10 through v16.
+  ///
+  /// ## Why this group exists separately, and why it starts at v9
+  ///
+  /// The tests above all stop at v9, which is where the generated snapshots ran
+  /// out when they were written. Steps v10 to v16 were added afterwards and had no
+  /// migration test at all.
+  ///
+  /// **Snapshots for v13 to v16 were deliberately not created.** `drift_dev schema
+  /// dump` captures the *current* schema and stamps it with whatever version is
+  /// declared, so dumping at v13 produces a byte-identical copy of the v16 schema:
+  /// four identical files that each assert a shape no real v13 database ever had.
+  /// That is the "fixture was fiction" trap in `PROGRESS.md` 7.33, and a migration
+  /// test that validates against fiction is worse than none, because it reports
+  /// green.
+  ///
+  /// So this migrates a **real v9 database** â€” built from a real snapshot â€” all the
+  /// way to the current version, which exercises every new step against data an
+  /// earlier release actually wrote.
+  group('Migrating to the current version', () {
+    Future<AppDatabase> migratedFromV9() async {
+      final schema = await verifier.schemaAt(9);
+      final previous = v9.DatabaseAtV9(schema.newConnection());
+      await seedAccounts(previous);
+      await seedJournal(previous, DateTime(2026, 1, 15));
+      await seedCustomer(previous);
+      await seedInvoice(previous);
+      await previous.close();
+
+      // **No explicit open().** Constructing the database and reading from it is
+      // what triggers drift's upgrade, which is the behaviour under test: a real
+      // application never calls open by hand either.
+      final db = AppDatabase(schema.newConnection());
+      await db.select(db.accounts).get();
+      return db;
+    }
+
+    test('a v9 database reaches the current version with its data intact',
+        () async {
+      final db = await migratedFromV9();
+
+      // Everything v9 held must still be there, unchanged.
+      expect(await db.select(db.accounts).get(), hasLength(5));
+      expect(await db.select(db.customers).get(), hasLength(1));
+      expect(await db.select(db.invoices).get(), hasLength(1));
+      expect(await db.select(db.invoiceLines).get(), hasLength(1));
+
+      final entry = (await db.select(db.journalEntries).get()).first;
+      expect(entry.date, DateTime(2026, 1, 15),
+          reason: 'the posting date must survive seven upgrades untouched');
+
+      await db.close();
+    });
+
+    test('every table added since v9 exists and is empty', () async {
+      final db = await migratedFromV9();
+
+      // **New tables, not altered ones.** The tables that existed at v9 must be
+      // untouched, so a v9 database simply has no rows in these.
+      expect(await db.select(db.customerDetails).get(), isEmpty);
+      expect(await db.select(db.invoiceSellers).get(), isEmpty);
+      expect(await db.select(db.customerCodeSequences).get(), isEmpty);
+      expect(await db.select(db.suppliers).get(), isEmpty);
+      expect(await db.select(db.productCategories).get(), isEmpty);
+      expect(await db.select(db.productCategoryAssignments).get(), isEmpty);
+      expect(await db.select(db.purchases).get(), isEmpty);
+      expect(await db.select(db.purchaseLines).get(), isEmpty);
+      expect(await db.select(db.supplierPayments).get(), isEmpty);
+
+      await db.close();
+    });
+
+    test('the migrated database can actually record a purchase', () async {
+      // **A migration that validates but does not work is only a shape.** The
+      // upgraded database must be usable for the feature the new tables exist for,
+      // which means the foreign keys resolve and the code is still at the declared
+      // version.
+      final db = await migratedFromV9();
+
+      // **Only the three accounts a purchase posts to.** The v9 fixture already
+      // holds `acct-rent` at code 5010, which is also the real chart's code for
+      // Office Rent, so saving the whole chart here would fail on a UNIQUE code
+      // collision that is an artefact of the fixture rather than a real defect.
+      await DriftAccountRepository(db).saveAll([
+        ChartOfAccounts.inventory,
+        ChartOfAccounts.inputVatRecoverable,
+        ChartOfAccounts.payable,
+      ]);
+      await DriftSupplierRepository(db).save(
+        Supplier(id: 'sup-1', name: 'Kamala Traders', pan: '601234567'),
+      );
+      await DriftInventoryRepository(db).saveProduct(
+        Product(id: 'p-1', name: 'Chair', salePrice: Money.minor(200000, 'NPR')),
+      );
+
+      final outcome = await IssuePurchase(
+        fiscalYear: const NepaliFiscalCalendar().forBsYear(2082),
+        suppliers: DriftSupplierRepository(db),
+        purchases: DriftPurchaseRepository(db),
+        numbers: DriftDocumentNumberSequence(db),
+        journal: DriftJournalRepository(db),
+        unitOfWork: DriftUnitOfWork(db),
+        inventory: DriftInventoryRepository(db),
+      )(
+        Purchase(
+          id: 'P-1',
+          issueDate: DateTime(2026, 2, 1),
+          supplierId: 'sup-1',
+          lines: [
+            PurchaseLine(
+              description: 'Chair',
+              quantity: 10,
+              unitPrice: Money.minor(100000, 'NPR'),
+              productId: 'p-1',
+            ),
+          ],
+        ),
+      );
+
+      expect(outcome, isA<PurchaseIssued>());
 
       await db.close();
     });

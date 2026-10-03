@@ -2,6 +2,10 @@ import '../application/account_session.dart';
 import '../application/business_details.dart';
 import '../application/conclude_fiscal_year.dart';
 import '../application/create_customer.dart';
+import '../application/build_payables.dart';
+import '../application/create_supplier.dart';
+import '../application/issue_purchase.dart';
+import '../application/record_supplier_payment.dart';
 import '../application/issue_credit_note.dart';
 import '../application/issue_invoice.dart';
 import '../application/post_inventory_movement.dart';
@@ -48,6 +52,10 @@ class AppServices {
     this.chartOfAccounts,
     this.receivables,
     this.transferCash,
+    this.issuePurchase,
+    this.recordSupplierPayment,
+    this.payables,
+    this.createSupplier,
     this.dashboardTrialBalance,
     this.profitAndLoss,
     this.balanceSheet,
@@ -137,6 +145,20 @@ class AppServices {
   /// Moving money between cash accounts. Null when there is no open journal.
   final TransferCash? transferCash;
 
+  /// Recording a purchase bill: numbers it, accounts for it, and moves the stock.
+  /// Null when the books expose no journal.
+  final IssuePurchase? issuePurchase;
+
+  /// Recording a payment to a supplier. Null when there is no journal.
+  final RecordSupplierPayment? recordSupplierPayment;
+
+  /// The purchase side, for listing bills and ageing payables.
+  final PayablesLoader? payables;
+
+  /// Creating a supplier. A supplier belongs to the year they were added, so this
+  /// is rebuilt per open year like [createCustomer].
+  final CreateSupplier? createSupplier;
+
   /// The trial-balance totals the dashboard shows.
   ///
   /// A **narrow interface**, not the whole loader, so the dashboard depends on
@@ -154,8 +176,9 @@ class AppServices {
   final BuildSalesSummary? sales;
   final BuildInventorySummary? inventoryReport;
 
-  /// The VAT figures. **Not yet a complete return**, because the purchase side is
-  /// not built and input VAT is therefore always zero.
+  /// The VAT figures. **A complete return**, since ADR 012 added the purchase side;
+  /// input VAT is real, and the part from suppliers with no PAN is reported
+  /// separately as at risk rather than claimed.
   final BuildTaxSummary? tax;
 
   /// Every use case for the selected year, rebuilt from [session].
@@ -197,6 +220,10 @@ class AppServices {
         chartOfAccounts: session.chartOfAccounts,
         receivables: session.receivables,
         transferCash: session.transferCash,
+        issuePurchase: session.issuePurchase,
+        recordSupplierPayment: session.recordSupplierPayment,
+        payables: session.payables,
+        createSupplier: session.createSupplier,
         dashboardTrialBalance: BuildTrialBalanceTotals(session.trialBalance),
         profitAndLoss: session.profitAndLoss,
         balanceSheet: session.balanceSheet,
@@ -235,6 +262,10 @@ class AppServices {
         chartOfAccounts: chartOfAccounts,
         receivables: receivables,
         transferCash: transferCash,
+        issuePurchase: issuePurchase,
+        recordSupplierPayment: recordSupplierPayment,
+        payables: payables,
+        createSupplier: createSupplier,
         dashboardTrialBalance: dashboardTrialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,

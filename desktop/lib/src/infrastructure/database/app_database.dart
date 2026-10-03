@@ -120,7 +120,7 @@ class AppDatabase extends _$AppDatabase {
             // journal entry link added.
             //
             // This is a table **rebuild**, not `addColumn`, because SQLite cannot
-            // add a foreign key with `ALTER TABLE ADD COLUMN` — it would silently
+            // add a foreign key with `ALTER TABLE ADD COLUMN` â€” it would silently
             // produce a table missing the constraint, and the link between a
             // movement and its entry would then be enforced only by luck.
             // `TableMigration` recreates the table with the new definition and

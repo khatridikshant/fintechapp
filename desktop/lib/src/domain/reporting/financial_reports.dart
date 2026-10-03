@@ -231,6 +231,7 @@ class TaxSummary {
     required this.outputVat,
     required this.taxablePurchases,
     required this.inputVat,
+    required this.inputVatAtRisk,
     required this.credits,
   });
 
@@ -269,6 +270,7 @@ class TaxSummary {
     required Money inputVatClaimable,
     required int standardRateBasisPoints,
     required String currency,
+    Money? inputVatAtRiskClaimed,
   }) {
     var sales = 0;
     for (final line in taxableSales) {
@@ -294,6 +296,11 @@ class TaxSummary {
       outputVat: outputVatCharged,
       taxablePurchases: Money.minor(purchases, currency),
       inputVat: inputVatClaimable,
+      // Optional rather than required, because a caller with no purchase side has
+      // no at-risk figure and there is nothing for it to say. Defaults to zero,
+      // which is what "no purchases" means.
+      inputVatAtRisk:
+          inputVatAtRiskClaimed ?? Money.minor(0, inputVatClaimable.currency),
       credits: Money.minor(credited, currency),
     );
   }
@@ -313,14 +320,40 @@ class TaxSummary {
   /// Purchases excluding VAT.
   final Money taxablePurchases;
 
-  /// VAT paid on those purchases.
+  /// VAT paid on those purchases, **and claimable**.
+  ///
+  /// ## Only the claimable part
+  ///
+  /// `NEPALI_BILLING.md` records that input VAT on a purchase bill whose supplier
+  /// has no PAN may be disallowed in an audit. That VAT was genuinely paid and is
+  /// not omitted from the books — it sits in `1150 Input VAT Recoverable` — but it
+  /// is **not a safe claim**, so it is reported separately as
+  /// [inputVatAtRisk] and excluded from this figure.
+  ///
+  /// Counting it here would produce a return that claims credit the authority can
+  /// refuse, and the shortfall would appear as a demand with no explanation. This
+  /// way the operator sees both numbers and can chase the PAN.
   final Money inputVat;
+
+  /// VAT paid on purchases whose supplier had **no PAN**, and which may therefore
+  /// be disallowed as input credit.
+  ///
+  /// Zero when every purchase was from a supplier with a PAN. Still a real asset in
+  /// `1150`; the risk is in the *claim*, not the accounting.
+  final Money inputVatAtRisk;
 
   /// Sales that were credited back, and so removed from the period.
   final Money credits;
 
-  /// Output VAT less input VAT. **Negative means a refund is due.**
+  /// Output VAT less claimable input VAT. **Negative means a refund is due.**
   Money get netVatPayable => outputVat.subtract(inputVat);
+
+  /// Output VAT less **all** input VAT including the at-risk part.
+  ///
+  /// The optimistic figure, shown alongside [netVatPayable] so the gap between what
+  /// was paid for and what can safely be claimed is visible rather than implied.
+  Money get netVatPayableIfAllClaimed =>
+      outputVat.subtract(inputVat.add(inputVatAtRisk));
 
   @override
   String toString() =>

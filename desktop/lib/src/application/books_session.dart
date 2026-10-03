@@ -14,7 +14,11 @@ import 'issue_credit_note.dart';
 import 'post_inventory_movement.dart';
 import 'post_journal_entry.dart';
 import 'issue_invoice.dart';
+import 'build_payables.dart';
+import 'create_supplier.dart';
+import 'issue_purchase.dart';
 import 'record_payment.dart';
+import 'record_supplier_payment.dart';
 
 /// One fiscal year the application can open.
 class OpenYear {
@@ -63,6 +67,20 @@ abstract interface class BooksSession {
   /// year: a customer is recorded in the books of the year they were added, so
   /// creating one while a concluded year is open would write to the wrong books.
   CreateCustomer get createCustomer;
+
+  /// Creating a supplier. **Rebuilt per open year**, because a supplier belongs to
+  /// the books of the year they were added, exactly as a customer does.
+  CreateSupplier get createSupplier;
+
+  /// Recording a purchase bill: numbers it, accounts for it, and moves the stock
+  /// it delivered, all in one unit of work (ADR 012).
+  IssuePurchase get issuePurchase;
+
+  /// Recording a payment to a supplier.
+  RecordSupplierPayment get recordSupplierPayment;
+
+  /// What this business owes its suppliers, per bill.
+  PayablesLoader get payables;
 
   /// Issuing an invoice: numbering it, posting it, and recording it.
   ///

@@ -24,6 +24,8 @@ import '../domain/shared/currency.dart';
 import '../domain/accounting/journal_repository.dart';
 import '../domain/billing/credit_note_repository.dart';
 import '../domain/billing/invoice_repository.dart';
+import '../domain/billing/purchase_repository.dart';
+import '../domain/billing/supplier_repository.dart';
 import '../domain/fiscal/fiscal_year.dart';
 import '../domain/inventory/inventory_repository.dart';
 import '../domain/reporting/financial_reports.dart';
@@ -206,17 +208,30 @@ class BuildInventorySummary {
 
 /// Builds the VAT figures a return needs, for a period.
 ///
-/// ## Input VAT is zero, and that is honest
+/// ## Input VAT is real, and part of it is at risk
 ///
-/// The **purchase side has not been built** — there are no purchase invoices in
-/// this application yet. So there is nothing to compute input VAT from, and this
-/// returns zero rather than a figure that looks computed. A business claiming input
-/// VAT on purchases it has not recorded would be claiming credit for nothing.
+/// Input VAT is summed from **purchase documents**, each contributing the VAT it
+/// actually charged — the same rule as output VAT, and for the same reason: the
+/// return must equal the ledger rather than re-derive it.
+///
+/// A purchase's VAT is split by whether the supplier had a PAN:
+///
+/// - **Claimable** — the bill carries the supplier's PAN, so the claim is one the
+///   authority will accept.
+/// - **At risk** — no PAN, so `NEPALI_BILLING.md` records that it *may* be
+///   disallowed in an audit. It is still a real asset in `1150` and still shown,
+///   but it is **not** netted off the output figure by [TaxSummary.netVatPayable].
+///
+/// Both are reported. Claiming the at-risk portion anyway would produce a return
+/// demanding credit that can be refused, and the shortfall would arrive with no
+/// explanation attached.
 class BuildTaxSummary {
   const BuildTaxSummary({
     required this.fiscalYear,
     required this.invoices,
     required this.creditNotes,
+    this.purchases,
+    this.suppliers,
     this.currency = bookCurrency,
     this.rateBasisPoints = TaxSummary.standardRateBasisPoints,
   });
@@ -224,6 +239,18 @@ class BuildTaxSummary {
   final FiscalYear fiscalYear;
   final InvoiceRepository invoices;
   final CreditNoteRepository creditNotes;
+
+  /// The purchase side. **Optional**, so a caller with no purchase records still
+  /// builds a valid return rather than failing.
+  final PurchaseRepository? purchases;
+
+  /// Used to decide whether each purchase's VAT is claimable.
+  ///
+  /// **Optional, and its absence is not treated as "everything is claimable."**
+  /// When no supplier store is supplied, every purchase is treated as at risk,
+  /// because that is the safe direction: it can never overstate a claim.
+  final SupplierRepository? suppliers;
+
   final String currency;
 
   /// The standard rate in force. **Data, not a constant in the logic**, because
@@ -259,9 +286,46 @@ class BuildTaxSummary {
       outputVatCharged += record.invoice.vat.minorUnits;
     }
 
-    // **No purchase records exist yet**, so there is nothing to compute input VAT
-    // from. Zero, rather than a figure that merely looks computed.
-    const purchasesExcludingVat = 0;
+    // Input VAT, summed from the purchase documents.
+    //
+    // **Split by whether the supplier had a PAN**, because `NEPALI_BILLING.md`
+    // records that VAT on a bill lacking one may be disallowed as input credit.
+    // Both halves are summed from what each bill actually charged, so the return
+    // equals `1150` by construction.
+    //
+    // The net figure is what the bills carried **excluding** recoverable VAT,
+    // because [TaxSummary.taxablePurchases] is stated the same way. Putting the
+    // gross there would overstate purchases by exactly the VAT being claimed.
+    var inputVatClaimable = 0;
+    var inputVatAtRisk = 0;
+    final purchaseLines = <ReportTotal>[];
+    final purchaseStore = purchases;
+    if (purchaseStore != null) {
+      final supplierStore = suppliers;
+      for (final record in await purchaseStore.all()) {
+        if (!inRange(record.purchase.issueDate)) continue;
+
+        final supplier =
+            supplierStore == null ? null : await supplierStore.byId(record.purchase.supplierId);
+
+        // **No supplier store means the claim cannot be substantiated**, so the
+        // whole amount is at risk. Defaulting to "claimable" would be the unsafe
+        // direction: it could only ever overstate what the return demands.
+        final claimable = supplier?.canSupportInputCredit ?? false;
+        if (claimable) {
+          inputVatClaimable += record.purchase.vat.minorUnits;
+        } else {
+          inputVatAtRisk += record.purchase.vat.minorUnits;
+        }
+
+        purchaseLines.add(
+          ReportTotal(
+            label: record.number.value,
+            amount: Money.minor(record.purchase.subtotal.minorUnits, currency),
+          ),
+        );
+      }
+    }
 
     // A credit note reverses the VAT it charged, so it comes out of the output
     // figure here. Using the note's own `vat` rather than a rate applied to its
@@ -297,21 +361,21 @@ class BuildTaxSummary {
           amount: Money.minor(salesExcludingVat, currency),
         ),
       ],
-      // **No purchases exist yet**, so this is empty and input VAT is zero.
-      taxablePurchases: purchasesExcludingVat == 0
-          ? const <ReportTotal>[]
-          : <ReportTotal>[
+      // Real purchases, itemised by bill number so the figure can be traced back
+      // to the documents behind it.
+      taxablePurchases: purchaseLines.isEmpty
+          ? <ReportTotal>[
               ReportTotal(
                 label: 'Purchases excluding VAT',
-                amount: Money.minor(purchasesExcludingVat, currency),
+                amount: Money.minor(0, currency),
               ),
-            ],
+            ]
+          : purchaseLines,
       credits: credits,
       outputVatCharged:
           Money.minor(outputVatCharged - creditVatReversed, currency),
-      // **Zero, and honestly so.** There is no purchase side to claim input VAT
-      // from, so claiming any would be claiming credit for nothing.
-      inputVatClaimable: Money.minor(0, currency),
+      inputVatClaimable: Money.minor(inputVatClaimable, currency),
+      inputVatAtRiskClaimed: Money.minor(inputVatAtRisk, currency),
       standardRateBasisPoints: rateBasisPoints,
       currency: currency,
     );

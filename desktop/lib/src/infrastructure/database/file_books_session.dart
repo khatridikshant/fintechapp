@@ -3,7 +3,11 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../../application/business_details.dart';
+import '../../application/build_payables.dart';
 import '../../application/create_customer.dart';
+import '../../application/create_supplier.dart';
+import '../../application/issue_purchase.dart';
+import '../../application/record_supplier_payment.dart';
 import '../../application/issue_invoice.dart';
 import '../../application/create_product.dart';
 import '../../application/issue_credit_note.dart';
@@ -35,7 +39,10 @@ import 'drift_credit_note_repository.dart';
 import 'drift_inventory_repository.dart';
 import 'drift_invoice_repository.dart';
 import 'drift_payment_repository.dart';
+import 'drift_purchase_repository.dart';
 import 'drift_journal_repository.dart';
+import 'drift_supplier_payment_repository.dart';
+import 'drift_supplier_repository.dart';
 import 'drift_unit_of_work.dart';
 import 'open_business_database.dart';
 import 'sqlite_native.dart';
@@ -223,6 +230,12 @@ class FileBooksSession implements BooksSession {
         fiscalYear: _openYear.fiscalYear,
         invoices: DriftInvoiceRepository(_database),
         creditNotes: DriftCreditNoteRepository(_database),
+        // The purchase side, so the VAT return has real input credit to report
+        // rather than zero (ADR 012).
+        purchases: DriftPurchaseRepository(_database),
+        // Needed to decide whether each bill's VAT is claimable or at risk: a bill
+        // from a supplier with no PAN may be disallowed in an audit.
+        suppliers: DriftSupplierRepository(_database),
       );
 
   @override
@@ -235,6 +248,44 @@ class FileBooksSession implements BooksSession {
         customers: DriftCustomerRepository(_database),
         codes: DriftCustomerCodeSequence(_database),
         unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  /// A supplier belongs to the year they were added, exactly as a customer does.
+  @override
+  CreateSupplier get createSupplier => CreateSupplier(
+        suppliers: DriftSupplierRepository(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  IssuePurchase get issuePurchase => IssuePurchase(
+        fiscalYear: _openYear.fiscalYear,
+        suppliers: DriftSupplierRepository(_database),
+        purchases: DriftPurchaseRepository(_database),
+        numbers: DriftDocumentNumberSequence(_database),
+        journal: DriftJournalRepository(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+        // **Always supplied.** A purchase that received stock and had no inventory
+        // store would record the bill while silently losing the goods.
+        inventory: DriftInventoryRepository(_database),
+      );
+
+  @override
+  RecordSupplierPayment get recordSupplierPayment =>
+      RecordSupplierPayment(
+        fiscalYear: _openYear.fiscalYear,
+        purchases: DriftPurchaseRepository(_database),
+        payments: DriftSupplierPaymentRepository(_database),
+        accounts: DriftAccountRepository(_database),
+        journal: DriftJournalRepository(_database),
+        unitOfWork: DriftUnitOfWork(_database),
+      );
+
+  @override
+  PayablesLoader get payables => BuildPayables(
+        purchases: DriftPurchaseRepository(_database),
+        payments: DriftSupplierPaymentRepository(_database),
+        suppliers: DriftSupplierRepository(_database),
       );
 
   @override
@@ -306,8 +357,8 @@ class FileBooksSession implements BooksSession {
   /// **An invoice does not yet record what it used.** The intent was for each
   /// invoice to carry its own copy of the seller details, so changing the profile
   /// later would leave historical invoices exactly as issued. **`Invoice` has no
-  /// seller fields today** — only `id`, `issueDate`, `customerId`, `lines`, and
-  /// `vatRateBasisPoints` — so a historical invoice shows the business details
+  /// seller fields today** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only `id`, `issueDate`, `customerId`, `lines`, and
+  /// `vatRateBasisPoints` ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so a historical invoice shows the business details
   /// *as they are now*, not as they were printed. Recorded as an open gap rather
   /// than a claim, because it is one.
   BusinessDetails get businessDetails =>
