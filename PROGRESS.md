@@ -2238,49 +2238,70 @@ finished code.
 > and `verify()` recomputing checksums at list time, which makes the uploader's
 > tamper guard unreachable.
 
-> **SCREEN INVENTORY, verified 2026-10-03. Read this before planning UI work.**
+> **SCREEN INVENTORY, 2026-10-03. Read this before planning UI work.**
 >
-> Measured by matching every navigation title against the screen actually
-> constructed for it in `app_navigation.dart`. **An earlier, wrong version of this
-> list claimed Chart of Accounts, Payments and Licences were built. They were not** —
-> see the correction at the end.
+> **An earlier version of this inventory was wrong and has been replaced. It
+> claimed Licences was built but unwired; it is wired, at `LicensesScreen.route`.**
 >
-> **Eight of twenty-four navigation entries do not open a real screen.**
+> ### How this was measured, and how the earlier version got it wrong
 >
-> | Nav entry | State | What is actually missing |
-> | --- | --- | --- |
-> | **Dashboard** | **no screen** | No `DashboardScreen` exists, and the shell does not render one itself. The landing screen is a placeholder. |
-> | **Chart of Accounts** | **no screen** | No screen. The `Account` domain type and the chart exist; nothing renders the list of accounts, and **there is no way to see or edit the chart at all**. |
-> | **Receivables** | **no screen** | No screen. Customer balances are derivable from existing invoices and payments. |
-> | **Purchases** | **no screen and no domain** | No screen, **and no purchase invoice, supplier entity, or purchase posting path**. This is the same gap that makes **input VAT always zero**: there is nothing for the VAT return to read. |
-> | **Payments** | **no screen** | No screen. `PaymentScreen` exists and is wired to **Receipts**; the Payments entry itself has no route. |
-> | **Profit & Loss** | **no screen** | `ProfitAndLossReport` is built and tested. **Only the screen is missing.** |
-> | **Balance Sheet** | **no screen** | `BalanceSheet` is built, and `assertBalanced()` already guards it. **Only the screen is missing.** |
-> | **Licences** | **built but not wired** | `LicensesScreen` exists and is referenced **nowhere**. A finished screen that was never connected to navigation. |
+> The first attempt read `app_navigation.dart` with a regex and a forward lookahead
+> window. That is unreliable twice over: the window can stop before the route, or
+> run past it into the next navigation entry and report *its* screen. A second
+> attempt used a recursive glob PowerShell does not expand. A third ran the real
+> builder in a test with an empty `AppServices`, which made **every** conditional
+> route null and reported 29 of 30 entries as unbuilt.
 >
-> **Recommended order, by value per hour:**
+> The list below parses each `NavigationItem` block **scoped by indentation**, so an
+> entry can only see its own fields. **It is still static analysis of one file**, so
+> treat it as a strong starting point rather than gospel, and click through the
+> running application before committing a week to it.
 >
-> 1. **Licences** — one line of wiring. It is already built and already required:
->    MIT and BSD-3 both require the copyright notice to be retained, so
->    `AI_RULES.md` obliges the application to expose a reachable licences screen.
->    **The obligation is currently unmet because the screen cannot be reached.**
-> 2. **Profit & Loss, then Balance Sheet** — report types already exist and are
->    tested. Screens only, no domain work. Two dead entries closed for the price of
->    two renderers.
-> 3. **Chart of Accounts** — the data exists and the gap is visible: a user cannot
->    see which accounts their books use.
-> 4. **Receivables** — reads data that already exists.
-> 5. **Purchases** — last, and separately. It is a new domain aggregate rather than
->    a screen, it deserves an ADR like the company model did, and **it is the only
->    item on this list that changes what the VAT return can honestly claim**.
-> 6. **Dashboard, Payments** — lowest value. Neither is required for correctness.
+> ### Not built — eight entries
 >
-> **A caution about measuring this.** A first pass used a lookahead heuristic over
-> the navigation source and reported Purchases, Suppliers and Payables as routed.
-> All three are not. The list above was rebuilt by matching nav titles against
-> constructed screens, and it is still **static analysis of one file** — worth five
-> minutes of clicking through the running application before anyone plans a week
-> around it.
+> | Nav entry | What is missing |
+> | --- | --- |
+> | **Dashboard** | No `DashboardScreen`, and the shell does not render one itself. **The landing screen is a placeholder.** |
+> | **Chart of Accounts** | No screen. The `Account` type and the chart exist, so **a user cannot currently see which accounts their books use.** |
+> | **Receivables** | No screen. Balances are derivable from invoices and payments that already exist. |
+> | **Purchases** | No screen **and no domain** — no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**: there is nothing for the VAT return to read. |
+> | **Transfers** | No screen. |
+> | **Profit & Loss** | `ProfitAndLossReport` is built and tested. **Screen only.** |
+> | **Balance Sheet** | `BalanceSheet` is built, and `assertBalanced()` guards it. **Screen only.** |
+> | **Sync** | No screen. |
+>
+> ### Built and wired
+>
+> Journal · Chart of Accounts' sibling reports General Ledger and Trial Balance ·
+> Invoices · Credit Notes · Customers · Products · Stock Movements · Payments and
+> Receipts (both `PaymentScreen`) · Settings · Backup · Fiscal Year · Licences ·
+> and the four report tabs Cash Flow, Sales Reports, Inventory Reports and Tax
+> Reports, which share `FinancialReportsScreen`.
+>
+> **The four report tabs are wired through a helper** (`_reportsRoute`) that returns
+> a closure. A parser reading only the item's own block **cannot see that**, so they
+> appear unbuilt in an indentation scan. They are wired — the reports screen tests
+> drive them.
+>
+> ### Recommended order
+>
+> 1. **Profit & Loss, then Balance Sheet.** Report types already exist and are
+>    tested. Two screens, no domain work, two dead entries closed.
+> 2. **Chart of Accounts.** The data exists; the gap is that a user cannot see it.
+> 3. **Dashboard.** It is the landing screen, so an empty first impression is worth
+>    more than its complexity suggests.
+> 4. **Receivables**, then **Transfers** and **Sync** — all read data that exists.
+> 5. **Purchases last**, and separately. It is a new aggregate rather than a screen,
+>    it deserves an ADR like the company model did, and **it is the only entry here
+>    that changes what the VAT return can honestly claim.**
+>
+> ### A method worth keeping
+>
+> `NavigationItem.route` is documented as *"builds the screen this opens, or `null`
+> when it has not been built yet."* So the correct way to ask this is to **inspect
+> the built items**, not to parse the source — but only with realistic services,
+> because the routes are conditional on use cases being present. Four wrong answers
+> in a row came from not noticing that distinction.
 This is the next bounded task, ready to hand to an agent verbatim.
 
 > **Give a signed-in desktop the divergence table, and say plainly when two
