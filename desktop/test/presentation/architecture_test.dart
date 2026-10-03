@@ -149,6 +149,19 @@ void main() {
         // decisions are behind `BuildCashFlow` and friends. Same rule as the ledger
         // above: only the shape crosses the boundary.
         'domain/reporting/financial_reports.dart',
+        // `LicenceAccess`, `Allowed` and `Locked`: the gate verdict, which the
+        // shell must read to decide between the books and the sign-in screen.
+        // These are **value types with no behaviour** -- `LicenceGate` decides, the
+        // shell only displays. Same rule as every entry above: the shape crosses
+        // the boundary, the decision does not.
+        //
+        // **Added deliberately**, and the placement is the point. The first version
+        // put these types in `infrastructure/licensing/`, which the rule above
+        // forbids, and the test caught it. The types moved to the domain and the
+        // implementation stayed in infrastructure -- exactly the arrangement every
+        // repository already uses. Nothing about the gate became more reachable:
+        // a screen can still not see the verifier, the store, or the public key.
+        'domain/shared/licence_access.dart',
       };
 
       final offenders = <String>[];

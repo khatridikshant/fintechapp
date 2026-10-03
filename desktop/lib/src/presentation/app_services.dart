@@ -4,6 +4,7 @@ import '../application/conclude_fiscal_year.dart';
 import '../application/create_customer.dart';
 import '../application/build_payables.dart';
 import '../application/create_supplier.dart';
+import '../domain/shared/licence_access.dart';
 import '../application/issue_purchase.dart';
 import '../application/record_supplier_payment.dart';
 import '../application/issue_credit_note.dart';
@@ -56,6 +57,9 @@ class AppServices {
     this.recordSupplierPayment,
     this.payables,
     this.createSupplier,
+    this.recheckLicence,
+    this.signInForLicence,
+    this.signOutForLicence,
     this.dashboardTrialBalance,
     this.profitAndLoss,
     this.balanceSheet,
@@ -158,6 +162,99 @@ class AppServices {
   /// Creating a supplier. A supplier belongs to the year they were added, so this
   /// is rebuilt per open year like [createCustomer].
   final CreateSupplier? createSupplier;
+
+  /// Re-evaluates the stored licence.
+  ///
+  /// **Null when licensing is not configured**, which is the case for a widget test
+  /// supplying its own `AppServices` and for the developer stopgap. The shell treats
+  /// null as *unlocked*, because those callers have nothing to satisfy and a gate
+  /// that blocked every test would be a gate nobody could exercise. A real build
+  /// always supplies one Ã¢â‚¬â€ see [FinanceAppShell], which will not build the
+  /// navigation at all when the verdict is locked.
+  final Future<LicenceAccess> Function()? recheckLicence;
+
+  /// Signs in and stores the licence authorisation. Null when [recheckLicence] is.
+  final Future<void> Function({
+    required String serverUrl,
+    required String email,
+    required String password,
+  })? signInForLicence;
+
+  /// Signs out and forgets the stored authorisation.
+  final Future<void> Function()? signOutForLicence;
+
+  /// Attaches the licence gate, used once by the composition root.
+  ///
+  /// ## Why this returns a new bundle rather than mutating
+  ///
+  /// [AppServices] is immutable, so the verdict cannot appear on the object the
+  /// shell already holds unless the bundle is replaced. The verdict itself lives
+  /// in the shell's state rather than in a field here, precisely so that a refresh
+  /// after signing in does **not** have to rebuild this 35-field bundle â€” a copy
+  /// method that forgets one field loses a capability silently, which is the defect
+  /// 4.30 already records for `forAccount`.
+  AppServices withLicenceGate({
+    required Future<LicenceAccess> Function() recheck,
+    required Future<void> Function({
+      required String serverUrl,
+      required String email,
+      required String password,
+    }) signIn,
+    Future<void> Function()? signOut,
+  }) =>
+      _copy(
+        recheckLicence: recheck,
+        signInForLicence: signIn,
+        signOutForLicence: signOut,
+      );
+
+  /// Every capability carried through unchanged except those named in [licence].
+  ///
+  /// One place, so a new capability is added in one place rather than in two copy
+  /// methods that could disagree.
+  AppServices _copy({
+    Future<LicenceAccess> Function()? recheckLicence,
+    Future<void> Function({
+      required String serverUrl,
+      required String email,
+      required String password,
+    })? signInForLicence,
+    Future<void> Function()? signOutForLicence,
+  }) =>
+      AppServices(
+        session: session,
+        upload: upload,
+        account: account,
+        businessDetails: businessDetails,
+        trialBalance: trialBalance,
+        generalLedger: generalLedger,
+        backup: backup,
+        createCustomer: createCustomer,
+        issueInvoice: issueInvoice,
+        recordPayment: recordPayment,
+        createProduct: createProduct,
+        postMovement: postMovement,
+        issueCreditNote: issueCreditNote,
+        postEntry: postEntry,
+        concludeYear: concludeYear,
+        cashFlow: cashFlow,
+        chartOfAccounts: chartOfAccounts,
+        receivables: receivables,
+        transferCash: transferCash,
+        issuePurchase: issuePurchase,
+        recordSupplierPayment: recordSupplierPayment,
+        payables: payables,
+        createSupplier: createSupplier,
+        dashboardTrialBalance: dashboardTrialBalance,
+        profitAndLoss: profitAndLoss,
+        balanceSheet: balanceSheet,
+        sales: sales,
+        inventoryReport: inventoryReport,
+        tax: tax,
+        recheckLicence: recheckLicence ?? this.recheckLicence,
+        signInForLicence: signInForLicence ?? this.signInForLicence,
+        signOutForLicence: signOutForLicence ?? this.signOutForLicence,
+      );
 
   /// The trial-balance totals the dashboard shows.
   ///
@@ -266,6 +363,9 @@ class AppServices {
         recordSupplierPayment: recordSupplierPayment,
         payables: payables,
         createSupplier: createSupplier,
+        recheckLicence: recheckLicence,
+        signInForLicence: signInForLicence,
+        signOutForLicence: signOutForLicence,
         dashboardTrialBalance: dashboardTrialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,

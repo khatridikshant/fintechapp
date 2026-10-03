@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -19,12 +21,16 @@ import 'src/infrastructure/database/drift_journal_repository.dart';
 import 'src/infrastructure/database/drift_unit_of_work.dart';
 import 'src/infrastructure/database/file_books_session.dart';
 import 'src/infrastructure/database/local_fiscal_year_transition.dart';
+import 'src/infrastructure/http/http_licence_authorisation_client.dart';
 import 'src/infrastructure/http/http_transport.dart';
+import 'src/infrastructure/licensing/licence_gate.dart';
+import 'src/infrastructure/licensing/licence_store.dart';
+import 'src/infrastructure/licensing/licence_verifier.dart';
 import 'src/infrastructure/sync/http_backup_uploader.dart';
 import 'src/presentation/app_services.dart';
 import 'src/presentation/finance_app.dart';
 
-/// financeapp — offline-first business software for small Nepali businesses.
+/// financeapp Ã¢â‚¬â€ offline-first business software for small Nepali businesses.
 ///
 /// The generated counter application that `flutter create` produced has been
 /// replaced. The shell and the design system live under
@@ -63,6 +69,13 @@ Future<void> main() async {
     final uploadLogFile =
         File(p.join(supportDirectory.path, 'backups', 'uploads.json'));
 
+    // Stable per machine, so a licence issued to this installation is recognised on
+    // the next launch. Derived from the support directory, which the OS gives us
+    // per user, and never regenerated.
+    final installationId = _installationId(supportDirectory.path);
+
+    final licenceClient = HttpLicenceAuthorisationClient(transport);
+
     final account = AccountSession(
       auth: HttpAuthClient(transport),
       store: SecureCredentialStore(),
@@ -78,6 +91,24 @@ Future<void> main() async {
     // session null, which is the same as never having signed in.
     await account.restore();
 
+    // **The licence gate.** Sign-in is what starts the offline window: it obtains
+    // the signed authorisation, and every launch after that verifies it locally,
+    // with no network call. Built here because this is the only place that can name
+    // the OS store and the compiled-in public key.
+    final licenceStore = LicenceStore();
+    final licenceVerifier = const LicenceVerifier(
+      // **A placeholder, and deliberately so.** The real constant is produced by
+      // `php artisan financeapp:licence-keypair` and pasted in at build time. It is
+      // NOT read from the environment, because a public key the user can replace
+      // would make the signature check meaningless.
+      publicKey: licencePublicKey,
+    );
+    final licenceGate = LicenceGate(
+      verifier: licenceVerifier,
+      store: licenceStore,
+      installationId: installationId,
+    );
+
     runApp(
       FinanceApp(
         services: AppServices(
@@ -91,7 +122,7 @@ Future<void> main() async {
           // used instead.
           upload: _uploadsFrom(Platform.environment, supportDirectory),
           // Concluding a year needs **both** the books and a signed-in uploader
-          // to archive to, and the uploader belongs to the account session — so
+          // to archive to, and the uploader belongs to the account session Ã¢â‚¬â€ so
           // this is built here, in the composition root, rather than on the
           // session.
           concludeYear: ConcludeFiscalYear(
@@ -118,12 +149,117 @@ Future<void> main() async {
             ),
             accounts: const ChartOfAccounts().all,
           ),
-        ).forSession(session),
+        ).forSession(session).withLicenceGate(
+          // **The gate is built here, in the composition root**, because it is the
+          // only place that can name the OS store, the compiled-in public key, and
+          // the transport. The presentation layer receives a closure and never
+          // learns any of them.
+          //
+          // Sign-in is what **starts** the offline window: it obtains the signed
+          // authorisation, which is then verified locally for as long as that
+          // authorisation allows. No network call happens per launch.
+          recheck: () async => licenceGate.evaluate(),
+          signIn: ({
+            required String serverUrl,
+            required String email,
+            required String password,
+          }) async {
+            final result = await account.signIn(
+              serverBaseUrl: Uri.parse(serverUrl),
+              email: email,
+              password: password,
+            );
+            if (!result.isSuccess) throw StateError(result.message);
+
+            // A token alone is not a licence. The signed authorisation is fetched
+            // and verified **before** anything is stored, so a licence that does
+            // not verify never becomes the thing the gate reads next launch.
+            final session = account.session;
+            if (session == null) throw StateError('Sign-in did not complete.');
+
+            final fetched = await licenceClient.fetch(
+              serverBaseUrl: Uri.parse(serverUrl),
+              token: session.token,
+              bookId: session.bookId,
+              installationId: installationId,
+              deviceName: _deviceName,
+            );
+            if (!fetched.isGranted) {
+              // **The token is discarded.** A signed-in session with no licence
+              // must not be left behind, or the user would appear signed in while
+              // locked, which is the most confusing state available.
+              await account.signOut();
+              throw StateError(fetched.message ?? 'Could not obtain a licence.');
+            }
+
+            final authorisation = fetched.authorisation!;
+            final verification = await licenceVerifier.verify(
+              claimsPayload: authorisation.claims,
+              signatureBase64: authorisation.signature,
+              installationId: installationId,
+            );
+            if (!verification.mayOperate) {
+              await account.signOut();
+              throw StateError(verification.message);
+            }
+
+            await licenceStore.write(
+              StoredLicence(
+                claims: authorisation.claims,
+                signature: authorisation.signature,
+                // **The server's own clock**, read out of the signed payload rather
+                // than taken from this machine, or clock-rollback detection would be
+                // comparing the clock against itself.
+                serverTime: DateTime.parse(
+                  LicenceVerifier.parseClaims(
+                    authorisation.claims,
+                  )['issued_at']!,
+                ).toUtc(),
+              ),
+            );
+          },
+          signOut: () async {
+            await licenceStore.clear();
+            await account.signOut();
+          },
+        ),
       ),
     );
   } catch (error) {
     runApp(StartupFailureApp(error: error));
   }
+}
+
+/// The public key that verifies a licence authorisation.
+///
+/// **A placeholder that fails closed.** This must be replaced with the base64
+/// public key printed by `php artisan financeapp:licence-keypair` **before any
+/// real licence will verify** Ã¢â‚¬â€ which is the intended behaviour here, because a
+/// build that silently accepted an unverifiable licence would be worse than one
+/// that refuses.
+///
+/// Deliberately a compile-time constant rather than an environment variable: a
+/// public key the user can swap out at runtime would make the signature check
+/// meaningless, since anything the machine can replace is something the machine
+/// controls.
+///
+/// Replacing it needs a **new desktop build**. That is the accepted cost of having
+/// no network call between "I have a licence" and "this licence is genuine"; see
+/// ADR 014.
+const String licencePublicKey =
+    'hNJ0abFa9Z/kTmL8bfQCCFAwG5hUFgp37/oxG3TAKB0=';
+
+/// A stable id for this installation.
+///
+/// Derived from the OS-provided per-user support directory, so it **survives
+/// restarts** Ã¢â‚¬â€ a licence is bound to an installation, so an id that changed per
+/// launch would lock the user out every time they started the application.
+///
+/// Never regenerated, and never taken from the network: the server is told what it
+/// is, rather than being allowed to choose it.
+String _installationId(String supportDirectoryPath) {
+  final digest = sha256.convert(utf8.encode(supportDirectoryPath));
+  return 'inst-${digest.toString().substring(0, 32)}';
 }
 
 /// A name for this installation, so the server can identify it.
@@ -148,7 +284,7 @@ String get _deviceName => 'desktop-${Platform.operatingSystem}';
 /// FINANCEAPP_BOOK=<the book id /api/auth/register returned>
 /// ```
 ///
-/// With none of those set — which is the normal case — uploading stays absent and
+/// With none of those set Ã¢â‚¬â€ which is the normal case Ã¢â‚¬â€ uploading stays absent and
 /// the application is exactly as it was: entirely local, needing no network. That
 /// matters, because a desktop application that cannot reach the internet must
 /// still work.

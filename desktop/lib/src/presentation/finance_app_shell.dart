@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../application/books_session.dart';
 import 'app_services.dart';
+import '../domain/shared/licence_access.dart';
 import 'navigation/app_navigation.dart';
+import 'screens/licence_required_screen.dart';
 import 'theme/app_theme.dart';
 
 /// The application window.
@@ -27,6 +29,36 @@ class FinanceAppShell extends StatefulWidget {
 class FinanceAppShellState extends State<FinanceAppShell> {
   late AppServices _services = widget.services;
   late List<NavigationGroup> _groups = _navigationFor(widget.services);
+
+  /// The licence verdict, or null until it has been read.
+  ///
+  /// **Null means "not yet known", not "allowed".** While null the shell shows
+  /// nothing at all rather than assuming permission, so the books are never
+  /// briefly visible before the licence has been checked. A build with no licence
+  /// service Ã¢â‚¬â€ a widget test, or the developer stopgap Ã¢â‚¬â€ leaves this null forever
+  /// and is therefore always unlocked, which is the only case that bypasses.
+  LicenceAccess? _access;
+
+  @override
+  void initState() {
+    super.initState();
+    // Read once at construction. The result arriving late replaces the blank with
+    // either the shell or the sign-in screen.
+    _loadLicence();
+  }
+
+  Future<void> _loadLicence() async {
+    final recheck = _services.recheckLicence;
+    if (recheck == null) return;
+    final access = await recheck();
+    if (mounted) setState(() => _access = access);
+  }
+
+  /// While the verdict is unknown, show nothing rather than the books.
+  ///
+  /// A brief flash of a fully populated shell before the licence is checked is the
+  /// exact thing a gate exists to prevent.
+  bool get _awaitingLicence => _access == null && _services.recheckLicence != null;
   late NavigationItem _selected = _groups.first.sections.first;
 
   List<NavigationGroup> _navigationFor(AppServices services) =>
@@ -70,6 +102,49 @@ class FinanceAppShellState extends State<FinanceAppShell> {
   /// reaching into private state.
   void select(NavigationItem item) => setState(() => _selected = item);
 
+  /// Re-evaluates the licence, and reveals the books if it now permits operation.
+  ///
+  /// Called after a successful sign-in, because signing in is what fetches and
+  /// stores the authorisation. **Until this returns the shell stays locked**, so
+  /// there is no window in which the books are briefly visible before the licence
+  /// has been checked.
+  ///
+  /// The verdict lives in this widget rather than in [AppServices] deliberately:
+  /// `AppServices` is an immutable bundle whose copy methods enumerate every
+  /// capability, and adding one more that must survive every one of them is how a
+  /// capability silently goes missing Ã¢â‚¬â€ the defect 4.30 already records for
+  /// `forAccount`.
+  Future<void> refreshLicence() async {
+    final recheck = _services.recheckLicence;
+    if (recheck == null) return;
+
+    final access = await recheck();
+    if (!mounted) return;
+    setState(() => _access = access);
+  }
+
+  /// Placeholder for a build with no licence wiring at all.
+  ///
+  /// **Fails loudly rather than opening the books.** A build that quietly skipped
+  /// the gate would be indistinguishable from one that passed it, and the second
+  /// is the one worth being able to claim.
+  static Future<void> _refuseSignIn({
+    required String serverUrl,
+    required String email,
+    required String password,
+  }) async {
+    throw StateError(
+      'This build has no licence service configured, so signing in cannot be '
+      'completed. Refusing rather than opening the books without a licence.',
+    );
+  }
+
+  /// Re-evaluates the licence and, if it now permits operation, reveals the books.
+  ///
+  /// Called after a successful sign-in, because signing in is what fetches and
+  /// stores the authorisation. **Until this completes the shell stays locked**, so
+  /// there is no window in which the books are briefly visible before the licence
+  /// has been checked.
   /// Switches the open fiscal year.
   ///
   /// Every use case belongs to one year's books, so the whole service bundle is
@@ -94,6 +169,32 @@ class FinanceAppShellState extends State<FinanceAppShell> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+
+// **The gate is checked before the shell is built at all.**
+    //
+    // A licence problem must not be a dialog *over* the books Ã¢â‚¬â€ the screens behind
+    // it would still be mounted and reachable, which locks nothing. The
+    // specification requires the application to be locked, and the only way to
+    // guarantee that is never to construct the navigation in the first place.
+    //
+    // While locked, this widget holds no screen references: there is nothing to
+    // reach, and nothing that could write to the accounting database.
+    final access = _access;
+    if (_awaitingLicence) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (access != null && !access.mayOperate) {
+      return LicenceRequiredScreen(
+        access: access,
+        onSignIn: _services.signInForLicence ?? _refuseSignIn,
+        onSignOut: _services.signOutForLicence == null ? null : () async {
+          await _services.signOutForLicence!();
+          await refreshLicence();
+        },
+      );
+    }
 
     return Scaffold(
       backgroundColor: palette.canvas,

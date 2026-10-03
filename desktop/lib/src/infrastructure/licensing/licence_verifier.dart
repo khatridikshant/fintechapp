@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../domain/shared/licence_access.dart';
 import 'package:cryptography/cryptography.dart';
 
 /// Verifies a licence authorisation signed by the backend.
@@ -167,14 +168,17 @@ class LicenceVerifier {
       );
     }
 
+    // **The next-validation date is NOT an expiry, and is deliberately not
+    // refused here.** The specification requires the two to be treated as
+    // different concepts: expiry is "an absolute local enforcement boundary", while
+    // the validation date is when to check in again, and a temporary loss of
+    // connectivity "does not unnecessarily prevent normal business operations".
+    //
+    // A first version refused it here, which made a shop whose line dropped out
+    // for a few days unable to trade. The deadline is returned as data and the
+    // grace period is applied by `LicenceGate`, which is the layer that owns the
+    // policy.
     final nextValidation = parseTimestamp(claims['next_validation_at']);
-    if (nextValidation != null && !at.isBefore(nextValidation)) {
-      return const LicenceVerification.invalid(
-        reason: LicenceInvalidReason.revalidationDue,
-        message: 'This licence has not been validated recently and needs an '
-            'internet connection to be refreshed.',
-      );
-    }
 
     return LicenceVerification.valid(
       licenceId: claims['licence_id']!,
@@ -189,8 +193,8 @@ class LicenceVerifier {
   /// Turns the canonical `key=value` payload back into a claim map.
   ///
   /// **Must mirror `LicenceSigner::canonicalise` on the server exactly.** A bare key
-  /// is a null and `key=` is an empty string; those are different facts — "no
-  /// expiry" and "expires at nothing" — and collapsing them would let an expiry be
+  /// is a null and `key=` is an empty string; those are different facts â€” "no
+  /// expiry" and "expires at nothing" â€” and collapsing them would let an expiry be
   /// dropped without the signature being re-checked.
   static Map<String, String?> parseClaims(String payload) {
     final claims = <String, String?>{};
@@ -215,7 +219,7 @@ class LicenceVerifier {
   /// **Absent is not the same as unparseable.** A null expiry means perpetual and is
   /// fine. A value that is present but unreadable is a different fact, and the
   /// required-claim check upstream is what keeps a malformed timestamp from being
-  /// silently read as "never expires" — this function cannot make that distinction
+  /// silently read as "never expires" â€” this function cannot make that distinction
   /// on its own, which is why it is only ever reached with the claim verified.
   static DateTime? parseTimestamp(String? value) {
     if (value == null || value.isEmpty) return null;
@@ -226,7 +230,7 @@ class LicenceVerifier {
 /// Whether a licence authorises the application to run.
 ///
 /// **One class with named constructors rather than a sealed hierarchy.** The outcome
-/// is a single fact — permitted or not, with a reason and a sentence — and a
+/// is a single fact â€” permitted or not, with a reason and a sentence â€” and a
 /// hierarchy over it would add a type to match on without adding a case a caller
 /// could actually handle differently.
 class LicenceVerification {
@@ -271,43 +275,4 @@ class LicenceVerification {
   String toString() => mayOperate
       ? 'LicenceVerification.valid($licenceId)'
       : 'LicenceVerification.invalid($reason)';
-}
-
-/// Why a licence cannot be used.
-enum LicenceInvalidReason {
-  /// A required claim was absent.
-  missingClaims,
-
-  /// A claim this version does not understand was present.
-  unrecognisedClaims,
-
-  /// The signature or key could not be read at all.
-  malformed,
-
-  /// The signature did not verify.
-  badSignature,
-
-  /// Genuine, but issued to a different installation.
-  wrongInstallation,
-
-  /// Genuine, but past its expiry.
-  expired,
-
-  /// Genuine, but due for online revalidation.
-  revalidationDue,
-
-  /// Revoked by the supplier.
-  revoked,
-
-  /// Suspended, and expected to return.
-  suspended,
-
-  /// The clock appears to have been moved backwards.
-  clockRollback,
-
-  /// Nothing is stored, so the application has never been licensed.
-  notInstalled,
-
-  /// Something is stored but it cannot be read.
-  storeCorrupt,
 }

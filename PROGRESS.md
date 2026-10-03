@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-10-03
 **Project:** financeapp
-**Current gate:** 3 â€” SQLite persistence and atomicity
+**Current gate:** 3 Ã¢â‚¬â€ SQLite persistence and atomicity
 **Gate status:** Complete. Accounts and journal entries persist to SQLite, an
 append is atomic, and the database independently rejects corrupt rows. The
 in-memory accounting engine is no longer the only place the books exist.
@@ -62,7 +62,7 @@ disconnected.
 | `docs/AI_RULES.md` | Hard prohibitions and obligations. A contract, not advice. |
 | `docs/ARCHITECTURE.md` | Condensed architecture and the reasoning behind each technology choice. |
 | `docs/INVENTORY_EXPLAINED.md` | **Plain-language accounting explainer.** What the costing methods mean with real numbers, what Nepali rules appear to allow, what this application does, and what it does not do yet. Written for a non-accountant. Read it before touching inventory, costing, COGS, or stock. |
-| `docs/NEPALI_CALENDAR.md` | **Plain-language calendar explainer.** What BS is, why the fiscal year starts in Shrawan, why the dates need a table, what has been verified, and â€” importantly â€” **what has not been verified, with a practical checklist for verifying it before launch.** Read it before changing the calendar data. |
+| `docs/NEPALI_CALENDAR.md` | **Plain-language calendar explainer.** What BS is, why the fiscal year starts in Shrawan, why the dates need a table, what has been verified, and Ã¢â‚¬â€ importantly Ã¢â‚¬â€ **what has not been verified, with a practical checklist for verifying it before launch.** Read it before changing the calendar data. |
 | `docs/decisions/*.md` | Architecture Decision Records. Read before touching a subsystem they govern. |
 
 The three root `.txt` files were written before any code existed. They are more
@@ -72,31 +72,31 @@ authoritative than any summary, including this one.
 
 ```
 finsoftware/
-â”œâ”€â”€ backend/              Laravel 13 API (PHP 8.4). Identity, books, backup metadata.
-â”œâ”€â”€ desktop/              Flutter app (Dart, BSD-3)
-â”‚   â”œâ”€â”€ lib/src/
-â”‚   â”‚   â”œâ”€â”€ domain/       Pure business rules. Imports nothing from other layers.
-â”‚   â”‚   â”‚   â”œâ”€â”€ accounting/  Accounts, journal, ledger, chart of accounts.
-â”‚   â”‚   â”‚   â”œâ”€â”€ billing/     Invoices, credit notes, customers, payments.
-â”‚   â”‚   â”‚   â”œâ”€â”€ inventory/   Movements, valuation, negative-stock rules.
-â”‚   â”‚   â”‚   â”œâ”€â”€ reporting/   Trial balance, general ledger, P&L, balance sheet.
-â”‚   â”‚   â”‚   â”œâ”€â”€ fiscal/      Bikram Sambat calendar and fiscal years.
-â”‚   â”‚   â”‚   â””â”€â”€ shared/      Money, ids, numbering, backup and upload contracts.
-â”‚   â”‚   â”œâ”€â”€ application/  Use cases: issue_invoice, record_payment,
-â”‚   â”‚   â”‚                 issue_credit_note, post_journal_entry,
-â”‚   â”‚   â”‚                 post_inventory_movement, write_down_inventory,
-â”‚   â”‚   â”‚                 build_trial_balance, build_general_ledger, books_session.
-â”‚   â”‚   â”œâ”€â”€ infrastructure/  database/ (drift), backup/, sync/ (HTTP upload).
-â”‚   â”‚   â”‚                    crypto/, filesystem/, licensing/ are still empty.
-â”‚   â”‚   â””â”€â”€ presentation/  shell, app_services, navigation/, screens/, theme/, widgets/.
-â”‚   â”œâ”€â”€ drift_schemas/    Schema snapshots. Committed, needed by migration tests.
-â”‚   â”œâ”€â”€ tool/             live_upload_check.dart â€” not part of the test suite.
-â”‚   â””â”€â”€ test/             lib-mirroring layout, plus generated/ for drift.
-â”‚                         generated/ and drift_schemas/ are committed, not build output.
-â”œâ”€â”€ docs/                 AI_RULES, ARCHITECTURE, plus explainers and decisions/ (ADRs).
-â”œâ”€â”€ NEW_MACHINE.md        Setting the project up on a different device.
-â”œâ”€â”€ GIT_REPO.md           The remote, and the fintechapp / financeapp name difference.
-â””â”€â”€ PROGRESS.md           This file.
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ backend/              Laravel 13 API (PHP 8.4). Identity, books, backup metadata.
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ desktop/              Flutter app (Dart, BSD-3)
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ lib/src/
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ domain/       Pure business rules. Imports nothing from other layers.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ accounting/  Accounts, journal, ledger, chart of accounts.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ billing/     Invoices, credit notes, customers, payments.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ inventory/   Movements, valuation, negative-stock rules.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ reporting/   Trial balance, general ledger, P&L, balance sheet.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ fiscal/      Bikram Sambat calendar and fiscal years.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ shared/      Money, ids, numbering, backup and upload contracts.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ application/  Use cases: issue_invoice, record_payment,
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š                 issue_credit_note, post_journal_entry,
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š                 post_inventory_movement, write_down_inventory,
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š                 build_trial_balance, build_general_ledger, books_session.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ infrastructure/  database/ (drift), backup/, sync/ (HTTP upload).
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€š                    crypto/, filesystem/, licensing/ are still empty.
+Ã¢â€â€š   Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ presentation/  shell, app_services, navigation/, screens/, theme/, widgets/.
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ drift_schemas/    Schema snapshots. Committed, needed by migration tests.
+Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ tool/             live_upload_check.dart Ã¢â‚¬â€ not part of the test suite.
+Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ test/             lib-mirroring layout, plus generated/ for drift.
+Ã¢â€â€š                         generated/ and drift_schemas/ are committed, not build output.
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ docs/                 AI_RULES, ARCHITECTURE, plus explainers and decisions/ (ADRs).
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ NEW_MACHINE.md        Setting the project up on a different device.
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ GIT_REPO.md           The remote, and the fintechapp / financeapp name difference.
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ PROGRESS.md           This file.
 ```
 
 **Two corrections to this section, which had gone stale.** It previously said
@@ -104,23 +104,23 @@ finsoftware/
 content". Both were false: the presentation layer holds the shell, the navigation,
 the theme, and five screens, and the domain layer is largely built. It also listed
 `domain/` subfolders that are in fact empty directories (`customers/`, `products/`,
-`payments/`, `expenses/`, `suppliers/`) â€” the concepts live inside `billing/` and
+`payments/`, `expenses/`, `suppliers/`) Ã¢â‚¬â€ the concepts live inside `billing/` and
 `inventory/`, except for suppliers and expenses, which do not exist at all. Read the
 code, not this list, when it matters.
 
 ## 4. What has been done
 
-### 4.1 Repository scaffolding â€” done
+### 4.1 Repository scaffolding Ã¢â‚¬â€ done
 
-- `backend/` â€” Laravel, installed via `composer create-project laravel/laravel`.
+- `backend/` Ã¢â‚¬â€ Laravel, installed via `composer create-project laravel/laravel`.
   Stock Laravel, no customisation yet. No PostgreSQL connection configured, no
   API routes written.
-- `desktop/` â€” Flutter, created with `--platforms=windows,macos,linux`. All three
+- `desktop/` Ã¢â‚¬â€ Flutter, created with `--platforms=windows,macos,linux`. All three
   desktop platform folders generated and buildable.
 - Layered directory structure under `desktop/lib/src/` and `desktop/test/`.
 - Eight ADRs, one design system, one rules contract, one architecture summary.
 
-### 4.2 The `Money` value object â€” done
+### 4.2 The `Money` value object Ã¢â‚¬â€ done
 `desktop/lib/src/domain/shared/money.dart`, with 20 passing tests in
 `desktop/test/domain/money_test.dart`.
 
@@ -147,7 +147,7 @@ Two bugs were found and fixed during this task, both by the test suite rather
 than by inspection. They are recorded in section 7 because they illustrate the
 working method this project requires.
 
-### 4.3 The double-entry accounting engine â€” done
+### 4.3 The double-entry accounting engine Ã¢â‚¬â€ done
 
 Five files in `desktop/lib/src/domain/accounting/`, with 35 passing tests in
 `desktop/test/domain/accounting_test.dart`. Total suite: 56 tests.
@@ -184,7 +184,7 @@ individual balances and the accounting equation. Bank 115,000; Inventory
 18,000; Payable 30,000; Equity 100,000; profit 3,000. Assets 133,000 equals
 liabilities plus equity 133,000.
 
-### 4.4 SQLite persistence â€” done
+### 4.4 SQLite persistence Ã¢â‚¬â€ done
 
 Schema, repositories, and 23 passing tests in
 `desktop/test/infrastructure/persistence_test.dart`.
@@ -226,7 +226,7 @@ Where the guarantees live:
   units and comes back byte-identical, including across a close and reopen of the
   file.
 
-### 4.5 Unit of work: atomic business operations â€” done
+### 4.5 Unit of work: atomic business operations Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -244,7 +244,7 @@ Nesting is covered because use cases will call each other: a repository's own
 internal transaction joins the outer one rather than committing independently,
 and a nested `run` rolls back with its parent.
 
-### 4.6 Financial reports â€” done (Gate 4)
+### 4.6 Financial reports Ã¢â‚¬â€ done (Gate 4)
 
 | File | Contents |
 | --- | --- |
@@ -282,7 +282,7 @@ identical.
 
 
 
-### 4.7 Fiscal calendar and the application layer â€” done
+### 4.7 Fiscal calendar and the application layer Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -295,9 +295,9 @@ identical.
 
 **The Bikram Sambat calendar.** ADR 009 covers the choice: `bikram_sambat`, MIT,
 pure Dart, covering BS 1969 to 2200. It is isolated behind `BsCalendar` so the
-dependency can be swapped in one file. Verified against published anchors â€”
+dependency can be swapped in one file. Verified against published anchors Ã¢â‚¬â€
 1 Shrawan 2082 equals 17 July 2025, which is the day Nepal's FY 2082/83 actually
-began â€” and asserted in the tests, so a package update that shifts the calendar
+began Ã¢â‚¬â€ and asserted in the tests, so a package update that shifts the calendar
 fails the build instead of silently moving a fiscal boundary.
 
 **The fiscal year rule lives in exactly one place.** Nepal's fiscal year runs
@@ -324,7 +324,7 @@ Verified boundaries: the first day and the last day are both accepted, one day
 before and one day after are both refused, an afternoon on the last day is
 accepted, and a refusal leaves previously committed entries untouched.
 
-### 4.8 The chart of accounts â€” done
+### 4.8 The chart of accounts Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -340,7 +340,7 @@ digit matches its account type.
 `id` such as `acct-bank` and a separate human-facing `code` such as `1010`.
 Journal lines reference accounts by **id**, so renumbering the chart is a display
 change that cannot corrupt history, while an id that changed would silently
-repoint every historical posting at a different account â€” and the books would
+repoint every historical posting at a different account Ã¢â‚¬â€ and the books would
 still balance while being wrong. A test asserts every id is unique, every code is
 unique, and no id is derived from its code.
 
@@ -355,7 +355,7 @@ rejected by the database.
 Seeding is idempotent, so running it twice does not fail on the unique account
 code.
 
-### 4.9 Document numbering, and the first schema migration â€” done
+### 4.9 Document numbering, and the first schema migration Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -382,7 +382,7 @@ writes no row.
 **Allocation composes with the unit of work.** Allocation runs inside a
 transaction that nests inside the caller's. A test issues a document, then fails
 the surrounding operation, and asserts the sequence row rolled back to zero and
-that the retry receives the *same* number â€” so a failed issuance leaves no
+that the retry receives the *same* number Ã¢â‚¬â€ so a failed issuance leaves no
 unexplained gap in the numbering. A second test proves a rollback does not
 disturb earlier committed allocations.
 
@@ -391,14 +391,14 @@ and nothing is dropped or recreated. The migration is verified two ways:
 
 - Drift schema snapshots were dumped for v1 and v2, and `SchemaVerifier` validates
   that a v1 database migrates to a schema matching the v2 snapshot.
-- A v1-shaped fixture is written with **raw SQL** â€” exactly what the previous
-  release would have produced â€” and the tests then assert the old chart of
+- A v1-shaped fixture is written with **raw SQL** Ã¢â‚¬â€ exactly what the previous
+  release would have produced Ã¢â‚¬â€ and the tests then assert the old chart of
   accounts, the posted journal entry, its two lines, the posting date, and the
   amounts all survive the upgrade intact. One test then allocates a document
   number on the upgraded database, because a migration that validates but does
   not work is only a shape.
 
-### 4.10 Issuing a sales invoice â€” done
+### 4.10 Issuing a sales invoice Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -424,7 +424,7 @@ round each line separately and drift from the correct total, so the amount poste
 would not match the return filed with the tax authority. Verified by hand: Rs 1,000
 at 13% is 100,000 paisa subtotal, 13,000 paisa VAT, 113,000 paisa total. A
 rounding test covers the half-up case, because truncation would understate tax
-owed â€” a real-world problem, not a cosmetic one.
+owed Ã¢â‚¬â€ a real-world problem, not a cosmetic one.
 
 **Issuance is one atomic operation.** The date is validated before anything is
 opened, so a refused invoice writes no journal entry, no lines, and no sequence
@@ -435,9 +435,9 @@ consume a serial. The journal entry id is derived from the invoice id
 (`JE-INV-INV-A`), so re-issuing an already-issued invoice is refused by the
 primary key. A test asserts the sequence stays at 1, that the next *different*
 invoice receives 2 with no gap, and that the sequence value agrees with the number
-of journal entries â€” the journal and the counter cannot drift apart.
+of journal entries Ã¢â‚¬â€ the journal and the counter cannot drift apart.
 
-### 4.11 Customers, and the second schema migration â€” done
+### 4.11 Customers, and the second schema migration Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -466,7 +466,7 @@ journal entry, no lines, and no sequence row.
 
 The test that mattered: an invoice for a nonexistent customer is refused, the
 sequence is still 0, the customer is then created, and the same invoice receives
-**`INV-2082-83-0001`** â€” so the refusal burnt no serial.
+**`INV-2082-83-0001`** Ã¢â‚¬â€ so the refusal burnt no serial.
 
 **Migration v2 to v3.** The `customers` table is added, and the migration is
 stepwise: each step is guarded by its own version, so a v1 database runs *both*
@@ -475,7 +475,7 @@ existing accounts, journal entries, dates, amounts, and a document sequence all
 intact, and that the upgraded database can create a customer and allocate a
 number.
 
-### 4.12 Issued invoices as records, and the third schema migration â€” done
+### 4.12 Issued invoices as records, and the third schema migration Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -513,7 +513,7 @@ subtotal and VAT amount would be lossy and impossible for a zero-rated invoice.
 commented: invoices reference customers and journal entries, so those tables must
 already exist. A v1 database still reaches v4 by running all three steps.
 
-### 4.13 Payments received, and the fourth schema migration â€” done
+### 4.13 Payments received, and the fourth schema migration Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -550,7 +550,7 @@ they owe or blocks a legitimate final settlement.
 **The overpayment check cannot race.** The outstanding balance is read and the
 payment is written inside the same transaction, so two payments cannot both be
 validated against a balance that only one of them should have been allowed to
-consume. That is not merely unlikely â€” it is closed.
+consume. That is not merely unlikely Ã¢â‚¬â€ it is closed.
 
 **A payment cannot be double-counted.** The journal entry id is derived from the
 payment id, so reusing a payment id is refused by the primary key rather than
@@ -563,7 +563,7 @@ double entry is nonsense.
 **Migration v4 to v5** adds `payments`, referencing `invoices` and `accounts`. A
 v1 database still reaches v5 by running all four steps.
 
-### 4.14 Credit notes, and the fifth schema migration â€” done
+### 4.14 Credit notes, and the fifth schema migration Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -595,9 +595,9 @@ has been paid, in which case the business owes the customer a refund. Bounding
 the credit note by what is still owed would make that ordinary case impossible.
 So `InvoiceBalance` now carries both:
 
-- `outstanding` â€” total minus payments **and** credits, which **can go negative**,
+- `outstanding` Ã¢â‚¬â€ total minus payments **and** credits, which **can go negative**,
   meaning a refund is due. `isRefundDue` and `refundDue` make that explicit.
-- `uncredited` â€” total minus credits only, which is the ceiling for the next
+- `uncredited` Ã¢â‚¬â€ total minus credits only, which is the ceiling for the next
   credit note.
 
 **Credit notes use their own `CRN` sequence.** Issuing three invoices and then one
@@ -615,7 +615,7 @@ still reaches v6 by running all five steps, and a v5 database with accounts, a
 customer, an invoice, a payment, and a document sequence migrates with all of it
 intact.
 
-### 4.15 Profit & Loss â€” done
+### 4.15 Profit & Loss Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -625,8 +625,8 @@ intact.
 
 Derived from the journal and never stored, like the other reports.
 
-**Income and expenses only.** Balance sheet accounts â€” assets, liabilities,
-equity â€” appear nowhere, even if they had activity in the period, and even if one
+**Income and expenses only.** Balance sheet accounts Ã¢â‚¬â€ assets, liabilities,
+equity Ã¢â‚¬â€ appear nowhere, even if they had activity in the period, and even if one
 is supplied in the chart. A test asserts all four balance sheet codes are absent,
 because including them is the classic way a profit and loss statement goes wrong.
 
@@ -647,7 +647,7 @@ different derivations of the same number agreeing is worth more than either alon
 Hand-computed on the worked example: income 2,000,000 paisa, expenses 1,700,000,
 **profit 300,000**.
 
-### 4.16 Balance Sheet â€” done
+### 4.16 Balance Sheet Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -686,7 +686,7 @@ line equals `ProfitAndLoss.netResult` for the same data, and the same holds when
 read back from a real database rather than in memory. Three statements agreeing
 about one book is worth more than any of them alone.
 
-### 4.17 Products and inventory movements â€” partially done (Gate 6 opened)
+### 4.17 Products and inventory movements Ã¢â‚¬â€ partially done (Gate 6 opened)
 
 | File | Contents |
 | --- | --- |
@@ -708,7 +708,7 @@ construction** rather than by careful bookkeeping. There is no cost column on th
 product, and the cost per unit is derived from the value.
 
 **Hand-computed on the explainer's example:** buy 10 at Rs 100, then 10 at
-Rs 120 â†’ quantity 20, value Rs 2,200, derived cost Rs 110. Issue 10 â†’ Rs 1,100
+Rs 120 Ã¢â€ â€™ quantity 20, value Rs 2,200, derived cost Rs 110. Issue 10 Ã¢â€ â€™ Rs 1,100
 leaves, and the remaining Rs 1,100 is **exactly** the original less what left.
 
 **Issuing the whole holding leaves exactly zero value, not stray paisa.** There is
@@ -721,7 +721,7 @@ write happen inside one transaction, so two issues cannot both be validated
 against a quantity only one of them should have been allowed to take. A refused
 issue writes **no movement row at all**, verified by asserting the movement count
 is unchanged. The check is against the total of all movements, not a position as
-at the movement's date â€” ADR 004 explains why.
+at the movement's date Ã¢â‚¬â€ ADR 004 explains why.
 
 **Still missing from Gate 6, and this matters:** movements do **not post to the
 ledger**. A purchase should `Dr 1040 Inventory / Cr 2010 Accounts Payable` and a
@@ -730,7 +730,7 @@ yet. Specification RULE 5 requires it. **Gate 6 cannot close without this**, nor
 without the write-down to the lower of cost and net realisable value that ADR 004
 already flags.
 
-### 4.18 Posting inventory movements to the ledger â€” done
+### 4.18 Posting inventory movements to the ledger Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -755,7 +755,7 @@ accounting policy and needs to be readable in one place:
 | sale | issue | 5020 Cost of Goods Sold | 1040 Inventory |
 | sale return | receipt | 1040 Inventory | 5020 Cost of Goods Sold |
 | adjustment, return in/out | either | 1040 Inventory or 5070 | the other |
-| transfer | â€” | **refused** | â€” |
+| transfer | Ã¢â‚¬â€ | **refused** | Ã¢â‚¬â€ |
 
 **The test that matters, and it passes:** after buying 10 at Rs 100, 10 at Rs 120,
 then issuing 10, **the inventory account balance in the trial balance equals the
@@ -777,7 +777,7 @@ gives pre-existing movements a `null` entry rather than inventing one, because a
 fabricated entry would be a lie in the books. A migration test asserts the old row
 keeps its `null` while a new movement gets its entry.
 
-### 4.19 Inventory write-down to net realisable value â€” done (Gate 6 complete)
+### 4.19 Inventory write-down to net realisable value Ã¢â‚¬â€ done (Gate 6 complete)
 
 | File | Contents |
 | --- | --- |
@@ -799,7 +799,7 @@ Cr  1040 Inventory               the reduction
 ```
 
 **The quantity does not change, and that required a design change.** A write-down
-is not a disposal â€” the goods are still on the shelf, they are simply worth less.
+is not a disposal Ã¢â‚¬â€ the goods are still on the shelf, they are simply worth less.
 The movement type previously required a non-zero quantity and a value pointing the
 same way, so a value-only change was **unrepresentable**. A new `writeDown` reason
 now permits `quantity == 0` with a negative value, and the database CHECK was
@@ -825,7 +825,7 @@ tighten the rule rather than edit the test: a quantity change must carry a value
 and only a write-down may be value-only. Two existing tests were updated, both to
 assert the *new* correct rule rather than to weaken anything.
 
-### 4.20 Gate 7 begins: the application shell and the licences screen â€” done
+### 4.20 Gate 7 begins: the application shell and the licences screen Ã¢â‚¬â€ done
 
 | File | Contents |
 | --- | --- |
@@ -879,7 +879,7 @@ quietly break. The calendar guard has to exclude its own file, because it contai
 the import string it searches for; loosening the pattern instead would let a real
 import through.
 
-### 4.21 The Trial Balance screen â€” the first screen wired to real data
+### 4.21 The Trial Balance screen Ã¢â‚¬â€ the first screen wired to real data
 
 | File | Contents |
 | --- | --- |
@@ -934,7 +934,7 @@ journal table without going through `JournalEntry`, the check would fire.
 **The opening balance is the point of this screen.** A range that starts after an
 account's first posting must bring the earlier balance forward, or the running
 balance appears to start at zero and **the closing figure silently disagrees with
-the trial balance** â€” a reconciliation failure a user has no way to detect. Three
+the trial balance** Ã¢â‚¬â€ a reconciliation failure a user has no way to detect. Three
 tests cover it: a mid-history range shows the opening and its first running
 balance continues from it; a range with no postings *still* shows the opening;
 and an untouched account shows neither.
@@ -998,7 +998,7 @@ year. Two faults, and the second was worse:
 
 1. **The app did not know the other years existed.** `main.dart` computed the
    current fiscal year and opened that one file; it never looked for other
-   `accounting-FY-*.db` files. It could not back them up â€” and could not open
+   `accounting-FY-*.db` files. It could not back them up Ã¢â‚¬â€ and could not open
    them either.
 2. **The screen implied more protection than it delivered.** It warned that a
    backup does not survive losing the computer, but said nothing about older years
@@ -1020,7 +1020,7 @@ both the backups taken and the failures, and a test proves a corrupt concluded y
 is named in the failures while the other years are still covered.
 
 **The screen now says which years have no backup**, counts them, and a partial run
-reports "â€¦could NOT be backed up: FY 2081/82 (reason)".
+reports "Ã¢â‚¬Â¦could NOT be backed up: FY 2081/82 (reason)".
 
 **Two bugs of my own, both caught by the tests.** Restore was writing to the
 **snapshot's** file name instead of that year's books file, so it never replaced
@@ -1037,7 +1037,7 @@ three times and lists it as an acceptance test:
 > review, but they shall be opened in read-only mode."*
 > Section 26: *"Historical fiscal-year databases are read-only and shall never be
 > silently modified."*
-> Acceptance test: *"Historical year â†’ opens read-only."*
+> Acceptance test: *"Historical year Ã¢â€ â€™ opens read-only."*
 
 | File | Contents |
 | --- | --- |
@@ -1091,7 +1091,7 @@ receive it.
 so directly, and it is enforced in four ordered checks, cheapest-and-safest first:
 the file's magic header, the declared size, the declared SHA-256, and finally
 SQLite's own `integrity_check`. The first failure stops the upload and **nothing
-is written** â€” no file, no metadata row. There is deliberately no "uploaded but not
+is written** Ã¢â‚¬â€ no file, no metadata row. There is deliberately no "uploaded but not
 yet checked" state, because such a row is a backup the desktop might later
 report as stored.
 
@@ -1140,7 +1140,7 @@ makes every authenticated route unreachable.
 **The database now exists and the migrations ran against it.** `financeapp`, UTF-8,
 PostgreSQL 17.4. `DB_PASSWORD` was empty, which produced a confusing
 `FATAL: database "financeapp" does not exist` only *after* authentication
-succeeded â€” the missing password and the missing database had the same symptom from
+succeeded Ã¢â‚¬â€ the missing password and the missing database had the same symptom from
 the outside, and it was worth separating them in order rather than guessing. The
 password lives in `.env`, which `backend/.gitignore` excludes, so it cannot be
 committed by accident.
@@ -1171,7 +1171,7 @@ so it is named as its own task rather than approximated.
 **Verified against the real stack, not only the in-memory tests.** A throwaway
 script walked the whole path over HTTP against live PostgreSQL: register, login,
 `me`, a genuine SQLite snapshot uploaded with its real checksum and size, then
-four refusals â€” duplicate email, weak password, wrong password, no token, bad
+four refusals Ã¢â‚¬â€ duplicate email, weak password, wrong password, no token, bad
 checksum, stale revision, and a file that is not a database. All fourteen checks
 behaved as required, and **one revision remained stored after all the refusals**,
 which is the property that matters: no partial or unverified artefact survives.
@@ -1229,7 +1229,7 @@ and this is the only part of the application that needs a server at all.
 
 **`dart:io` rather than an HTTP package.** `package:http` is not in the approved
 list, and the SDK's `HttpClient` covers this in about forty lines. The upload adds
-**no dependency at all** â€” which the dependency policy in `docs/AI_RULES.md`
+**no dependency at all** Ã¢â‚¬â€ which the dependency policy in `docs/AI_RULES.md`
 requires to be a deliberate, recorded choice.
 
 **Two findings, both worth recording.**
@@ -1261,11 +1261,11 @@ were then read back out of PostgreSQL to confirm they were really stored.
 
 **Not yet usable by a real user without help.** The token comes from environment
 variables, because there is no sign-in screen and the specification's protected
-operating-system storage for tokens is not built. With nothing set â€” the normal
-case â€” uploading is absent and the application is exactly as local as before. See
+operating-system storage for tokens is not built. With nothing set Ã¢â‚¬â€ the normal
+case Ã¢â‚¬â€ uploading is absent and the application is exactly as local as before. See
 section 6.
 
-### 4.29 A code review of 4.27â€“4.28, and twelve fixes
+### 4.29 A code review of 4.27Ã¢â‚¬â€œ4.28, and twelve fixes
 
 **A review of the uncommitted work found twelve issues in it; all twelve are
 fixed, and every fix was mutation-tested.** The two that mattered most were in
@@ -1292,20 +1292,20 @@ for the case variant, which the original duplicate-email test did not cover.
 
 **The Backup screen overstated what it had achieved.** `_describeUploads` counted
 only the years it attempted, so a two-year business with one unbacked-up year was
-told *"Sent 1 of 1 fiscal yearâ€¦ Every year is now stored off this computer"* â€” while
+told *"Sent 1 of 1 fiscal yearÃ¢â‚¬Â¦ Every year is now stored off this computer"* Ã¢â‚¬â€ while
 the unprotected-years warning sat above it saying the opposite. The denominator is
 now the total year count, and a year with no backup is named in the summary.
 
 **The public auth routes had no rate limit.** `bootstrap/app.php` leaves
 `withMiddleware` empty, and the framework only puts `throttle:api` on the `api`
-group when `throttleApi()` is called â€” verified in
+group when `throttleApi()` is called Ã¢â‚¬â€ verified in
 `Middleware.php:495`, not assumed. `register` and `login` therefore accepted
 unlimited requests: unbounded account creation, unrestricted credential guessing,
 and bcrypt CPU exhaustion. Both now carry `throttle:6,1`.
 
 **One of the new tests could not fail.** The schema-version assertion was
 `contains('9')`, which the snapshot's own generated bytes already satisfied, so it
-would have passed even if the field were absent â€” the same defect 7.21 records,
+would have passed even if the field were absent Ã¢â‚¬â€ the same defect 7.21 records,
 repeated. It now reads the declared value out of the request and compares it to
 `currentSchemaVersion`, and the fake transport's own fixture uses the constant
 rather than a second copy of the number.
@@ -1316,7 +1316,7 @@ rather than a second copy of the number.
   short-circuits, so an unknown address answered without paying bcrypt. The
   comparison now runs against a dummy hash regardless. **A finding inside the
   finding:** the first fix used a hand-written bcrypt-looking literal, which would
-  have been worse than useless â€” measured, `password_verify` against a malformed
+  have been worse than useless Ã¢â‚¬â€ measured, `password_verify` against a malformed
   hash returns in **0.04 ms** against **191 ms** for a real one, so it would have
   kept the short-circuit's speed while looking fixed. A real hash is now used, and
   the measurement is what caught it.
@@ -1331,7 +1331,7 @@ rather than a second copy of the number.
   then `BytesBuilder`, then `takeBytes` meant peak memory of several times the file
   size. The transport now takes an ordered list of byte segments and sets
   `contentLength`, so the snapshot is passed by reference, and the checksum is
-  computed by streaming the file **in a separate isolate** â€” so a large year
+  computed by streaming the file **in a separate isolate** Ã¢â‚¬â€ so a large year
   neither blocks the interface nor exists in memory twice.
 - **One `HttpClient` for the transport, not one per request.** The pool is now
   reused across the two calls per year instead of a fresh TCP and TLS handshake
@@ -1340,7 +1340,7 @@ rather than a second copy of the number.
   no callers, which is the same dead surface 7.21's lesson warns about.
 
 **Every fix was mutation-tested, and three of the four new tests initially failed
-to catch their own regression** â€” the same trap as 7.21, found the same way. The
+to catch their own regression** Ã¢â‚¬â€ the same trap as 7.21, found the same way. The
 rate-limit and normalisation tests passed with their fixes reverted because those
 mutations had not applied (CRLF mismatch in the mutation script); re-applied
 properly, both fail without their fix. The verification guard and the coverage
@@ -1349,7 +1349,7 @@ denominator were each confirmed to fail when reverted. **The lesson is sharper t
 
 **Verified:** 660 Dart tests, 35 Laravel tests (97 assertions), `flutter analyze`
 clean, Pint clean, Windows build succeeds, and the six live checks against the real
-Laravel server and PostgreSQL still pass â€” which also proves the new
+Laravel server and PostgreSQL still pass Ã¢â‚¬â€ which also proves the new
 length-delimited segmented body is accepted by the server's multipart parser.
 
 ### 4.30 Sign-in, so a backup can actually be sent by a user
@@ -1382,7 +1382,7 @@ server is told, best-effort, and neither step is allowed to throw. Two tests wer
 written for the failure paths: a store that cannot be cleared, and a server that
 cannot be reached. Both were **real bugs in the first version**, which relied on
 the implementations swallowing their own errors rather than making the caller
-robust â€” a locked keyring would have stopped the application starting, and a dead
+robust Ã¢â‚¬â€ a locked keyring would have stopped the application starting, and a dead
 network would have produced a sign-out that does not happen.
 
 **The transport was moved out of the uploader rather than copied.** Two features
@@ -1397,7 +1397,7 @@ drift is sending a bearer token and an entire accounting database over clear tex
 because one copy was not updated.
 
 **The decision section 6 asked for: a `401` now says "sign in again".** It was
-`unreachable`, which tells the user to try again later â€” and retrying a `401`
+`unreachable`, which tells the user to try again later Ã¢â‚¬â€ and retrying a `401`
 fails identically every time, so the wording would send them round a loop they
 cannot escape. It became `UploadStatus.unauthenticated`. **Fixing it properly
 found a second bug:** the new tests failed, because a revoked session usually
@@ -1406,7 +1406,7 @@ fails the *revision lookup* first and that path collapsed every failure into
 distinction that mattered; it now returns a three-state `_RevisionLookup`.
 
 **Mutation-tested, and the first mutation was invalid.** Removing the guard
-around `signOut`'s store clear left all tests passing â€” not because the tests were
+around `signOut`'s store clear left all tests passing Ã¢â‚¬â€ not because the tests were
 weak but because the mutation I wrote (`if (false) rethrow;`) was semantically a
 no-op. Re-applied by actually deleting the `try`, the test caught it. That is
 7.22 again, from a new angle: **a mutation that does not change behaviour proves
@@ -1414,10 +1414,10 @@ nothing.**
 
 **Not verified on Windows.** `flutter test` passes 712 and `flutter analyze` is
 clean, but `flutter build windows --debug` **fails**, and that is a blocker for
-the project rather than a defect in this code. See 4.32 â€” it needs an owner
+the project rather than a defect in this code. See 4.32 Ã¢â‚¬â€ it needs an owner
 decision. It worked before this dependency was added.
 
-**Verified against the real backend.** `tool/live_signin_check.dart` â€” 7 checks
+**Verified against the real backend.** `tool/live_signin_check.dart` Ã¢â‚¬â€ 7 checks
 against the running Laravel server and live PostgreSQL, using the real
 `IoHttpTransport`: a real account signs in and the parsed token is accepted by
 `/api/auth/me`; the wrong password is refused with no token and no wording that
@@ -1431,7 +1431,7 @@ tokens were then read back out of PostgreSQL.
 
 **Found by running the live check, not by writing a test.** Registration and
 sign-in carry `throttle:6,1`, which Laravel keys on the **client address**. The
-first live run failed with `429` partway through â€” the limit was working exactly
+first live run failed with `429` partway through Ã¢â‚¬â€ the limit was working exactly
 as designed, but it exposed the shape of the problem:
 
 - **Six sign-ins a minute is shared by every user behind one router.** A business
@@ -1441,8 +1441,8 @@ as designed, but it exposed the shape of the problem:
 - **It is trivially exhausted by one client**, which is the intent, so the limit
   itself is right. The key is what is wrong.
 
-**Not changed here, and deliberately.** The obvious fixes â€” keying on email as
-well as address, or raising the ceiling â€” are guesses about deployment. The
+**Not changed here, and deliberately.** The obvious fixes Ã¢â‚¬â€ keying on email as
+well as address, or raising the ceiling Ã¢â‚¬â€ are guesses about deployment. The
 desktop is a first-party client where sign-in is rare, so six a minute may well be
 correct for a single household and wrong for an office. **This needs a decision
 with a real user count behind it**, and it is recorded rather than silently
@@ -1453,7 +1453,7 @@ if it is rate limited, and makes no server round trip where the token's validity
 is irrelevant. That is the tool accommodating the limit, not the limit being
 relaxed.
 
-### 4.32 The ATL blocker â€” how it ended, and what it cost
+### 4.32 The ATL blocker Ã¢â‚¬â€ how it ended, and what it cost
 
 **Started as:** `flutter build windows` fails, because the
 `flutter_secure_storage` package's Windows plugin contains one
@@ -1461,8 +1461,8 @@ relaxed.
 
 **Ended as:** the dependency is gone, and **nothing in the build needs an optional
 Visual Studio component any more.** Replaced with `webauthn_secure_storage`
-(MIT), which stores the value in the Windows Credential Manager â€” the same DPAPI
-protection â€” with no ATL dependency and no additional toolchain. Verified: no
+(MIT), which stores the value in the Windows Credential Manager Ã¢â‚¬â€ the same DPAPI
+protection Ã¢â‚¬â€ with no ATL dependency and no additional toolchain. Verified: no
 plugin in the build references ATL. See `docs/AI_RULES.md` for the dependency
 decision.
 
@@ -1484,12 +1484,12 @@ decision.
    `Command line: ...\setup.exe` with nothing after it.
 
 **And one piece of harm:** `vs_installer.exe modify --add` recomputes the component
-set, and its installer log shows it **removing** packages â€”
-`Microsoft.VC.14.51.CRT.Headers`, `Microsoft.VC.14.51.Servicing.CrtHeaders` â€” while
+set, and its installer log shows it **removing** packages Ã¢â‚¬â€
+`Microsoft.VC.14.51.CRT.Headers`, `Microsoft.VC.14.51.Servicing.CrtHeaders` Ã¢â‚¬â€ while
 re-downloading the Build Tools payload. Each attempt tore down more of the
 installation without restoring the compiler component. **Do not run it again.**
 
-### 4.33 The storage dependency, settled â€” and the build works
+### 4.33 The storage dependency, settled Ã¢â‚¬â€ and the build works
 
 **`flutter build windows --debug` now succeeds.** `financeapp.exe` builds with
 **no optional Visual Studio component of any kind**, after two rejected packages
@@ -1499,13 +1499,13 @@ and one that looked clean and was not.
 | --- | --- | --- | --- |
 | `flutter_secure_storage` | Credential Manager | **ATL component** | Rejected: one `#include <atlstr.h>` |
 | `webauthn_secure_storage` | Credential Manager | **App SDK + coroutine fix** | Rejected: `<winrt/...>` and `<experimental/coroutine>`, which MSVC 14.51 rejects |
-| `local_storage_cache` | **no** â€” app-level `crypto` | none | Rejected: encrypts with a key on the same disk |
-| `get_secure_storage` | **no** â€” app-level `cryptography` | none | Rejected: same, and 903 days stale |
+| `local_storage_cache` | **no** Ã¢â‚¬â€ app-level `crypto` | none | Rejected: encrypts with a key on the same disk |
+| `get_secure_storage` | **no** Ã¢â‚¬â€ app-level `cryptography` | none | Rejected: same, and 903 days stale |
 | `keyring` | yes | **Rust toolchain** (`native_toolchain_rust`, `hooks`) | Rejected: swaps one prerequisite for a worse one |
 | **`crossvault`** | **Credential Manager + DPAPI/CNG** | **none** | **Adopted** |
 
-`crossvault` includes only `wincred.h`, `ncrypt.h` and `bcrypt.h` â€” standard
-Windows SDK headers â€” and no coroutines. Verified in the built plugin: no `atlstr`,
+`crossvault` includes only `wincred.h`, `ncrypt.h` and `bcrypt.h` Ã¢â‚¬â€ standard
+Windows SDK headers Ã¢â‚¬â€ and no coroutines. Verified in the built plugin: no `atlstr`,
 no `<winrt/`, no `experimental/coroutine`.
 
 **Its one limitation is real: no Linux implementation.** On Linux the token lives
@@ -1513,35 +1513,35 @@ in memory for the session and the user signs in again after a restart. Because
 `CredentialStore` is an interface, adding Linux later touches one file.
 
 **The lesson from the two rejected rejections is the valuable part.** Checking
-`local_storage_cache` and `get_secure_storage` properly â€” rather than dismissing
-them â€” was what surfaced that `keyring`'s native half needs a Rust toolchain, and
+`local_storage_cache` and `get_secure_storage` properly Ã¢â‚¬â€ rather than dismissing
+them Ã¢â‚¬â€ was what surfaced that `keyring`'s native half needs a Rust toolchain, and
 it corrected a claim I had already made. The umbrella package is **not** where the
 native code lives for a federated plugin: `webauthn_secure_storage`'s umbrella was
 clean and its `_windows` package carried the ATL and the WinRT include.
 
-### 4.34 BLOCKER â€” Visual Studio's compiler component is unregistered
+### 4.34 BLOCKER Ã¢â‚¬â€ Visual Studio's compiler component is unregistered
 
 Still broken, and **not the project's fault**. `flutter build windows` refuses with
 `Unable to find suitable Visual Studio toolchain` whenever Flutter asks `vswhere`
 for an installation satisfying
 `Workload.VCTools` + `VC.Tools.x86.x64` + `VC.CMake.Project`.
 
-- `Workload.VCTools` âœ…, `VC.CMake.Project` âœ…, `Windows10SDK` âœ…
-- **`VC.Tools.x86.x64` âŒ not registered**, though `cl.exe` 14.51.36231 and
+- `Workload.VCTools` Ã¢Å“â€¦, `VC.CMake.Project` Ã¢Å“â€¦, `Windows10SDK` Ã¢Å“â€¦
+- **`VC.Tools.x86.x64` Ã¢ÂÅ’ not registered**, though `cl.exe` 14.51.36231 and
   `cmake.exe` are both present and working.
 - The component **was** registered earlier in this session and `state.json` shows
   it in the selection before the ATL installer attempts and not after. **The exact
   cause is not established.**
 
 **`vs_installer.exe modify --add` made this worse and must not be used.** Its
-installer log shows it *removing* packages â€” `Microsoft.VC.14.51.CRT.Headers`,
-`Microsoft.VC.14.51.Servicing.CrtHeaders` â€” while re-downloading the Build Tools
+installer log shows it *removing* packages Ã¢â‚¬â€ `Microsoft.VC.14.51.CRT.Headers`,
+`Microsoft.VC.14.51.Servicing.CrtHeaders` Ã¢â‚¬â€ while re-downloading the Build Tools
 payload, and it never restored the compiler component.
 
 **The fix belongs to the owner**, in the GUI, because the point of the GUI is that
-it shows the pending change *before* it is applied: *Modify* â†’ *Individual
-components* â†’ search `MSVC` â†’ confirm **"MSVC Build Tools for x64/x86 (Latest)"**
-is ticked â†’ *Modify*. As of this entry the owner has done that and `vswhere`
+it shows the pending change *before* it is applied: *Modify* Ã¢â€ â€™ *Individual
+components* Ã¢â€ â€™ search `MSVC` Ã¢â€ â€™ confirm **"MSVC Build Tools for x64/x86 (Latest)"**
+is ticked Ã¢â€ â€™ *Modify*. As of this entry the owner has done that and `vswhere`
 reports the component registered with `isComplete: true`, so this is recorded as
 **resolved pending confirmation by a build**.
 
@@ -1550,19 +1550,19 @@ macOS and Linux builds are unaffected.
 ### 4.35 What a Nepali invoice actually has to contain
 
 The owner's instruction: learn what Nepali billing requires, then implement it
-properly. The specification had already set the standard â€” *"Nepal's applicable
+properly. The specification had already set the standard Ã¢â‚¬â€ *"Nepal's applicable
 tax rules shall be verified against current authoritative requirements before
 production release and **shall not be treated as permanently fixed application
-constants**"* â€” so the work had two halves, and the second mattered more than
+constants**"* Ã¢â‚¬â€ so the work had two halves, and the second mattered more than
 the first.
 
 | File | Contents |
 | --- | --- |
 | `docs/NEPALI_BILLING.md` | The rules, their sources, **and where the sources conflict**. |
 | `domain/billing/nepali_pan.dart` | `NepaliPan`: nine digits, formatting removed, malformed rejected. |
-| `domain/billing/nepal_tax_rules.dart` | `NepalTaxRules` â€” the rules as **data with a version**, not constants. |
+| `domain/billing/nepal_tax_rules.dart` | `NepalTaxRules` Ã¢â‚¬â€ the rules as **data with a version**, not constants. |
 | `domain/billing/business_profile.dart` | `BusinessProfile`: the supplier details every tax invoice carries. |
-| `domain/billing/party.dart` | `Party` â€” customer or supplier, with PAN and VAT registration. |
+| `domain/billing/party.dart` | `Party` Ã¢â‚¬â€ customer or supplier, with PAN and VAT registration. |
 | `domain/billing/invoice_compliance.dart` | `InvoiceKind`, `InvoiceComplianceIssue`, `InvoiceCompliance`. |
 | `domain/billing/amount_in_words.dart` | Total in words, in lakh and crore. |
 | `domain/billing/hs_code.dart` | HS code, the 46th-amendment addition for goods. |
@@ -1571,13 +1571,13 @@ the first.
 **Two compliance questions were left open on purpose, and are recorded in section
 5.1** so they are not forgotten: the VAT registration threshold, and the buyer's
 PAN threshold. The sources conflict on both, so neither is implemented as a
-constant â€” the registration flag is stated by the owner, and the PAN threshold uses
+constant Ã¢â‚¬â€ the registration flag is stated by the owner, and the PAN threshold uses
 the stricter of the two reported figures.
 
 **What was implemented, and why each one is a rule rather than a feature:**
 
 - **Two invoice forms, not one.** Rule 17 tax invoice, and the Rule 17(Ka)
-  abbreviated retail invoice available only within a ceiling â€” NPR 10,000. Both are
+  abbreviated retail invoice available only within a ceiling Ã¢â‚¬â€ NPR 10,000. Both are
   legal, and the abbreviated form is a convenience for a high-volume seller, never
   a way to refuse a customer who asks for a full one.
 - **The seller's PAN gates everything.** A bill without the supplier's PAN is not a
@@ -1585,7 +1585,7 @@ the stricter of the two reported figures.
   is moot without it.
 - **The buyer's PAN is required when any of three conditions hold**: the buyer is
   VAT-registered, the document is a full tax invoice, or the total is at or above
-  the threshold. **A malformed PAN is reported as missing, not accepted** â€” an
+  the threshold. **A malformed PAN is reported as missing, not accepted** Ã¢â‚¬â€ an
   invalid PAN on a bill is not a PAN, and printing one looks compliant without
   being so.
 - **A VAT-registered business charging no VAT is reported.** The zero-rate case is
@@ -1597,10 +1597,10 @@ the stricter of the two reported figures.
 - **Nothing is inferred that the sources disagree about.** Whether VAT
   registration is *compulsory* depends on a turnover threshold reported
   inconsistently (NPR 20 lakh or 30 lakh for services), so **no threshold is
-  implemented at all** â€” `isVatRegistered` is stated by the owner. Guessing would
+  implemented at all** Ã¢â‚¬â€ `isVatRegistered` is stated by the owner. Guessing would
   produce confidently wrong compliance advice, which is worse than none.
-- **Retention was corrected.** Income Tax Act Â§81(2), verified against the
-  statutory text, is **five years from the expiry of the income year** â€” not five
+- **Retention was corrected.** Income Tax Act Ã‚Â§81(2), verified against the
+  statutory text, is **five years from the expiry of the income year** Ã¢â‚¬â€ not five
   years from the transaction date. VAT is commonly cited at six, and is the longer
   and therefore binding period. `docs/BACKUP_AND_RETENTION.md` previously stated
   a single undifferentiated "six years"; it now carries both figures, their
@@ -1615,12 +1615,12 @@ report they can see and act on.
 ship:
 
 1. **`amountInWords` was producing "Rupees Ten Hundred Crore"** for Rs 100,000. The
-   divisor list and the name list were **misaligned** â€” `units[0]` was crore while
+   divisor list and the name list were **misaligned** Ã¢â‚¬â€ `units[0]` was crore while
    `names[0]` was the empty string. Every lakh and crore figure on every invoice
    would have been wrong. Caught by a test asserting 100,000 contains "One Lakh".
 2. **The ceiling test did not land on the ceiling.** It computed a price from
    `rupees * 1.13` and assumed the result equalled NPR 10,000, but VAT is rounded
-   per paisa, so it does not for most inputs â€” the test was passing without ever
+   per paisa, so it does not for most inputs Ã¢â‚¬â€ the test was passing without ever
    exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% =
    Rs 10,000.00) and asserts the total first, so a change to the VAT calculation
    cannot quietly stop it testing what it claims to.
@@ -1631,19 +1631,19 @@ name lists fails the lakh/crore tests. Both caught.
 
 **Deliberately not implemented**, and recorded so they are not forgotten: e-billing
 to CBMS (a certification programme, with a threshold the literature calls a
-"moving threshold" â€” reported as NPR 20 crore from April 2026, down from 25 crore);
+"moving threshold" Ã¢â‚¬â€ reported as NPR 20 crore from April 2026, down from 25 crore);
 the Annex 5 and Annex 13 reports; and Nepali-language rendering.
 
 **One thing this work revealed about the existing design**, worth protecting: CBMS
 certification checks that invoice numbers are **sequential, gap-free, and allocated
 inside the issuing transaction**. The existing `DocumentNumber` design already
-satisfies that. **Do not ever add gaps** â€” for tidier numbers, or to reserve
-numbers â€” or certification becomes impossible.
+satisfies that. **Do not ever add gaps** Ã¢â‚¬â€ for tidier numbers, or to reserve
+numbers Ã¢â‚¬â€ or certification becomes impossible.
 
 Verified: **749 Dart tests** (was 712, so 37 new), 35 Laravel tests, analyze
 clean, Pint clean, Windows build succeeds.
 
-### 4.36 Customer identity â€” decided, implemented in the domain, blocked in the database
+### 4.36 Customer identity Ã¢â‚¬â€ decided, implemented in the domain, blocked in the database
 
 **The owner's decision:** a customer gets a **random internal `id`** plus a
 separate **sequential business `code`** such as `C-0001`. Recorded in
@@ -1651,12 +1651,12 @@ separate **sequential business `code`** such as `C-0001`. Recorded in
 
 The reasoning that shaped it: an `id` that changed would repoint historical sales
 at a different person, so it is random and never derived from anything a person
-types â€” which also closes the id-collision question in 7.16 for free. The `code` is
+types Ã¢â‚¬â€ which also closes the id-collision question in 7.16 for free. The `code` is
 what people see, and because it is not identity it can be re-sequenced freely.
 
 **The owner's suggestion of "first name plus a unique index" was rejected, and
-the reason is the substance of the decision.** Names repeat in Nepal â€” two "Ram
-Bahadur" are not a mistake â€” and they are *mutable*: misspelled, transliterated
+the reason is the substance of the decision.** Names repeat in Nepal Ã¢â‚¬â€ two "Ram
+Bahadur" are not a mistake Ã¢â‚¬â€ and they are *mutable*: misspelled, transliterated
 differently, or changed on marriage. A unique index on a name would either reject
 legitimate customers or turn a routine correction into a lost record. Their actual
 intent, catching duplicates, is served by **a unique index on `pan_number`**, which
@@ -1681,13 +1681,13 @@ structural facts about drift:
 1. **`createTable` writes the table's *current* definition**, so a database migrated
    from before v3 already gets the new shape from the create step. The migration
    must therefore skip the add-column step on that path while applying it on every
-   other â€” a guard on both `from` and `to`.
+   other Ã¢â‚¬â€ a guard on both `from` and `to`.
 2. **The generated data class always targets the newest schema**, so every
    migration test that stops at an intermediate version and then reads a customer
    fails with a null-check error. 21 tests rely on `customers` never changing after
    v3.
 
-I got past (1) and could not get past (2): updating the v3â€“v9 snapshots did not
+I got past (1) and could not get past (2): updating the v3Ã¢â‚¬â€œv9 snapshots did not
 propagate to `test/generated/schema_v3.dart` across repeated regenerations, so the
 change was **reverted rather than left half-applied**.
 
@@ -1695,7 +1695,7 @@ change was **reverted rather than left half-applied**.
 storing a customer whose `code`, VAT status, or business name the v9 schema cannot
 hold, naming section 4.36. Silently losing those fields would mean a customer read
 back as VAT-unregistered and a compliance decision taken from a wrong record, with
-nothing reporting it â€” the worse error by far.
+nothing reporting it Ã¢â‚¬â€ the worse error by far.
 
 **Recommended way to finish it:** a **separate `customer_details` table** created at
 v10, keyed on the customer id. That leaves `customers` frozen at its v3 shape, so
@@ -1703,7 +1703,7 @@ every existing migration test is untouched and no migration machinery is needed.
 
 Verified: **755 Dart tests**, analyze clean, and the Windows build still succeeds.
 
-### 4.36 Customer identity â€” decided, implemented in the domain, blocked in the database
+### 4.36 Customer identity Ã¢â‚¬â€ decided, implemented in the domain, blocked in the database
 
 The owner approved **a random internal id plus a separate sequential business
 code** (`C-0001`), after being offered and discussing a single sequential
@@ -1716,22 +1716,22 @@ reasoning; the summary:
 | **code** | Sequential, business-facing, printed on invoices and quoted on the phone. |
 
 **This closes the open question in 7.16.** Ids must not collide if two
-installations ever sync, and a random id cannot collide â€” so that risk is closed
+installations ever sync, and a random id cannot collide Ã¢â‚¬â€ so that risk is closed
 now, at no cost, rather than after data exists.
 
 **Duplicate detection came from the PAN, not the name.** A unique index on
 `pan_number` is the one key that *cannot* produce a false collision, because two
 businesses cannot share a PAN. A name cannot offer that property: Nepali names
-repeat, and a name is mutable â€” misspelled, transliterated, or changed on marriage â€”
+repeat, and a name is mutable Ã¢â‚¬â€ misspelled, transliterated, or changed on marriage Ã¢â‚¬â€
 so making it identity would repoint history.
 
 **Two corrections made while doing it.** I introduced a `Party` type alongside the
 existing `Customer`, which already covered the same ground and was wired into
 `IssueInvoice`, `RecordPayment`, and three test files. `Party` is deleted and its
-PAN and VAT handling folded into `Customer` â€” the duplication was mine, and
+PAN and VAT handling folded into `Customer` Ã¢â‚¬â€ the duplication was mine, and
 exactly the kind this project flags elsewhere.
 
-#### The blocker â€” and how it was solved
+#### The blocker Ã¢â‚¬â€ and how it was solved
 
 The database is now at **schema v10**, and the three fields **are** stored.
 
@@ -1739,7 +1739,7 @@ Adding the columns to `customers` directly turned out to be much harder than it
 looks:
 
 1. `createTable` writes the **current** definition, so a pre-v3 database gets the
-   new columns for free and the migration must *not* add them â€” while it *must* on
+   new columns for free and the migration must *not* add them Ã¢â‚¬â€ while it *must* on
    every other path. That needs a guard on `to` as well as `from`.
 2. **The generated data class always targets the newest schema**, so every
    migration test that stops at an intermediate version and then *reads* a
@@ -1751,7 +1751,7 @@ looks:
 existing table is touched**, so every v1-v9 snapshot stays valid and all 32
 migration tests pass unchanged. `DriftCustomerRepository` reads through a
 **left outer join**, because a customer recorded before v10 has no detail row and
-an inner join would silently drop them from the list â€” a customer who cannot be
+an inner join would silently drop them from the list Ã¢â‚¬â€ a customer who cannot be
 found cannot be invoiced.
 
 Two bugs found while doing it, both of which would have shipped silently:
@@ -1772,7 +1772,7 @@ deliver. A temporary guard turned *silent data loss* into a *loud failure*, whic
 was the minimum mitigation and not a fix. It has been replaced by the real thing.
 
 `test/infrastructure/customer_details_persistence_test.dart` now asserts the
-round trip directly â€” most importantly that `isVatRegistered` reads back **true**,
+round trip directly Ã¢â‚¬â€ most importantly that `isVatRegistered` reads back **true**,
 because if it read back false the application would stop asking for the PAN that
 lets a VAT-registered customer claim input credit. **Mutation-checked**: dropping
 that field on read fails three tests.
@@ -1790,7 +1790,7 @@ type any of it.
 | File | Contents |
 | --- | --- |
 | `domain/billing/business_profile_repository.dart` | The port. A singleton, not a collection. |
-| `application/business_details.dart` | `BusinessDetails` â€” the load/save use case. |
+| `application/business_details.dart` | `BusinessDetails` Ã¢â‚¬â€ the load/save use case. |
 | `infrastructure/database/tables.dart` | `BusinessProfiles`, created at v11. |
 | `infrastructure/database/drift_business_profile_repository.dart` | The implementation. |
 | `presentation/screens/settings_screen.dart` | `BusinessDetailsPanel`, above the account panel. |
@@ -1804,7 +1804,7 @@ unchanged**.
 
 **The VAT box is a checkbox, not a dropdown.** There are two states, and the
 question is "is this business registered", not "which band". It **decides behaviour**
-â€” invoices charge 13% when ticked â€” and it is stated, never inferred.
+Ã¢â‚¬â€ invoices charge 13% when ticked Ã¢â‚¬â€ and it is stated, never inferred.
 
 **The architecture guard caught a real design mistake.** The first version handed
 `BusinessProfileRepository` straight to the Settings screen, which
@@ -1818,14 +1818,14 @@ validated. `BusinessDetails` is the correct seam. The only allow-list addition w
 **The profile lives in the open year's database**, because each fiscal year has its
 own file. So a new fiscal year starts with no business details, and **year
 conclusion has to copy the profile forward** or the owner retypes it every Ashadh.
-That is defensible â€” an invoice in 2082/83 must show the PAN the business was
-registered under *then* â€” but it is a real obligation on the conclusion work and is
+That is defensible Ã¢â‚¬â€ an invoice in 2082/83 must show the PAN the business was
+registered under *then* Ã¢â‚¬â€ but it is a real obligation on the conclusion work and is
 recorded there rather than discovered later.
 
 Verified: **775 Dart tests** (759 + 16), 35 Laravel tests, analyze clean, Pint
 clean, Windows build succeeds.
 
-- **Known limitation â€” an invoice does not yet record the seller details it was
+- **Known limitation Ã¢â‚¬â€ an invoice does not yet record the seller details it was
   issued with.** `Invoice` carries only `id`, `issueDate`, `customerId`, `lines`,
   and `vatRateBasisPoints`. So a historical invoice shows the business details
   **as they are now**, not as they were printed. That matters for an audit, where
@@ -1859,7 +1859,7 @@ make every old invoice ambiguous. So `customer_code_sequence` is a separate
 lifetime counter (ADR 010), and a new table at schema v12.
 
 **The code is allocated inside the transaction, after validation.** A refused
-customer must not burn a reference â€” a gap in the sequence is harmless, two
+customer must not burn a reference Ã¢â‚¬â€ a gap in the sequence is harmless, two
 customers sharing a reference is not. **Mutation-tested**: moving the allocation
 before validation fails three tests, so the tests are real.
 
@@ -1884,7 +1884,7 @@ ledger could disagree, with only one of them quietly wrong.
    recording because it presented exactly like a UI fault.
 
 **One deliberate convenience, documented in the screen.** The customer form strips
-hyphens from a typed PAN (`301-234-567` â†’ `301234567`), because on a laptop
+hyphens from a typed PAN (`301-234-567` Ã¢â€ â€™ `301234567`), because on a laptop
 nobody types them. The domain still has the final say.
 
 **The architecture guard was extended, not silenced.** `invoice.dart` and
@@ -1894,7 +1894,7 @@ the screen constructs and hands over, and the screen reads **none** of the total
 Verified: **807 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
 build succeeds.
 
-### 4.39 The payment form â€” and a receivable can now be settled
+### 4.39 The payment form Ã¢â‚¬â€ and a receivable can now be settled
 
 **The last step that makes billing end to end.** An issued invoice left a
 receivable outstanding forever until a payment could be recorded; now it can be.
@@ -1908,14 +1908,14 @@ receivable outstanding forever until a payment could be recorded; now it can be.
 forms. In particular it does **not** decide whether the amount is too much:
 `RecordPayment` allows exactly the outstanding balance and refuses one paisa more,
 **accounting for credit notes already issued**. A screen that rounded or tidied the
-figure would turn a correct refusal into an accepted overpayment â€” so there is a
+figure would turn a correct refusal into an accepted overpayment Ã¢â‚¬â€ so there is a
 test asserting `5000.50` reaches the use case as exactly 500050 paisa.
 
 **The screen does offer one choice: bank or cash.** A person has to say where the
 money landed, and nothing more. The entry itself is the use case's.
 
 **On success it reports what is still outstanding**, from the balance the use case
-returned rather than a subtraction done in the UI â€” and says plainly when the
+returned rather than a subtraction done in the UI Ã¢â‚¬â€ and says plainly when the
 invoice is fully settled, which is the thing the user most wants to know.
 
 **`PROGRESS.md` was corrected in the same session**, having gone stale again: it
@@ -1925,7 +1925,7 @@ counts are now accurate and the old "4 of 30" claim is marked superseded.
 Verified: **814 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
 build succeeds.
 
-### 4.40 The product form â€” and Gate 7's data entry is complete
+### 4.40 The product form Ã¢â‚¬â€ and Gate 7's data entry is complete
 
 **The last of the four data-entry screens.** With it, a business can create a
 customer, invoice them, take payment, and define what it sells.
@@ -1950,7 +1950,7 @@ received, through a movement.
 
 | | Invoice line | Product |
 | --- | --- | --- |
-| Zero price | **refused** â€” a zero-value line is a data-entry mistake | **allowed** â€” giving stock away is legitimate |
+| Zero price | **refused** Ã¢â‚¬â€ a zero-value line is a data-entry mistake | **allowed** Ã¢â‚¬â€ giving stock away is legitimate |
 
 **The id is random**, for the same reason a customer's is: stock movements and
 invoices reference a product by id, so an id that changed would repoint historical
@@ -1960,14 +1960,14 @@ stock and sales at the wrong item.
 
 | Screen | State |
 | --- | --- |
-| Settings | âœ… business details, account |
-| Customers | âœ… create |
-| Invoices | âœ… issue, multiple lines |
-| Receipts | âœ… record payment |
-| Products | âœ… create |
+| Settings | Ã¢Å“â€¦ business details, account |
+| Customers | Ã¢Å“â€¦ create |
+| Invoices | Ã¢Å“â€¦ issue, multiple lines |
+| Receipts | Ã¢Å“â€¦ record payment |
+| Products | Ã¢Å“â€¦ create |
 
 **7 of 32 navigation items now have real screens**, up from 4 at the start of this
-stretch. The sales cycle is complete end to end: create a customer â†’ invoice â†’
+stretch. The sales cycle is complete end to end: create a customer Ã¢â€ â€™ invoice Ã¢â€ â€™
 record payment.
 
 **Still absent in Gate 7**, and recorded so they are not mistaken for done: stock
@@ -1992,7 +1992,7 @@ journal entries all have screens.
 
 **These run against the real use cases over a real database, not stubs.** A stub
 would only prove the screen forwards its arguments; using the real thing also
-proves the screen and the use case agree on what the fields *mean* â€” which is
+proves the screen and the use case agree on what the fields *mean* Ã¢â‚¬â€ which is
 exactly where a screen that guessed would show up. An earlier attempt with
 hand-written stubs needed so much scaffolding that it was replaced rather than
 finished, which is the honest reason the file is small.
@@ -2020,7 +2020,7 @@ deviation rather than left silent.
 Verified: **835 Dart tests**, 35 Laravel tests, analyze clean, Pint clean, Windows
 build succeeds.
 
-### 4.43 Concluding a fiscal year â€” the ordering guarantee
+### 4.43 Concluding a fiscal year Ã¢â‚¬â€ the ordering guarantee
 
 **The specification's sixteen steps, of which the local half is now built and
 tested.** What matters is not that the year closes but that it closes in the
@@ -2037,7 +2037,7 @@ times over: *"Only after server confirmation may the local application create an
 activate the next fiscal-year SQLite database"*, *"shall never delete or discard
 the previous fiscal-year database before the server has confirmed successful
 archival"*, and *"shall not partially complete the year transition"*. So the flow is
-validate â†’ post closing entries â†’ **archive** â†’ *only then* create the next year.
+validate Ã¢â€ â€™ post closing entries Ã¢â€ â€™ **archive** Ã¢â€ â€™ *only then* create the next year.
 
 **Three tests hold that line, and two are mutation-worthy:**
 
@@ -2049,7 +2049,7 @@ validate â†’ post closing entries â†’ **archive** â†’ *only then*
 
 **Why the ports exist:** the archive is a server call, so putting it behind an
 interface is what makes the ordering testable without a network. It also means a
-close cannot quietly proceed when the archive is unconfigured â€” which is the whole
+close cannot quietly proceed when the archive is unconfigured Ã¢â‚¬â€ which is the whole
 risk.
 
 **Two details that would have been wrong quietly:**
@@ -2058,7 +2058,7 @@ risk.
   `FY 2083/84`; a Nepali year is named for both Gregorian years it touches.
 - **Revenue closes by crediting the nominal account; an expense closes by
   debiting it.** Reversing that reports a profit as a loss, and every total would
-  still balance â€” so nothing else would catch it. The test asserts the direction.
+  still balance Ã¢â‚¬â€ so nothing else would catch it. The test asserts the direction.
 
 **Not yet built**, recorded so this is not mistaken for a finished feature: the
 **screen** for concluding a year, and the **real** implementations of
@@ -2072,7 +2072,7 @@ build succeeds.
 ### 4.44 Purchases, suppliers, and input credit
 
 **Closes the largest accounting gap.** `2010 Accounts Payable` was credited by hand
-with no document behind it, and the VAT return reported zero input credit â€” which
+with no document behind it, and the VAT return reported zero input credit Ã¢â‚¬â€ which
 is the half of the return the business actually paid for.
 
 | File | Contents |
@@ -2089,7 +2089,7 @@ is the half of the return the business actually paid for.
 The entry:
 
 ```
-Dr  1040 Inventory              subtotal â€” the NET cost
+Dr  1040 Inventory              subtotal Ã¢â‚¬â€ the NET cost
 Dr  1150 Input VAT Recoverable  VAT charged
 Cr  2010 Accounts Payable       total
 ```
@@ -2099,7 +2099,7 @@ Cr  2010 Accounts Payable       total
 capitalising the gross would push recoverable VAT into cost of sales the day the
 stock sells. Input VAT is an **asset** in a new account `1150`, not a reduction of
 the purchase. A **per-line** VAT rate is allowed, because one supplier can invoice
-standard-rated alongside zero-rated goods â€” something a sales invoice deliberately
+standard-rated alongside zero-rated goods Ã¢â‚¬â€ something a sales invoice deliberately
 cannot express, since it charges once on the combined subtotal.
 
 **A missing PAN warns rather than refuses.** `NEPALI_BILLING.md` records that a
@@ -2108,7 +2108,7 @@ leave the stock unrecorded, which is worse than recording it with a warning.
 
 **Four things happen in one unit of work**: the serial from its own `PUR`
 sequence, the entry, the document, and one inventory movement per stock line. A
-refusal writes nothing, so numbering stays gap-free â€” which is what CBMS
+refusal writes nothing, so numbering stays gap-free Ã¢â‚¬â€ which is what CBMS
 certification checks.
 
 ### 4.45 Product categories
@@ -2119,7 +2119,7 @@ records on `customers`: `createTable` writes the *current* definition, so a
 v1-to-v16 database would create `products` already carrying the column while a
 v7-to-v16 one would not.
 
-Optional because a missing category must not make a product invalid â€” that would
+Optional because a missing category must not make a product invalid Ã¢â‚¬â€ that would
 block every existing book and require inventing a placeholder for historical stock,
 which is a fabrication. V1 reports one level of nesting and **refuses** a deeper
 tree rather than storing something it cannot report.
@@ -2136,7 +2136,7 @@ Dr  5010 Cost of Goods Sold   ProductStock.valueOfIssue
 
 The amount is **derived from the running weighted average, never supplied**. A test
 sells four chairs at Rs 2,000.00 that cost Rs 100.00 each and requires COGS of
-Rs 400.00 â€” taking cost from the sale price would turn gross margin into cost and
+Rs 400.00 Ã¢â‚¬â€ taking cost from the sale price would turn gross margin into cost and
 make the profit and loss report report nothing at all.
 
 Selling more than is on hand is **refused**, not allowed to go negative: recording
@@ -2148,12 +2148,12 @@ it would post a cost derived from a negative holding. The stock plan is built
 `BuildTaxSummary` sums input VAT from purchase documents instead of returning a
 hard-coded zero. The substantive decision is the **split**:
 
-- `TaxSummary.inputVat` â€” claimable: the bill carries the supplier's PAN.
-- `TaxSummary.inputVatAtRisk` â€” no PAN, so it *may* be disallowed in an audit.
+- `TaxSummary.inputVat` Ã¢â‚¬â€ claimable: the bill carries the supplier's PAN.
+- `TaxSummary.inputVatAtRisk` Ã¢â‚¬â€ no PAN, so it *may* be disallowed in an audit.
 
 `netVatPayable` nets off only the claimable part; `netVatPayableIfAllClaimed`
 shows the optimistic figure so the gap is visible rather than implied. A **missing
-supplier store is treated as at-risk, never as claimable** â€” with no way to look up
+supplier store is treated as at-risk, never as claimable** Ã¢â‚¬â€ with no way to look up
 a supplier the claim cannot be substantiated, and defaulting the other way could
 only ever overstate what the return demands.
 
@@ -2166,7 +2166,7 @@ network).
 
 Signing is Ed25519 with **no new backend dependency**: PHP ships libsodium. An
 HMAC was rejected despite needing no dependency at all, because verification and
-signing would need the same secret â€” any installation that could check a signature
+signing would need the same secret Ã¢â‚¬â€ any installation that could check a signature
 could then mint one, which is the attack ADR 006 exists to prevent.
 
 Every field that decides validity is inside the signed payload, so editing the
@@ -2176,10 +2176,75 @@ order is not guaranteed and verification would fail at random. A `null` is a bar
 key, distinct from `key=` for an empty string.
 
 The desktop test vector is signed by the **real PHP signer**, not by the Dart
-package â€” and it caught a genuine interop bug. See 7.40.
+package Ã¢â‚¬â€ and it caught a genuine interop bug. See 7.40.
 
 **Not wired into the shell yet**: nothing calls the verifier at start-up, so an
 unlicensed installation is not currently locked.
+
+### 4.49 The gate: sign-in is required, then the application runs offline
+
+**The question "if login is not required, what is the use of the login page" was
+correct, and the specification says the same thing.** Line 2058: *"shall
+authenticate the user with the backend when an account session is established and
+shall obtain a cryptographically signed license authorization **that allows the
+application to operate**"*. Line 2060: *"**After** successful authentication and
+license verification, the desktop application shall be capable of operating normally
+without an active internet connection."*
+
+So the sequence is **one online sign-in, then offline operation** â€” not a network
+call per launch, and not an optional one.
+
+| File | Contents |
+| --- | --- |
+| `domain/shared/licence_access.dart` | The verdict value types. |
+| `infrastructure/licensing/licence_gate.dart` | The decision, from stored data only. |
+| `infrastructure/http/http_licence_authorisation_client.dart` | Fetching the signed authorisation. |
+| `presentation/screens/licence_required_screen.dart` | The locked screen. |
+| `test/infrastructure/licence_gate_test.dart` | 17 tests. |
+| `test/presentation/licence_gate_widget_test.dart` | 8 tests. |
+
+**The gate is checked before the navigation is constructed**, not shown as a dialog
+over it. A dialog leaves every screen mounted and reachable, which locks nothing â€”
+the widget tests assert that `Trial Balance`, `Sales`, `Stock` and `Purchases` are
+**absent from the tree**, not merely covered. While the verdict is still being read
+the shell shows a spinner, because a brief flash of a populated shell is exactly
+what a gate exists to prevent.
+
+**The two deadlines stay separate**, which is the distinction the specification
+requires and the reason a grace period exists:
+
+- **Expiry** locks. It is *"an absolute local enforcement boundary"*, and no grace
+  period applies.
+- **Next validation** does **not** lock on its own. A passed validation date starts
+  a **seven-day offline grace period**; past *that*, the installation can no longer
+  demonstrate it is entitled to operate, so it locks and asks for the network.
+
+A first version put the revalidation refusal in the **verifier**, which made a shop
+whose line dropped out for a few days unable to trade â€” the exact failure the
+requirement exists to prevent. The refusal moved to `LicenceGate`, which is the
+layer that owns the policy.
+
+**Sign-in fetches and verifies the licence before anything is stored.** A token
+alone is not a licence: the signed authorisation is obtained, verified, and only
+then written, and a failure signs the token back out rather than leaving a session
+that appears signed in while locked.
+
+The screen **says the accounting records are safe on every path**, which is not
+reassurance for its own sake â€” someone whose business will not open assumes the
+worst, and a user who deletes files is the real damage this screen could cause.
+
+**One deliberate bypass**: a build with no licence service configured â€” a widget
+test, or the developer stopgap â€” is unlocked. A real build always supplies one, and
+the sign-in path of an unwired build **throws** rather than opening the books, so a
+build that quietly skipped the gate cannot be mistaken for one that passed it.
+
+**The verdict types live in `domain/shared/`, not `infrastructure/licensing/`.** The
+first version put them with the verifier and `architecture_test.dart` failed it,
+correctly: a screen importing a licence verifier has imported a signature checker.
+Moving them mirrors every repository here â€” an interface in the domain, the
+implementation in infrastructure â€” so a screen can learn *whether* it may operate,
+never *how* that was decided. The whitelist entry was added deliberately, which is
+what that test is for.
 
 ## 5. What has NOT been done
 
@@ -2211,8 +2276,8 @@ Everything else. Specifically, none of the following exist:
   `IssuePurchase` and `RecordSupplierPayment` use cases, and the `PUR`/`PUN`
   sequences. `2010 Accounts Payable` now has a document behind every posting, and a
   payment settles a bill. See 4.44 and ADR 012.
-- **Purchase returns.** **Not built.** ADR 012 decides the shape â€” a negative
-  purchase document with its own `PUN` sequence, reversing the entry â€” and
+- **Purchase returns.** **Not built.** ADR 012 decides the shape Ã¢â‚¬â€ a negative
+  purchase document with its own `PUN` sequence, reversing the entry Ã¢â‚¬â€ and
   `DocumentType.purchaseReturn` exists, but nothing issues one. A purchase is still
   corrected only by manual journal entry.
 - **Product categories.** **Built 2026-10-03.** `ProductCategory` with an optional
@@ -2227,21 +2292,20 @@ Everything else. Specifically, none of the following exist:
 - **Licensing.** **Built 2026-10-03**, backend and desktop: `licences`,
   `subscriptions` and `registered_desktop_installations`, an Ed25519 signer using
   the PHP libsodium that ships with PHP, a signed authorisation endpoint, and
-  desktop verification that works with no network. See 4.48 and ADR 014. **Not
-  wired into the shell**: nothing calls the verifier at start-up yet, and there is no
-  licence screen, so an unlicensed installation is not currently locked.
+  desktop verification that works with no network. See 4.48 and ADR 014.
+  **The gate is now wired into the shell** â€” see 4.49.
 - **Screens for purchases, suppliers, and payables.** **Not built.** The use cases
   exist and are exposed on `AppServices` and `BooksSession`
   (`issuePurchase`, `recordSupplierPayment`, `payables`, `createSupplier`), and
   `ui.txt` already lists Purchases, Suppliers and Payables as navigation entries.
   What is missing is the screens themselves. See section 6.
-- **The Flutter UI.** Not "any" â€” the shell, navigation, theme, licences screen,
+- **The Flutter UI.** Not "any" Ã¢â‚¬â€ the shell, navigation, theme, licences screen,
   Trial Balance, General Ledger, fiscal-year selector, and Backup screen are built
   and wired to real data. See 4.20 to 4.25. **Still missing: any screen that
   creates a record.** There is no form for a customer, a product, an invoice, or a
   payment, so the business cannot be run through the application. This is the
   largest remaining gap and it is what keeps Gate 7 open.
-- **The backend.** Not "any" â€” Sanctum, PostgreSQL configuration, `books` and
+- **The backend.** Not "any" Ã¢â‚¬â€ Sanctum, PostgreSQL configuration, `books` and
   `backup_revisions`, the upload verification chain, and store/index/show routes
   exist and are tested. See 4.26.
 - **Uploading a backup off the machine.** **Done, and usable.** The desktop
@@ -2254,7 +2318,7 @@ Everything else. Specifically, none of the following exist:
   that cannot be fetched is not a backup, so this is the other half of Gate 9.
 - **Protected token storage.** Done. The token is held by `crossvault`, which uses
     the Windows Credential Manager (DPAPI-backed) with **no additional toolchain**.
-    Two predecessors were rejected on evidence â€” `flutter_secure_storage` needs
+    Two predecessors were rejected on evidence Ã¢â‚¬â€ `flutter_secure_storage` needs
     Visual Studio's optional ATL component, and `webauthn_secure_storage` needs the
     Windows App SDK. See 4.33. **Gap: no Linux implementation**, so on Linux the
     token lives in memory for the session and the user signs in again after a
@@ -2262,13 +2326,13 @@ Everything else. Specifically, none of the following exist:
 - **Identity.** Sanctum is installed, the upload routes are authenticated, and
   **token issuance works**: `register`, `login`, `logout`, and `me`, tested and
   verified end to end against live PostgreSQL. The desktop **uses** a token for
-uploads. See 4.27, 4.28, and 4.30. **The desktop sign-in screen is built** â€”
+uploads. See 4.27, 4.28, and 4.30. **The desktop sign-in screen is built** Ã¢â‚¬â€
     Settings holds the account panel, and signing in or out rebuilds the services.
     **Still missing: the licensing system** the specification requires.
 - **Licensing.** Not started, and it is a larger capability than authentication.
   The specification requires a backend-signed licence authorisation carrying the
   license id, user id, book id, status, expiry, issue date, next validation time,
-  and license revision, optionally bound to a registered device â€” signed with a
+  and license revision, optionally bound to a registered device Ã¢â‚¬â€ signed with a
   **private** key the desktop never holds and verified with a **public** key it
   carries, so an expired licence can be detected with no internet connection. Also
   `subscriptions` and `registered_desktop_installations`. The token endpoints here
@@ -2283,8 +2347,8 @@ change once answered.
 
 | # | Question | Why it is open | What is needed |
 | --- | --- | --- | --- |
-| 1 | **The VAT registration threshold.** Compulsory registration is reported at NPR 50 lakh for goods, but for services as **NPR 20 lakh or NPR 30 lakh** â€” different sources give different figures, and the rate is reset by each year's Finance Act. | Whether a business *must* register depends on a number that moves annually and that the sources disagree about. | A chartered accountant's answer, or the figure from the operative Finance Act. Until then `BusinessProfile.isVatRegistered` is **stated by the owner, never inferred**. |
-| 2 | **The buyer's PAN threshold.** Reported as NPR 10,000 (the Rule 17 abbreviated-invoice ceiling, applying to all transactions) and as NPR 1 lakh (individuals buying from a supplier who is not VAT-registered). | The two may be reconcilable â€” one applying generally, one to individuals â€” but the sources do not say so. | The same. Meanwhile `NepalTaxRules.buyerPanRequiredByAmount` uses the **stricter** figure, so a bill asks for a PAN slightly more eagerly than strictly required. |
+| 1 | **The VAT registration threshold.** Compulsory registration is reported at NPR 50 lakh for goods, but for services as **NPR 20 lakh or NPR 30 lakh** Ã¢â‚¬â€ different sources give different figures, and the rate is reset by each year's Finance Act. | Whether a business *must* register depends on a number that moves annually and that the sources disagree about. | A chartered accountant's answer, or the figure from the operative Finance Act. Until then `BusinessProfile.isVatRegistered` is **stated by the owner, never inferred**. |
+| 2 | **The buyer's PAN threshold.** Reported as NPR 10,000 (the Rule 17 abbreviated-invoice ceiling, applying to all transactions) and as NPR 1 lakh (individuals buying from a supplier who is not VAT-registered). | The two may be reconcilable Ã¢â‚¬â€ one applying generally, one to individuals Ã¢â‚¬â€ but the sources do not say so. | The same. Meanwhile `NepalTaxRules.buyerPanRequiredByAmount` uses the **stricter** figure, so a bill asks for a PAN slightly more eagerly than strictly required. |
 
 **Why the conservative direction.** Where a choice had to be made in code, it
 errs towards asking for a PAN and towards never guessing a threshold. Over-asking
@@ -2311,7 +2375,7 @@ finished code.
 | --- | --- |
 | `DB_CONNECTION=sqlite` in both `.env` and `.env.example`, and `sqlite` is the default in `config/database.php` | **Resolved.** Switched to `pgsql`, and the `financeapp` database now exists with all six migrations applied. See 4.26 and 4.27. The password is in `backend/.env`, which is gitignored. |
 | No `routes/api.php`, and `bootstrap/app.php` registers only `web`, `commands`, and `health` | **Resolved.** `api:` routing registered, `routes/api.php` created. |
-| No Sanctum or Passport installed | **Resolved.** `laravel/sanctum` v4.3 installed, the upload routes are protected, and **token issuance now works** â€” `register`, `login`, `logout`, `me`. See 4.27. **Licensing is still not implemented; see section 5.** |
+| No Sanctum or Passport installed | **Resolved.** `laravel/sanctum` v4.3 installed, the upload routes are protected, and **token issuance now works** Ã¢â‚¬â€ `register`, `login`, `logout`, `me`. See 4.27. **Licensing is still not implemented; see section 5.** |
 | `APP_NAME=Laravel` | **Resolved.** Now `financeapp`. |
 | Laravel 13 uses PHP attributes on models: `#[Fillable([...])]`, `#[Hidden([...])]` | **Convention trap.** Write the attribute style, not the older `$fillable` / `$hidden` properties. See `backend/app/Models/User.php`. The new models follow it. |
 | Tests are PHPUnit (`^12.5`); Pest is not installed | Use PHPUnit. `php artisan test` is the command that passes; 35 tests, 97 assertions. |
@@ -2324,11 +2388,11 @@ finished code.
 | Finding | Impact |
 | --- | --- |
 | **Flutter was upgraded from 3.24.5 to 3.47.5** (Dart 3.5.4 to 3.13.4) | Resolved. `drift` is back on the current release (2.31.0) and the old pin is gone. See section 7.8. |
-| **Visual Studio is now installed** (Visual Studio Build Tools 2026 18.10.2) and `flutter doctor` reports `[âˆš] Visual Studio - develop Windows apps` | Resolved. The "Desktop development with C++" workload is present. |
+| **Visual Studio is now installed** (Visual Studio Build Tools 2026 18.10.2) and `flutter doctor` reports `[Ã¢Ë†Å¡] Visual Studio - develop Windows apps` | Resolved. The "Desktop development with C++" workload is present. |
 | **Windows Developer Mode was enabled by the owner, and `flutter build windows` now succeeds**, producing `build\windows\x64\runner\Debug\financeapp.exe`. | Resolved. The build and the `sqlite3_flutter_libs` plugin link both work. Running the binary shows the generated counter app, which is expected until the UI gate. Rebuilt and verified again after the schema v2 migration. |
 | The Android SDK path contains spaces, which `flutter doctor` flags | Irrelevant for a Windows/macOS/Linux desktop product. Ignore unless Android is ever targeted. |
 | `sqlite3_flutter_libs` is a Flutter plugin and does not load in `flutter test` | Tests still fall back to `winsqlite3.dll` via `open.overrideFor` in `sqlite_native.dart`. Working, and now recorded as intentional. |
-- `pubspec.yaml` **does** have dependencies now â€” `drift`, `sqlite3_flutter_libs`,
+- `pubspec.yaml` **does** have dependencies now Ã¢â‚¬â€ `drift`, `sqlite3_flutter_libs`,
   `path_provider`, `crypto`, and others. The approved list is in
   `docs/AI_RULES.md`. **`crypto` was added in 4.23 for the backup checksum**, which
   is why the licence and dependency records had to be updated.
@@ -2339,8 +2403,8 @@ finished code.
 ## 6. Next task
 
 > **REVISED 2026-10-03 (second pass).** The three gaps the read-only audit found
-> ahead of this task â€” **no purchases**, **no product categories**, and **no
-> licensing at all** â€” are now closed. See 4.44 to 4.48 and ADR 012, 013 and 014.
+> ahead of this task Ã¢â‚¬â€ **no purchases**, **no product categories**, and **no
+> licensing at all** Ã¢â‚¬â€ are now closed. See 4.44 to 4.48 and ADR 012, 013 and 014.
 >
 > **The next task is therefore the one that has blocked Gate 7 all along: screens
 > that create records.** Specifically:
@@ -2355,7 +2419,7 @@ finished code.
 > 3. **Wire the licence check into the shell.** `LicenceVerifier` works and is
 >    tested, but nothing calls it at start-up, so an unlicensed installation is
 >    **not currently locked**. Until that is done the licensing work is capability
->    without enforcement â€” which is worth being blunt about, because a licence
+>    without enforcement Ã¢â‚¬â€ which is worth being blunt about, because a licence
 >    check that is never called looks the same as one that does not work.
 >
 > **Then**, still ahead of everything below: the divergence task, and the four
@@ -2389,22 +2453,22 @@ finished code.
 > treat it as a strong starting point rather than gospel, and click through the
 > running application before committing a week to it.
 >
-> ### Not built â€” **two** entries, down from eight
+> ### Not built Ã¢â‚¬â€ **two** entries, down from eight
 >
 > | Nav entry | What is missing |
 > | --- | --- |
-> | **Purchases** | **Started: `docs/decisions/012-purchases-and-input-credit.md` exists.** No screen and no domain yet â€” no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**, and therefore the reason the VAT return is currently half a return. ADR 012 fixes the shape before any code: a supplier mirrors ADR 010's customer pattern (random `id`, separate `S-0001` code, **PAN a genuine unique key under a partial index**, **name explicitly not a key**), a missing supplier PAN is a **recorded cash-cost warning rather than a soft one** per `NEPALI_BILLING.md`, purchase documents get **their own type and sequence** under ADR 005 while numbering **stays gap-free** or CBMS certification becomes impossible, a zero-rated purchase **omits the VAT line rather than posting a zero**, and the rate stays on `NepalTaxRules` because the Finance Act changes it annually. |
-> | **Purchases** | No screen **and no domain** â€” no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**: there is nothing for the VAT return to read. **Worth an ADR** like the company model, and the only entry here that changes what the VAT return can honestly claim. |
+> | **Purchases** | **Started: `docs/decisions/012-purchases-and-input-credit.md` exists.** No screen and no domain yet Ã¢â‚¬â€ no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**, and therefore the reason the VAT return is currently half a return. ADR 012 fixes the shape before any code: a supplier mirrors ADR 010's customer pattern (random `id`, separate `S-0001` code, **PAN a genuine unique key under a partial index**, **name explicitly not a key**), a missing supplier PAN is a **recorded cash-cost warning rather than a soft one** per `NEPALI_BILLING.md`, purchase documents get **their own type and sequence** under ADR 005 while numbering **stays gap-free** or CBMS certification becomes impossible, a zero-rated purchase **omits the VAT line rather than posting a zero**, and the rate stays on `NepalTaxRules` because the Finance Act changes it annually. |
+> | **Purchases** | No screen **and no domain** Ã¢â‚¬â€ no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**: there is nothing for the VAT return to read. **Worth an ADR** like the company model, and the only entry here that changes what the VAT return can honestly claim. |
 > | **Sync** | No screen. The divergence work described above is the prerequisite; a Sync screen with nothing to sync would be worse than none. |
 >
-> **Transfers** (2026-10-03) â€” `TransferCash` in `application/transfer_cash.dart`,
+> **Transfers** (2026-10-03) Ã¢â‚¬â€ `TransferCash` in `application/transfer_cash.dart`,
 > rendered by `transfer_screen.dart`. **The design point is a refusal.** The
-> Journal screen will post any balanced entry, including `Dr Office Rent / Cr Bank` â€”
+> Journal screen will post any balanced entry, including `Dr Office Rent / Cr Bank` Ã¢â‚¬â€
 > mechanically valid, balances, and a completely different event from moving money
 > between two tills, but on a two-box form the two look identical. So `TransferCash`
 > enforces one rule structurally: **both sides must be a cash account.** A
 > "transfer" landing on an expense is a miscategorisation, and it must not be
-> recordable here and look like housekeeping. There are tests at both levels â€” the
+> recordable here and look like housekeeping. There are tests at both levels Ã¢â‚¬â€ the
 > domain refuses it, and **the dropdown does not offer it**, so someone who never
 > triggers a refusal still cannot make the mistake.
 >
@@ -2419,20 +2483,20 @@ finished code.
 >
 > ### Built and wired
 >
-> **Profit & Loss** and **Balance Sheet** (2026-10-03) â€” `BuildProfitAndLoss` and
+> **Profit & Loss** and **Balance Sheet** (2026-10-03) Ã¢â‚¬â€ `BuildProfitAndLoss` and
 > `BuildBalanceSheet` in `application/build_profit_and_loss.dart`, rendered by
 > `profit_and_loss_screen.dart`. Two things are worth knowing about them:
 >
 > - **The period defaults to the fiscal year**, not to "everything". A report with
 >   no bounds would silently include a prior year's entries if the books ever held
->   more than one â€” wrong rather than obviously broken.
+>   more than one Ã¢â‚¬â€ wrong rather than obviously broken.
 > - **`BuildBalanceSheet` calls `assertBalanced()` before returning.** The check
 >   lives in the use case, not the screen, so a year whose books do not reconcile
 >   reports a **failure** rather than rendering a statement whose sides disagree.
 >   A balance sheet that does not balance is worse than none, because it is
 >   trusted.
 >
-> **Chart of Accounts** (2026-10-03) â€” `LoadChartOfAccounts` plus
+> **Chart of Accounts** (2026-10-03) Ã¢â‚¬â€ `LoadChartOfAccounts` plus
 > `chart_of_accounts_screen.dart`. It reads the **stored** accounts rather than the
 > built-in `ChartOfAccounts.all` constant, so **an account the business added
 > appears here** instead of being invisible while still being postable. Groups come
@@ -2441,16 +2505,16 @@ finished code.
 > the end rather than dropped**. Before this, a user could post to an account and
 > had no way to see it.
 >
-> Also wired: Journal Â· General Ledger Â· Trial Balance Â· Invoices Â· Credit Notes Â·
-> Customers Â· Products Â· Stock Movements Â· Payments and Receipts (both
-> `PaymentScreen`) Â· Settings Â· Backup Â· Fiscal Year Â· Licences Â· and the four
+> Also wired: Journal Ã‚Â· General Ledger Ã‚Â· Trial Balance Ã‚Â· Invoices Ã‚Â· Credit Notes Ã‚Â·
+> Customers Ã‚Â· Products Ã‚Â· Stock Movements Ã‚Â· Payments and Receipts (both
+> `PaymentScreen`) Ã‚Â· Settings Ã‚Â· Backup Ã‚Â· Fiscal Year Ã‚Â· Licences Ã‚Â· and the four
 > report tabs Cash Flow, Sales Reports, Inventory Reports and Tax Reports, which
 > share `FinancialReportsScreen`.
 >
 > **The four report tabs are wired through a helper** (`_reportsRoute`) that returns
 > **The four report tabs are wired through a helper** (`_reportsRoute`) that returns
 > a closure. A parser reading only the item's own block **cannot see that**, so they
-> appear unbuilt in an indentation scan. They are wired â€” the reports screen tests
+> appear unbuilt in an indentation scan. They are wired Ã¢â‚¬â€ the reports screen tests
 > drive them.
 >
 > ### Recommended order
@@ -2460,7 +2524,7 @@ finished code.
 > 2. **Chart of Accounts.** The data exists; the gap is that a user cannot see it.
 > 3. **Dashboard.** It is the landing screen, so an empty first impression is worth
 >    more than its complexity suggests.
-> 4. **Receivables**, then **Transfers** and **Sync** â€” all read data that exists.
+> 4. **Receivables**, then **Transfers** and **Sync** Ã¢â‚¬â€ all read data that exists.
 > 5. **Purchases last**, and separately. It is a new aggregate rather than a screen,
 >    it deserves an ADR like the company model did, and **it is the only entry here
 >    that changes what the VAT return can honestly claim.**
@@ -2469,7 +2533,7 @@ finished code.
 >
 > `NavigationItem.route` is documented as *"builds the screen this opens, or `null`
 > when it has not been built yet."* So the correct way to ask this is to **inspect
-> the built items**, not to parse the source â€” but only with realistic services,
+> the built items**, not to parse the source Ã¢â‚¬â€ but only with realistic services,
 > because the routes are conditional on use cases being present. Four wrong answers
 > in a row came from not noticing that distinction.
 This is the next bounded task, ready to hand to an agent verbatim.
@@ -2480,8 +2544,8 @@ This is the next bounded task, ready to hand to an agent verbatim.
 > Everything else the specification asked for is built. What is left is the
 > honesty work, and this is the highest-value piece of it.
 >
-> **The problem.** Two computers holding the same books can diverge â€” invoice #5
-> on the desktop, payment #6 on the laptop â€” leaving two internally consistent
+> **The problem.** Two computers holding the same books can diverge Ã¢â‚¬â€ invoice #5
+> on the desktop, payment #6 on the laptop Ã¢â‚¬â€ leaving two internally consistent
 > databases that are *not* the same books. Every upload of both is accepted,
 > because each file genuinely is a valid snapshot. A restore replaces one with the
 > other without saying so. ADR 007 assumes "one book, one active installation" in
@@ -2489,7 +2553,7 @@ This is the next bounded task, ready to hand to an agent verbatim.
 >
 > **Partly prevented already.** ADR 011's `max_devices` rule makes concurrent
 > divergence unlikely by revoking the earlier session on sign-in. It does not make
-> it impossible â€” a device that signed out without syncing is invisible to it â€” so
+> it impossible Ã¢â‚¬â€ a device that signed out without syncing is invisible to it Ã¢â‚¬â€ so
 > detection is still needed.
 >
 > **Done.** `Divergence` and `SyncComparison` in `domain/sync/divergence.dart`
@@ -2526,7 +2590,7 @@ This is the next bounded task, ready to hand to an agent verbatim.
 > **Then, in order:** a device list on `me` with revoke (the `deviceName` column
 > exists and is never read back), a message when a session is revoked that says
 > *"you were signed out because this account was signed in on another computer;
-> your books on this computer are unchanged"*, and a **token expiry** â€”
+> your books on this computer are unchanged"*, and a **token expiry** Ã¢â‚¬â€
 > `sanctum.php` sets `expiration` to null, so a leaked token never dies on its own.
 >
 > Do not modify: the accounting engine, the reporting layer, the invoice number
@@ -2537,8 +2601,8 @@ This is the next bounded task, ready to hand to an agent verbatim.
 > **After that, Gate 10**, which is untouched and least specified: deployment
 > hardening, retention enforcement against `docs/BACKUP_AND_RETENTION.md`, recovery
 > drills, observability, and the installer and update strategy. Two decisions are
-> needed before any filing work: which copy of the PAN is authoritative â€” the
-> server's `companies` row or local `business.db` â€” and encryption at rest, which
+> needed before any filing work: which copy of the PAN is authoritative Ã¢â‚¬â€ the
+> server's `companies` row or local `business.db` Ã¢â‚¬â€ and encryption at rest, which
 > is more pressing now that the PAN is server-held rather than only inside the
 > user's own file.
 ## 7. Decisions and discoveries that affect future work
@@ -2577,14 +2641,14 @@ question, not a verdict. Ask whether the code is wrong or the expectation is
 wrong, and resolve it from the accounting rules. Never edit an expectation purely
 to get green.
 
-### 7.4 Inventory costing and negative stock â€” RESOLVED
+### 7.4 Inventory costing and negative stock Ã¢â‚¬â€ RESOLVED
 
 **Decided by the product owner on 2026-09-29.** Recorded in ADR 004, with a
 plain-language version in `docs/INVENTORY_EXPLAINED.md`.
 
 - **Costing method: moving weighted average.** It is permitted under IAS 2 and
   the Nepali standard that mirrors it, and it matches the product model the
-  specification already defines â€” one `cost` field per product, not cost layers.
+  specification already defines Ã¢â‚¬â€ one `cost` field per product, not cost layers.
   FIFO would be more faithful to physical flow but needs layers, partial-layer
   consumption, and layer logic for purchase returns, which the specification's own
   end-to-end test includes.
@@ -2640,7 +2704,7 @@ expectation in `accounting_test.dart` was derived from the accounting rules or
 hand-computed from the worked example, never from what the code happened to
 return.
 
-### 7.7 Cross-aggregate transactions â€” RESOLVED
+### 7.7 Cross-aggregate transactions Ã¢â‚¬â€ RESOLVED
 
 This was a genuine gap: the transaction boundary used to be a single journal
 entry, so an operation spanning several repositories could not be atomic.
@@ -2662,7 +2726,7 @@ reaching the caller rather than being swallowed.
 
 Gates 5 and 6 are no longer blocked by this.
 
-### 7.8 The Flutter SDK â€” RESOLVED
+### 7.8 The Flutter SDK Ã¢â‚¬â€ RESOLVED
 
 Flutter was upgraded from **3.24.5 to 3.47.5** (Dart 3.5.4 to 3.13.4) with the
 project owner's approval. `drift` is back on the current release (2.31.0), the
@@ -2676,7 +2740,7 @@ section 7.14, that the old toolchain had been hiding.
 with C++" workload is required to build or run the Windows desktop app. Tests are
 unaffected. See section 5.2.
 
-### 7.9 The fiscal-year posting guard â€” RESOLVED
+### 7.9 The fiscal-year posting guard Ã¢â‚¬â€ RESOLVED
 
 Specification section 27 requires that a transaction be rejected when its date
 falls outside the active fiscal year. It belongs in a **posting use case**, not in
@@ -2693,7 +2757,7 @@ normal user input, not a malfunction. Twelve tests cover it, including both
 inclusive boundary dates, an afternoon on the final day, and that a refusal
 leaves previously committed entries intact.
 
-### 7.10 Bikram Sambat calendar â€” RESOLVED, and then deliberately un-depended
+### 7.10 Bikram Sambat calendar Ã¢â‚¬â€ RESOLVED, and then deliberately un-depended
 
 **First closed with a package, then reopened by the owner and closed properly.**
 
@@ -2740,7 +2804,7 @@ asserted, so a data error fails the build.
 against public anchors, which is **not** an audit against the Government of
 Nepal's published calendar. The years the product will actually be used in
 should be verified before launch. Recorded in ADR 009 so it is not assumed done.
-### 7.11 Gates 5 and 6 are unblocked â€” RESOLVED, and both are now complete
+### 7.11 Gates 5 and 6 are unblocked Ã¢â‚¬â€ RESOLVED, and both are now complete
 
 Kept rather than deleted because the reasoning still explains why two separate
 blockers existed and in what order they had to fall.
@@ -2755,12 +2819,12 @@ blockers existed and in what order they had to fall.
 - **ADR 004** was decided by the product owner on 2026-09-29: moving weighted
   average with the running value authoritative, and negative stock blocked.
 
-**Both gates are now complete.** Gate 5 covers the full billing cycle â€”
+**Both gates are now complete.** Gate 5 covers the full billing cycle Ã¢â‚¬â€
 numbering, invoices, customers, payments, and credit notes. Gate 6 covers
 products, movements, value-first stock, ledger posting, and the write-down to net
 realisable value.
 
-### 7.12 An issued invoice is not a record â€” RESOLVED
+### 7.12 An issued invoice is not a record Ã¢â‚¬â€ RESOLVED
 
 An issued invoice used to exist only as a journal entry, which was enough for the
 ledger but not for Billing: invoices could not be listed, reprinted, or marked as
@@ -2786,14 +2850,14 @@ document sequence still reads 0. Issuing a new invoice therefore allocates
 sequence 1, writes its journal entry successfully, and then fails on the unique
 document number. The test asserts the journal entry rolled back, only the
 pre-existing entry remains, no orphan lines survive, and **the sequence is back
-to 0** â€” so the failed attempt burnt no serial.
+to 0** Ã¢â‚¬â€ so the failed attempt burnt no serial.
 
 **Totals: stored, but recomputation stays authoritative.** The three total columns
 are a denormalisation for listing and printing. `Invoice` still derives them, and
 a test asserts the stored values equal the recomputed ones plus that they are
 internally consistent, so the two cannot silently diverge.
 
-### 7.13 The customer on an invoice â€” RESOLVED
+### 7.13 The customer on an invoice Ã¢â‚¬â€ RESOLVED
 
 `Invoice.customerId` used to be a plain string that nothing validated, so a typo
 produced a perfectly balanced journal entry with an uncollectable receivable
@@ -2941,7 +3005,7 @@ table does not have.
 migrates to an *intermediate* version cannot pass once the code has moved on,
 because `createTable` produces the current shape. Twenty-one such assertions
 existed and were all pointed at the current version. The scenario each test
-describes â€” upgrading *from* an old version â€” is still meaningful; the *target*
+describes Ã¢â‚¬â€ upgrading *from* an old version Ã¢â‚¬â€ is still meaningful; the *target*
 must be current.
 
 The general lesson: **a green migration suite is only green for the version it was
@@ -2970,11 +3034,11 @@ code's idea of it.
 **Regeneration order matters.** After changing `tables.dart` or
 `app_database.dart`, run these in this order, not another one:
 
-1. `dart run build_runner build --delete-conflicting-outputs` â€” regenerates
+1. `dart run build_runner build --delete-conflicting-outputs` Ã¢â‚¬â€ regenerates
    `app_database.g.dart`.
 2. `dart run drift_dev schema dump lib/src/infrastructure/database/app_database.dart drift_schemas/`
-   â€” writes a snapshot for the **new** version.
-3. `dart run drift_dev schema generate drift_schemas/ test/generated/` â€” rebuilds
+   Ã¢â‚¬â€ writes a snapshot for the **new** version.
+3. `dart run drift_dev schema generate drift_schemas/ test/generated/` Ã¢â‚¬â€ rebuilds
    the migration-test helpers.
 
 Skipping step 2 leaves the newest snapshot missing, and the migration tests then
@@ -2999,7 +3063,7 @@ done.
 legitimate; weakening an assertion is not.** This came up when `IssueInvoice`
 gained a `CustomerRepository`: twelve call sites needed a new argument and a
 seeded customer. The right response is to add the argument and **re-check that
-every existing assertion still holds on its own merits** â€” the hand-computed VAT
+every existing assertion still holds on its own merits** Ã¢â‚¬â€ the hand-computed VAT
 amounts were unchanged, and the tests assert that. The prohibited move is
 loosening a matcher or deleting an expectation so the suite goes green.
 
@@ -3055,7 +3119,7 @@ tools, which replace an exact string and fail loudly when it is absent.
 
 `file_book_backup_service.dart` names a snapshot
 `FY2081-82-20260930-113200.db`. Two backups taken within the same second collide,
-and the second overwrites the first â€” so the user is told they have two backups
+and the second overwrites the first Ã¢â‚¬â€ so the user is told they have two backups
 and has one. Found by reading my own code while writing the tests for 4.23, not by
 a failing test.
 
@@ -3065,7 +3129,7 @@ name because they are what makes a backup list legible to a human.
 ### 7.21 The architecture guard had a hole, and tests were copy-pasted past it
 
 **`import_boundary_test.dart` checked that `lib/src/domain/` does not import the
-other layers, but only for `import` statements â€” not `export`.** A `domain` file
+other layers, but only for `import` statements Ã¢â‚¬â€ not `export`.** A `domain` file
 re-exporting something from `infrastructure` would pass the check while
 violating exactly the rule the check exists to enforce. The guard now rejects
 `export` directives too, in both directions.
@@ -3092,7 +3156,7 @@ tooling.
 **This is the most dangerous testing failure mode in this repository, and 7.21 is
 its ancestor.** Deliberately breaking the code and checking that a test fails is
 the only way to know the test is real. The trap is that **the mutation itself can
-silently fail to apply** â€” and a mutation that did not apply produces the same
+silently fail to apply** Ã¢â‚¬â€ and a mutation that did not apply produces the same
 green result as a test that cannot fail.
 
 It happened twice in one round. A mutation was written as a PowerShell
@@ -3112,7 +3176,7 @@ Rules this produces:
   proven otherwise.
 
 **The same round produced a second instance of a test that could not fail.** A new
-assertion was `expect(body, contains('9'))` for the schema version â€” but the
+assertion was `expect(body, contains('9'))` for the schema version Ã¢â‚¬â€ but the
 multipart body contains the snapshot's own generated bytes, and one of them is the
 digit `9`, so the assertion was satisfied by the file content and would have passed
 with the field missing entirely. It now reads the declared value out of the request
@@ -3142,7 +3206,7 @@ any constant whose purpose is to make two code paths equivalent.
 ### 7.24 An analyzer cannot see a native toolchain requirement
 
 **712 Dart tests passed, `flutter analyze` was clean, and `flutter build windows`
-did not compile.** Not because a test was wrong â€” because `flutter_secure_storage`
+did not compile.** Not because a test was wrong Ã¢â‚¬â€ because `flutter_secure_storage`
 includes `<atlstr.h>`, which ships in Visual Studio's *optional* C++ ATL
 component rather than the base C++ workload.
 
@@ -3152,7 +3216,7 @@ on one platform.
 
 **Generalisable rule for a desktop application: adding a Flutter plugin is a
 build-system change, not just a `pubspec` change.** Each plugin may require native
-tooling that `flutter analyze` and `flutter test` never touch â€” a C++ header, a
+tooling that `flutter analyze` and `flutter test` never touch Ã¢â‚¬â€ a C++ header, a
 system library (`libsecret` on Linux), an SDK, a minimum platform version. So:
 
 - After adding a plugin, **build every target platform**, or record explicitly that
@@ -3168,7 +3232,7 @@ how this got through.
 
 **The corollary, learned the hard way and applied too late: check a plugin's native
 sources *before* adopting it, not after the first failed build.** This section was
-written because a plugin needed an optional Visual Studio component â€” and then,
+written because a plugin needed an optional Visual Studio component Ã¢â‚¬â€ and then,
 in the same session, a plugin was adopted without that check, and the whole
 evening was spent on the consequence. The rule was available and not used.
 
@@ -3177,22 +3241,22 @@ evening was spent on the consequence. The rule was available and not used.
 All three happened while trying to fix one build failure. They are worth listing
 together because each looked like a solid green result.
 
-1. **`if ($output)` on a command's stdout.** PowerShell treats the string `"[]"` â€”
-   which `vswhere` prints when it finds nothing â€” as **true**. The check therefore
+1. **`if ($output)` on a command's stdout.** PowerShell treats the string `"[]"` Ã¢â‚¬â€
+   which `vswhere` prints when it finds nothing Ã¢â‚¬â€ as **true**. The check therefore
    could not fail, and the conclusion drawn from it ("the toolchain is registered
    again") was the opposite of the truth. **Count parsed results, never test a
    command's output for truthiness.** A `ConvertFrom-Json` count is the habit.
 2. **A regex pattern that misses the thing it is looking for.** `CString|ATL|CCom|
    _bstr_t|Variant|BSTR` does not match `CA2W`, which was one of the two symbols in
-   use â€” and case-insensitively matches `su**bstr**r`. It reported "no ATL usage"
+   use Ã¢â‚¬â€ and case-insensitively matches `su**bstr**r`. It reported "no ATL usage"
    about a file that used three ATL classes.
 3. **An `if (false)` "mutation".** Removing a guard by writing
    `catch (_) { if (false) rethrow; }` changes nothing, so the suite stays green
    and looks like the test is weak, when in fact nothing was ever broken.
 
 **The common thread: a check that cannot fail looks exactly like a check that
-passed.** Whenever a verification is about to confirm something inconvenient â€”
-a registration was restored, a build was fixed, a file is unchanged â€” write down
+passed.** Whenever a verification is about to confirm something inconvenient Ã¢â‚¬â€
+a registration was restored, a build was fixed, a file is unchanged Ã¢â‚¬â€ write down
 first what result would make it fail, and confirm the check can produce it.
 
 ### 7.26 A copy method that silently drops fields, and the two tests that prove it
@@ -3216,8 +3280,8 @@ Why it survived so long, and why it will happen again:
   are null.
 - **The list of what a screen needs lives in `app_navigation.dart`, thousands of
   lines from where the fields are copied.** Nothing connects the two.
-- **The tests that exercised a year switch checked the reports** â€” the two that had
-  always been wired â€” and not the five that had been dropped.
+- **The tests that exercised a year switch checked the reports** Ã¢â‚¬â€ the two that had
+  always been wired Ã¢â‚¬â€ and not the five that had been dropped.
 
 The fix is not the five lines. It is `test/presentation/app_services_test.dart`,
 which asserts every field by name after both copies, so a future omission is a
@@ -3228,14 +3292,14 @@ only prove the fake can be copied faithfully.
 The general rule, and this is the second time in this project that a field list
 drifted from a capability list: **when a container is copied field by field, the
 copy needs a test that enumerates the fields, or the next addition will be
-invisible.** The same reasoning as 7.25 seen from the write side â€” a check that
+invisible.** The same reasoning as 7.25 seen from the write side Ã¢â‚¬â€ a check that
 cannot fail looks like a check that passed, and "the code compiled" is such a check.
 
 ### 7.27 A whole-year report must still respect the year it belongs to
 
 `BuildCashFlow.load()` takes an optional date range. With no range it read **every
 entry in the database**, which for the single-year-per-file design happens to be one
-fiscal year â€” so it looked right, and all the tests passed.
+fiscal year Ã¢â‚¬â€ so it looked right, and all the tests passed.
 
 It was wrong, and the widget test found it by printing what was on screen: for a
 year with a 100,000 opening-balance entry and a 20,000 sale, the statement showed
@@ -3243,7 +3307,7 @@ year with a 100,000 opening-balance entry and a 20,000 sale, the statement showe
 reported as money received *during* the year.
 
 That is the most misleading way a cash statement can be wrong, because the closing
-figure stays correct â€” 115,000 either way â€” so only the split between opening,
+figure stays correct Ã¢â‚¬â€ 115,000 either way Ã¢â‚¬â€ so only the split between opening,
 received and paid was false, and a reader checking the total would find nothing
 wrong.
 
@@ -3278,7 +3342,7 @@ ERROR: column "username" of relation "users" contains null values
 
 The in-memory test suite passed throughout, and could never have caught it.
 `RefreshDatabase` migrates an *empty* schema and every user is created afterwards
-by a factory that supplies the field â€” so the column is never populated by anything
+by a factory that supplies the field Ã¢â‚¬â€ so the column is never populated by anything
 other than the factory. **The database the tests run against has the same shape as
 a brand-new installation and never the shape of a real one.**
 
@@ -3287,7 +3351,7 @@ Two more failures surfaced only on PostgreSQL, in the same migration:
 - **`HAVING` cannot reference an aggregate alias.** `->having('total', '>', 1)` works
   on SQLite and is rejected by PostgreSQL.
 - **`split_part` is PostgreSQL-only.** The natural way to backfill a username from an
-  address is `split_part(email, '@', 1)`, which does not exist in SQLite â€” so the
+  address is `split_part(email, '@', 1)`, which does not exist in SQLite Ã¢â‚¬â€ so the
   version that worked on PostgreSQL broke all sixty tests, and the version that
   fixed that would have needed a driver check.
 
@@ -3306,7 +3370,7 @@ The concurrency policy went through three wrong shapes before it was right, and 
 useful part is knowing why the first two failed.
 
 **A `device_count` column** was the first proposal. It reads as a live tally, and a
-tally has to be incremented on every sign-in and decremented on every sign-out â€”
+tally has to be incremented on every sign-in and decremented on every sign-out Ã¢â‚¬â€
 except the desktop **swallows sign-out failures by design**, because a locked
 keyring must not prevent a user signing out. So the count only ever rises, drifts,
 and cannot be repaired. A `PersonalAccessToken` row *is* the session, and counting
@@ -3314,14 +3378,14 @@ those is correct by construction.
 
 **Refusing the sign-in when the allowance was spent** was the second. It is the
 safer-looking option and it is the dangerous one: a token belonging to a machine that
-no longer exists â€” reinstalled, replaced, stolen, or simply never signed out â€”
+no longer exists Ã¢â‚¬â€ reinstalled, replaced, stolen, or simply never signed out Ã¢â‚¬â€
 permanently consumes the only slot. The owner is locked out of their own account
 with no device list to revoke from and no expiry to clear it, and the only remedy is
 a hand-written `DELETE`.
 
 **The shipped rule** is one line: on sign-in, keep the newest `max_devices` sessions
 and revoke the rest. Login is authenticated by the **password**, not by a token, so
-signing in always succeeds â€” and a stale session revokes *itself* on the next sign-in
+signing in always succeeds Ã¢â‚¬â€ and a stale session revokes *itself* on the next sign-in
 instead of locking anyone out. That property is the whole reason for the shape, and
 it is not obvious from the code; it is written in ADR 011.
 
@@ -3335,12 +3399,12 @@ exist.
 ### 7.30 A test that asserted the wrong thing, and passed anyway
 
 `test_logout_leaves_other_sessions_working` asserted that signing in on a second
-device left the first working â€” the exact opposite of the new policy. It was
+device left the first working Ã¢â‚¬â€ the exact opposite of the new policy. It was
 **deliberately reversed and split**, not edited until green, because the policy
 changed on purpose and the record needs to say so.
 
 Its replacement then failed for a second reason, which is worth more than the policy:
-it asserted a `401` over HTTP, and got `200`. The revocation was working perfectly â€”
+it asserted a `401` over HTTP, and got `200`. The revocation was working perfectly Ã¢â‚¬â€
 the surviving token was the newest one, as intended. **`Sanctum` keeps a resolved
 user alive across requests within a single test**, so a token deleted mid-test still
 appeared to authenticate. The assertion now reads the stored sessions directly, and
@@ -3353,7 +3417,7 @@ HTTP path would have shipped unverified.
 ### 7.31 The classification was right; the meaning of "needs attention" was not
 
 `Divergence` is the pure function that decides whether two copies of the same books
-have drifted. It is four cases, and all four are specified by tests â€” including the
+have drifted. It is four cases, and all four are specified by tests Ã¢â‚¬â€ including the
 two that no code path can currently produce, since `serverOnly` and `bothChanged` can
 only arise from a second computer.
 
@@ -3364,7 +3428,7 @@ bool get needsAttention => this != Divergence.none;
 ```
 
 which makes `localOnly` **need attention**. It is wrong, and the test caught it. "Only
-this computer changed" needs no decision from anybody â€” the upload just happens, and
+this computer changed" needs no decision from anybody Ã¢â‚¬â€ the upload just happens, and
 it is the action the application already takes. Marking it as needing attention means
 prompting the user to confirm work that has no alternative, and **a prompt that is
 always answered the same way is a prompt people stop reading.** That is worse than no
@@ -3378,16 +3442,16 @@ So the rule is narrower than "not the ordinary case":
 | `none` | no | yes |
 | `localOnly` | **no** | **yes** |
 | `serverOnly` | yes | no |
-| `bothChanged` | yes | no â€” it must stop |
+| `bothChanged` | yes | no Ã¢â‚¬â€ it must stop |
 
 The lesson is not about enums. It is that a predicate named after an *effect on the
 user* ("needs attention") has to be derived from what the user can do about each case,
 not from a coarse grouping like "is this the normal one". The four cases were right;
 the label on two of them was not, and no amount of reading the code would have shown
-that â€” the code was internally consistent and externally unhelpful.
+that Ã¢â‚¬â€ the code was internally consistent and externally unhelpful.
 
 **Verified by mutation.** Replacing the checksum comparison with a revision-number
-comparison â€” precisely the mistake the type's own documentation warns against â€” fails
+comparison Ã¢â‚¬â€ precisely the mistake the type's own documentation warns against Ã¢â‚¬â€ fails
 four tests, including the one asserting that another device re-uploading identical
 bytes is *not* a divergence. A test that passes only because the implementation and
 the expectation were written from the same idea is worth nothing; this one had to be
@@ -3398,8 +3462,8 @@ broken to be shown to work.
 Rewriting section 6 to replace a stale "next task" block, the PowerShell used a slice
 whose **start index was greater than its end index**. PowerShell does not reject that;
 it walks it in descending order, so the range returned two lines instead of a range,
-and everything between section 6 and section 8 â€” the `## 7` heading and entries
-**7.1 through 7.28**, the accumulated discoveries of many sessions â€” was silently
+and everything between section 6 and section 8 Ã¢â‚¬â€ the `## 7` heading and entries
+**7.1 through 7.28**, the accumulated discoveries of many sessions Ã¢â‚¬â€ was silently
 dropped.
 
 **Nothing failed.** The write succeeded, the file stayed valid UTF-8, and no test in
@@ -3410,7 +3474,7 @@ Two lessons, both about checks that cannot fail:
 
 - **Verify counts, not just success.** The write reported success and reported a line
   count. A line count of 2,518 where the file had been 3,146 is the whole signal, and
-  it was not compared against anything. Compare before/after counts, always â€” the
+  it was not compared against anything. Compare before/after counts, always Ã¢â‚¬â€ the
   cheapest possible invariant for an edit to a document.
 - **A descending slice is a silent delete in every language that allows one.** Build
   replacements as `head + new + tail` with each part asserted, never as a single slice
@@ -3431,7 +3495,7 @@ By hand, with assets of 2,180,000: after the close the archived year reports
 **assets 4,360,000 against liabilities and equity 2,180,000**, so
 `BalanceSheet.assertBalanced()` throws on every later read of that year. And
 because the next year's database was never created, next Shrawan it is opened
-blank â€” no chart, no opening balances, every carried-forward asset silently
+blank Ã¢â‚¬â€ no chart, no opening balances, every carried-forward asset silently
 dropped.
 
 **Why it survived.** The transition fake counted invocations and never asserted
@@ -3441,7 +3505,7 @@ tests assert the transition is handed the successor.
 
 **The fix had a second half.** `_nextYear` was derived as `endDate + one day`,
 which starts the new year on the day the old one **ends** and gives it two days of
-life. That was harmless while nobody used the value â€” and it became load-bearing
+life. That was harmless while nobody used the value Ã¢â‚¬â€ and it became load-bearing
 the moment it was passed to the transition. It now comes from
 `NepaliFiscalCalendar.forBsYear`, because that is the only place the
 Shrawan-to-Ashadh rule is written.
@@ -3450,7 +3514,7 @@ Shrawan-to-Ashadh rule is written.
 `FiscalYear(label: 'FY 2082/83', start: DateTime(2026, 7), end: DateTime(2027, 7))`.
 The real FY 2082/83 runs 17 Jul 2025 to 16 Jul 2026. The whole suite was validating
 a year that does not exist, which is why neither the wrong argument nor the two-day
-successor could be seen â€” **the assertions lined up with the stub instead of with
+successor could be seen Ã¢â‚¬â€ **the assertions lined up with the stub instead of with
 the application.** It now uses the calendar.
 
 The parameter is renamed `nextYear` because a name that admits two readings will
@@ -3477,13 +3541,13 @@ simply have worked. The eight tests written here failed on exactly that error
 before the fix.
 
 **Two of my own expectations were wrong, and that is the instructive part.**
-I asserted a purchase would credit cost of goods sold. It credits **Payable** â€”
+I asserted a purchase would credit cost of goods sold. It credits **Payable** Ã¢â‚¬â€
 buying stock consumes nothing and creates a liability; COGS is recognised on the
 sale. Had I "fixed" the screen to match my expectation I would have encoded a real
 accounting error and made the suite green. The second was a duration assertion that
 said 365 days when a fiscal year *spans* 364 days between its bounds.
 
-Direction now comes from `MovementReason.isReceipt` â€” the same predicate the
+Direction now comes from `MovementReason.isReceipt` Ã¢â‚¬â€ the same predicate the
 posting use case keys off, so the screen and the journal cannot disagree about what
 "Sale" means. The one reason whose direction is genuinely open, an adjustment, now
 asks, and only shows that control when the reason is an adjustment.
@@ -3493,7 +3557,7 @@ asks, and only shows that control when the reason is an adjustment.
 `PRAGMA integrity_check` is a read-only question. It was asked through a drift
 `AppDatabase`, and **drift runs `onUpgrade` when it opens a file whose
 `user_version` is behind.** So every `verify()` wrote tables to the file it was
-checking, and `takeBackup` â€” which opened each concluded year the same way â€”
+checking, and `takeBackup` Ã¢â‚¬â€ which opened each concluded year the same way Ã¢â‚¬â€
 migrated every archived year in place.
 
 That contradicts ADR 002 directly: *concluded years open read-only and are never
@@ -3503,7 +3567,7 @@ the act of backing it up, which destroys the evidence of what it contained.
 **The suite was structurally blind to it.** Every test file in this area is created
 through `openFileDatabase`, so its `user_version` is already current and drift has
 nothing to migrate. Worse, a test asserting "the backup is a usable database"
-**passes on a file the check just modified** â€” after migration the schema is
+**passes on a file the check just modified** Ã¢â‚¬â€ after migration the schema is
 current, so nothing throws on the second open.
 
 Reproducing it needed the real condition: a file whose `user_version` is behind,
@@ -3515,9 +3579,9 @@ only the destination and never modifies its source, so read-only makes the
 guarantee structural rather than a matter of which statements happen to run.
 
 **Mutation-checked, and the first attempt lied.** Changing `readOnly` to
-`readWrite` left the suite green â€” read-only turned out to be defence in depth, not
+`readWrite` left the suite green Ã¢â‚¬â€ read-only turned out to be defence in depth, not
 the load-bearing part. The first mutation I tried **did not apply at all** and the
-suite passed, which is Â§7.22 again: I only trusted it after printing whether the
+suite passed, which is Ã‚Â§7.22 again: I only trusted it after printing whether the
 mutation was present. Reverting to the drift connection is caught
 (`Expected: <1>, Actual: <12>`).
 ### 7.36 A tax return that disagreed with the books
@@ -3531,26 +3595,26 @@ return (netExcludingVat * rateBasisPoints / 10000).round();   // double
 
 **1. Rounding.** The books compute VAT per invoice, in integer paisa, half-up at
 each document. Rounding once over the aggregate is a *different number*. Three
-five-paisa invoices at 13% post 1 paisa each â€” 3 in total â€” while the aggregate
+five-paisa invoices at 13% post 1 paisa each Ã¢â‚¬â€ 3 in total Ã¢â‚¬â€ while the aggregate
 15 paisa rounds to 2. **A return that cannot equal the ledger is a return that
 cannot be filed**, and this one could not.
 
 **2. Rate.** `IssueInvoice` supports a per-invoice `vatRateBasisPoints`, including
 zero. The report ignored it and charged the standard rate on everything. Two
 10,000 invoices, one standard-rated and one zero-rated, reported **260,000 of VAT
-against 130,000 actually charged** â€” exactly double.
+against 130,000 actually charged** Ã¢â‚¬â€ exactly double.
 
 **3. Type.** `money.dart` states that a monetary figure is never a floating-point
 value, and this was the single place in the domain that broke the rule. It agreed
 with the integer path for realistic magnitudes, which is why it survived.
 
 Two auditors found this independently, which is the strongest evidence in the
-whole audit â€” and it is also the argument for **overlapping audits**, because one
+whole audit Ã¢â‚¬â€ and it is also the argument for **overlapping audits**, because one
 finding a second reader corroborates is far more likely to be real.
 
 `TaxSummary` no longer computes anything. It takes `outputVatCharged` and
 `inputVatClaimable` as figures, and `BuildTaxSummary` sums `invoice.vat` and
-`creditNote.vat` â€” the exact integers the posting use case already produced, at
+`creditNote.vat` Ã¢â‚¬â€ the exact integers the posting use case already produced, at
 each document's own rate. The return now equals the books **by construction**
 rather than by agreeing with them, and there is no longer a second implementation
 of "what VAT does this sale attract" to drift.
@@ -3573,25 +3637,25 @@ The same pattern, three times in one fix, and it is the part worth keeping:
 3. **13% of 1 paisa rounds to zero.** My first "distinguishing" test amount was one
    paisa, on the reasoning that it must expose the per-invoice/aggregate
    difference. It exposes nothing: 0.13 paisa rounds to nothing, so both methods
-   agree on zero. The amount that actually separates them is **five** paisa â€”
-   0.65 â†’ 1 each (3 total) against 1.95 â†’ 2.
+   agree on zero. The amount that actually separates them is **five** paisa Ã¢â‚¬â€
+   0.65 Ã¢â€ â€™ 1 each (3 total) against 1.95 Ã¢â€ â€™ 2.
 
 In each case I was one edit away from adjusting the code until the suite passed,
 which would have converted a wrong belief into an enforced invariant. The rule
 that prevents it: **a failing test is a claim about the domain, and the claim must
-be checked against the accounting before the code is changed** â€” not after.
+be checked against the accounting before the code is changed** Ã¢â‚¬â€ not after.
 
 A fourth error was caught mid-fix rather than in review: a credit note's **gross**
 total was briefly passed where `taxableSales` is stated excluding VAT,
 understating sales by exactly the VAT credited. The same class of mistake as the
 one being removed, introduced by the fix.
 
-One existing test â€” "VAT rounds half-up once, so the figure on the return is the
-figure that was stored" â€” was **asserting the bug**. It tested the aggregate
+One existing test Ã¢â‚¬â€ "VAT rounds half-up once, so the figure on the return is the
+figure that was stored" Ã¢â‚¬â€ was **asserting the bug**. It tested the aggregate
 computation that had to go, and its comment stated the false property as though it
 were guaranteed. It is rewritten to assert the opposite: the return reports the
 figures it is handed.
-### 7.38 App overview â€” complete codebase walkthrough
+### 7.38 App overview Ã¢â‚¬â€ complete codebase walkthrough
 
 **Read from:** every `.dart` file in `desktop/lib/src/`, read line by line.
 This section documents what the application does, what every file contains, and
@@ -3606,22 +3670,22 @@ the codebase.
 `financeapp` is an **offline-first desktop business management application** for
 small Nepali businesses. It provides:
 
-- **Double-entry accounting** â€” every transaction balances; the journal is the
+- **Double-entry accounting** Ã¢â‚¬â€ every transaction balances; the journal is the
   single source of truth; balances are derived, never stored.
-- **Invoicing** â€” sales invoices with Nepali VAT compliance (Rule 17 tax invoice
+- **Invoicing** Ã¢â‚¬â€ sales invoices with Nepali VAT compliance (Rule 17 tax invoice
   and Rule 17(Ka) abbreviated retail invoice), document numbering, credit notes.
-- **Payments** â€” recording payments against invoices, settling receivables.
-- **Inventory** â€” moving weighted average costing, negative stock blocked,
+- **Payments** Ã¢â‚¬â€ recording payments against invoices, settling receivables.
+- **Inventory** Ã¢â‚¬â€ moving weighted average costing, negative stock blocked,
   write-down to lower of cost and net realisable value, stock movements posted to
   the ledger.
-- **Customers** â€” random internal ids, sequential business codes, PAN tracking.
-- **Financial reporting** â€” Trial Balance, General Ledger, Profit & Loss, Balance
+- **Customers** Ã¢â‚¬â€ random internal ids, sequential business codes, PAN tracking.
+- **Financial reporting** Ã¢â‚¬â€ Trial Balance, General Ledger, Profit & Loss, Balance
   Sheet, Cash Flow, Sales Summary, Inventory Summary, VAT Summary.
-- **Fiscal year management** â€” one SQLite database per fiscal year (Shrawan to
+- **Fiscal year management** Ã¢â‚¬â€ one SQLite database per fiscal year (Shrawan to
   Ashadh), concluded years read-only, year-end closing with opening balances.
-- **Backup and restore** â€” verified local snapshots via `VACUUM INTO`, upload to
+- **Backup and restore** Ã¢â‚¬â€ verified local snapshots via `VACUUM INTO`, upload to
   Laravel cloud backend.
-- **Cloud identity** â€” Laravel Sanctum tokens, protected OS credential storage.
+- **Cloud identity** Ã¢â‚¬â€ Laravel Sanctum tokens, protected OS credential storage.
 
 **The backend is a Laravel 13 API** providing identity, books metadata, backup
 storage, and (eventually) licensing and sync. It is never on the path of a
@@ -3650,94 +3714,94 @@ The UI never touches the database directly.
 
 ---
 
-## DOMAIN LAYER â€” Pure business rules
+## DOMAIN LAYER Ã¢â‚¬â€ Pure business rules
 
 The domain layer contains all business logic, entities, value objects, and
 interfaces. It imports nothing from any other layer.
 
-### `domain/shared/` â€” Cross-cutting primitives
+### `domain/shared/` Ã¢â‚¬â€ Cross-cutting primitives
 
-**`money.dart`** â€” The foundation of the entire financial system. `Money` stores
+**`money.dart`** Ã¢â‚¬â€ The foundation of the entire financial system. `Money` stores
 amounts as **integer minor units (paisa)**, never as `double` or `num`. This
 eliminates binary floating-point rounding errors. Key members:
 
-- `Money.minor(int, currency)` â€” primary constructor from paisa
-- `Money.fromMajorUnits(num, currency)` â€” convert from rupees
-- `Money.tryParse(String, currency)` â€” parse user input like `"1,250,000.50"`
-- `add`, `subtract`, `negated`, `abs` â€” arithmetic, refuses currency mixing
-- `times(int)` â€” multiply by whole quantity, exactly
-- `timesFraction(numerator, denominator)` â€” fractional quantity, rounds half-up
-- `applyBasisPoints(int)` â€” percentages for tax/discount (2500 bp = 25%)
-- `allocate(int parts)` â€” split without losing/gaining paisa
-- `sum(Iterable<Money>, currency)` â€” sum a list
-- `format()` â€” display with thousands separators, two decimals, sign before symbol
+- `Money.minor(int, currency)` Ã¢â‚¬â€ primary constructor from paisa
+- `Money.fromMajorUnits(num, currency)` Ã¢â‚¬â€ convert from rupees
+- `Money.tryParse(String, currency)` Ã¢â‚¬â€ parse user input like `"1,250,000.50"`
+- `add`, `subtract`, `negated`, `abs` Ã¢â‚¬â€ arithmetic, refuses currency mixing
+- `times(int)` Ã¢â‚¬â€ multiply by whole quantity, exactly
+- `timesFraction(numerator, denominator)` Ã¢â‚¬â€ fractional quantity, rounds half-up
+- `applyBasisPoints(int)` Ã¢â‚¬â€ percentages for tax/discount (2500 bp = 25%)
+- `allocate(int parts)` Ã¢â‚¬â€ split without losing/gaining paisa
+- `sum(Iterable<Money>, currency)` Ã¢â‚¬â€ sum a list
+- `format()` Ã¢â‚¬â€ display with thousands separators, two decimals, sign before symbol
 
-**`currency.dart`** â€” `bookCurrency = 'NPR'`. V1 is single-currency per book.
+**`currency.dart`** Ã¢â‚¬â€ `bookCurrency = 'NPR'`. V1 is single-currency per book.
 
-**`unit_of_work.dart`** â€” `UnitOfWork` port. Makes a business operation atomic
+**`unit_of_work.dart`** Ã¢â‚¬â€ `UnitOfWork` port. Makes a business operation atomic
 across multiple repositories. `run` executes work inside a single database
 transaction; nesting joins the outer transaction.
 
-**`sign_in.dart`** â€” `SignInStatus` (signedIn, rejected, invalidServer,
+**`sign_in.dart`** Ã¢â‚¬â€ `SignInStatus` (signedIn, rejected, invalidServer,
 unreachable), `SignInResult`, `SignInException`.
 
-**`auth_service.dart`** â€” `AuthActions` port: `signIn`, `signOut`. Sign-out
-never throws â€” local session cleared regardless of network state.
+**`auth_service.dart`** Ã¢â‚¬â€ `AuthActions` port: `signIn`, `signOut`. Sign-out
+never throws Ã¢â‚¬â€ local session cleared regardless of network state.
 
-**`credential_store.dart`** â€” `CredentialStore` port. Persists session between
+**`credential_store.dart`** Ã¢â‚¬â€ `CredentialStore` port. Persists session between
 runs. Never holds the password. Returns null for missing/unreadable sessions.
 
-**`book_upload.dart`** â€” `BackendSession` (server address, token, book id â€”
+**`book_upload.dart`** Ã¢â‚¬â€ `BackendSession` (server address, token, book id Ã¢â‚¬â€
 deliberately no password), `UploadStatus` enum, `UploadResult`, `UploadRecord`,
 `UploadException`.
 
-**`book_upload_service.dart`** â€” `UploadActions` port. `canUpload` derived from
+**`book_upload_service.dart`** Ã¢â‚¬â€ `UploadActions` port. `canUpload` derived from
 session usability. `upload` returns result rather than throwing for server
 answers. Local snapshot never modified.
 
-**`book_backup.dart`** â€” `BookBackup` (verified snapshot with SHA-256),
+**`book_backup.dart`** Ã¢â‚¬â€ `BookBackup` (verified snapshot with SHA-256),
 `BackupVerification`, `BackupException`.
 
-**`book_backup_service.dart`** â€” `BackupActions` (narrow) and `BookBackupService`.
+**`book_backup_service.dart`** Ã¢â‚¬â€ `BackupActions` (narrow) and `BookBackupService`.
 `knownYears`, `takeBackup` (all years), `listBackups`, `verify`. Adds
 `latestBackup` and `restore`.
 
-**`book_year.dart`** â€” `BookYear` (fiscal year's books in the folder),
+**`book_year.dart`** Ã¢â‚¬â€ `BookYear` (fiscal year's books in the folder),
 `BackupFailure`, `BackupRun` (`isComplete` when no failures).
 
-**`backup_download.dart`** â€” `DownloadedBackup`, `DownloadRefusal` enum,
+**`backup_download.dart`** Ã¢â‚¬â€ `DownloadedBackup`, `DownloadRefusal` enum,
 `BackupDownloader` port.
 
-### `domain/accounting/` â€” Double-entry bookkeeping engine
+### `domain/accounting/` Ã¢â‚¬â€ Double-entry bookkeeping engine
 
-**`account_type.dart`** â€” `NormalBalance` enum (debit, credit) and `AccountType`
+**`account_type.dart`** Ã¢â‚¬â€ `NormalBalance` enum (debit, credit) and `AccountType`
 enum (asset, liability, equity, income, expense). `normalBalance` getter:
-assets/expenses â†’ debit; liabilities/equity/income â†’ credit. `isBalanceSheet`:
+assets/expenses Ã¢â€ â€™ debit; liabilities/equity/income Ã¢â€ â€™ credit. `isBalanceSheet`:
 asset, liability, equity (carry forward). `isProfitAndLoss`: income, expense
 (closed at year-end).
 
-**`account.dart`** â€” `Account` with id (String, permanent identity), code
-(String, e.g. `1010`), name, type. **Accounts do NOT store balances** â€” balances
+**`account.dart`** Ã¢â‚¬â€ `Account` with id (String, permanent identity), code
+(String, e.g. `1010`), name, type. **Accounts do NOT store balances** Ã¢â‚¬â€ balances
 are derived from posted journal lines by `Ledger`. Equality is by `id` only, so
 renaming cannot break existing journal references.
 
-**`journal_line.dart`** â€” `JournalLine`, constructible only via `.debit()` or
+**`journal_line.dart`** Ã¢â‚¬â€ `JournalLine`, constructible only via `.debit()` or
 `.credit()` with strictly positive amount. Enforces "never both and never neither"
 by construction. `opposite` getter returns the line on the other side.
 
-**`journal_entry.dart`** â€” `JournalEntry`, enforces balance invariant in
+**`journal_entry.dart`** Ã¢â‚¬â€ `JournalEntry`, enforces balance invariant in
 constructor (total debits == total credits). Immutable once constructed.
 `reverse()` creates cancellation entry. Requires at least 2 lines. `currency`
 taken from first line.
 
-**`journal_repository.dart`** â€” `JournalRepository` port. `append` is atomic â€”
+**`journal_repository.dart`** Ã¢â‚¬â€ `JournalRepository` port. `append` is atomic Ã¢â‚¬â€
 entry and all lines written together or nothing.
 
-**`ledger.dart`** â€” `Ledger` read model. Balances derived from posted lines,
-never stored. `debitTotalOf`, `creditTotalOf`, `balanceOf` â€” balance expressed
+**`ledger.dart`** Ã¢â‚¬â€ `Ledger` read model. Balances derived from posted lines,
+never stored. `debitTotalOf`, `creditTotalOf`, `balanceOf` Ã¢â‚¬â€ balance expressed
 in account's natural direction.
 
-**`chart_of_accounts.dart`** â€” The **fixed, hand-written** chart of accounts for
+**`chart_of_accounts.dart`** Ã¢â‚¬â€ The **fixed, hand-written** chart of accounts for
 a small Nepali business. 19 accounts across all five types:
 
 - Assets (1xxx): Bank 1010, Cash 1020, Accounts Receivable 1030, Inventory 1040,
@@ -3751,197 +3815,197 @@ a small Nepali business. 19 accounts across all five types:
 Ids are permanent literals; codes are human-facing labels that may be renumbered.
 `all` returns accounts ordered by code; `byCode`/`byId` lookup; `ofType` filters.
 
-**`year_end.dart`** â€” `ClosingEntry` (one account's transfer to retained
+**`year_end.dart`** Ã¢â‚¬â€ `ClosingEntry` (one account's transfer to retained
 earnings), `YearEndClosing` (complete closing plan built from signed balances),
 `YearEndBlocker` enum, `YearEndValidation` sealed class. `result` computes
 profit/loss from transfers, preventing P&L from disagreeing with the ledger.
 
-### `domain/reporting/` â€” Financial statements
+### `domain/reporting/` Ã¢â‚¬â€ Financial statements
 
-**`trial_balance.dart`** â€” `TrialBalanceRow`, `TrialBalance`. Derived, never
+**`trial_balance.dart`** Ã¢â‚¬â€ `TrialBalanceRow`, `TrialBalance`. Derived, never
 stored. `isBalanced` states whether debits equal credits. `assertBalanced` throws
 for callers. `entriesWithin` shared filter for inclusive date ranges.
 
-**`general_ledger.dart`** â€” `GeneralLedgerLine`, `GeneralLedger`. Every posting
+**`general_ledger.dart`** Ã¢â‚¬â€ `GeneralLedgerLine`, `GeneralLedger`. Every posting
 to one account in order with running balance. `openingBalance` carries forward
 from before the reporting period.
 
-**`balance_sheet.dart`** â€” `BalanceSheetLine`, `BalanceSheet`. Takes `to` date
-(not `from`) â€” position at a point in time. `currentResult` folds income minus
+**`balance_sheet.dart`** Ã¢â‚¬â€ `BalanceSheetLine`, `BalanceSheet`. Takes `to` date
+(not `from`) Ã¢â‚¬â€ position at a point in time. `currentResult` folds income minus
 expense into equity so the sheet balances without a year-end closing entry.
 `assertBalanced` throws if assets != liabilities + equity.
 
-**`profit_and_loss.dart`** â€” `ProfitAndLossLine`, `ProfitAndLoss`. Income and
+**`profit_and_loss.dart`** Ã¢â‚¬â€ `ProfitAndLossLine`, `ProfitAndLoss`. Income and
 expenses only. `profit`/`loss` are positive amounts. `isBreakEven`.
 
-**`financial_reports.dart`** â€” `CashFlow` (cash statement, not accrual, derived
+**`financial_reports.dart`** Ã¢â‚¬â€ `CashFlow` (cash statement, not accrual, derived
 from bank/cash movements), `SalesSummary` (gross sales net of credits),
 `InventorySummary` (from movements), `TaxSummary` (output VAT on invoices
-issued, input VAT always zero â€” purchase side not built), `ReportTotal`.
+issued, input VAT always zero Ã¢â‚¬â€ purchase side not built), `ReportTotal`.
 
-### `domain/fiscal/` â€” Nepali calendar and fiscal years
+### `domain/fiscal/` Ã¢â‚¬â€ Nepali calendar and fiscal years
 
-**`bs_calendar_data.dart`** â€” In-tree Bikram Sambat month lengths for BS
-1969â€“2199. Originally from `bikram_sambat` package (MIT), brought in-tree so the
+**`bs_calendar_data.dart`** Ã¢â‚¬â€ In-tree Bikram Sambat month lengths for BS
+1969Ã¢â‚¬â€œ2199. Originally from `bikram_sambat` package (MIT), brought in-tree so the
 fiscal calendar doesn't depend on one maintainer. BS 2200 excluded (372-day
 placeholder data). Each entry is 12 integers (days per month).
 
-**`bs_calendar.dart`** â€” `BsCalendar` converts between BS and Gregorian using
+**`bs_calendar.dart`** Ã¢â‚¬â€ `BsCalendar` converts between BS and Gregorian using
 cumulative day count from fixed anchor (1 Baishakh 2000 BS = 14 April 1943 AD
-UTC). Epoch is UTC on purpose â€” avoids DST issues. Binary search for year, linear
+UTC). Epoch is UTC on purpose Ã¢â‚¬â€ avoids DST issues. Binary search for year, linear
 walk for months. `earliestYear` = 1969, `latestYear` = 2199.
 
-**`fiscal_year.dart`** â€” `FiscalYear` â€” label and inclusive date range. Free of
+**`fiscal_year.dart`** Ã¢â‚¬â€ `FiscalYear` Ã¢â‚¬â€ label and inclusive date range. Free of
 calendar logic; told its range by `NepaliFiscalCalendar`. Compares dates, not
 instants. `contains` is inclusive on both ends.
 
-**`nepali_fiscal_calendar.dart`** â€” Nepal's fiscal year: 1 Shrawan to last day
+**`nepali_fiscal_calendar.dart`** Ã¢â‚¬â€ Nepal's fiscal year: 1 Shrawan to last day
 of Ashadh of following BS year. `forBsYear(2082)` produces `FY 2082/83`.
-`containing(date)` â€” dates in Baishakh/Jestha/Ashadh belong to previous BS
+`containing(date)` Ã¢â‚¬â€ dates in Baishakh/Jestha/Ashadh belong to previous BS
 year's fiscal year. `fromLabel`/`labelForBsYear` round-trip. Only label
 persisted.
 
-### `domain/billing/` â€” Sales, customers, compliance
+### `domain/billing/` Ã¢â‚¬â€ Sales, customers, compliance
 
-**`customer.dart`** â€” Two identifiers: `id` (random, permanent, internal) and
+**`customer.dart`** Ã¢â‚¬â€ Two identifiers: `id` (random, permanent, internal) and
 `code` (business reference like `C-0001`). Random ids prevent collisions if two
 installations sync. Name is NOT a key. `pan` validated through `NepaliPan`.
 `isVatRegistered` stated, never inferred.
 
-**`customer_code.dart`** â€” `CustomerCode` â€” business reference like `C-0001`.
+**`customer_code.dart`** Ã¢â‚¬â€ `CustomerCode` Ã¢â‚¬â€ business reference like `C-0001`.
 Zero-padded to 4 digits. Lifetime sequence, NOT per-fiscal-year.
 
-**`customer_code_sequence.dart`** â€” `CustomerCodeSequence` â€” allocates customer
+**`customer_code_sequence.dart`** Ã¢â‚¬â€ `CustomerCodeSequence` Ã¢â‚¬â€ allocates customer
 business references from a lifetime counter.
 
-**`customer_repository.dart`** â€” `save`, `saveAll`, `byId`, `all`.
+**`customer_repository.dart`** Ã¢â‚¬â€ `save`, `saveAll`, `byId`, `all`.
 
-**`business_profile.dart`** â€” `BusinessProfile` â€” this business: name, PAN, VAT
+**`business_profile.dart`** Ã¢â‚¬â€ `BusinessProfile` Ã¢â‚¬â€ this business: name, PAN, VAT
 status, address, phone, email, bank details. `canIssueValidTaxInvoice` requires
 a PAN. VAT registration stated, never inferred.
 
-**`business_profile_repository.dart`** â€” Singleton interface â€” one business per
+**`business_profile_repository.dart`** Ã¢â‚¬â€ Singleton interface Ã¢â‚¬â€ one business per
 account in V1. `load` returns null for fresh installations.
 
-**`invoice.dart`** â€” `Invoice` â€” every total **derived from lines**, never
+**`invoice.dart`** Ã¢â‚¬â€ `Invoice` Ã¢â‚¬â€ every total **derived from lines**, never
 stored. VAT in basis points (1300 = 13%). `stampedWithSeller` returns new invoice
 with seller details. `subtotal`, `vat` (on combined subtotal, not per-line),
 `total` all derived.
 
-**`invoice_line.dart`** â€” Quantity >= 1, unitPrice > 0. `lineTotal` = unitPrice
+**`invoice_line.dart`** Ã¢â‚¬â€ Quantity >= 1, unitPrice > 0. `lineTotal` = unitPrice
 x quantity.
 
-**`invoice_balance.dart`** â€” `InvoiceBalance` â€” derived every time, never stored.
+**`invoice_balance.dart`** Ã¢â‚¬â€ `InvoiceBalance` Ã¢â‚¬â€ derived every time, never stored.
 `outstanding` = total - received - credited. Can go negative (overpaid/credited
 = refund due). `uncredited` bounds next credit note.
 
-**`invoice_compliance.dart`** â€” `InvoiceKind` (taxInvoice, abbreviatedRetailInvoice),
+**`invoice_compliance.dart`** Ã¢â‚¬â€ `InvoiceKind` (taxInvoice, abbreviatedRetailInvoice),
 `InvoiceComplianceIssue` enum. Advisory, not blocking.
 
-**`invoice_repository.dart`** â€” Plain insert, not upsert.
+**`invoice_repository.dart`** Ã¢â‚¬â€ Plain insert, not upsert.
 
-**`issued_invoice.dart`** â€” `IssuedInvoice` â€” invoice + allocated number +
+**`issued_invoice.dart`** Ã¢â‚¬â€ `IssuedInvoice` Ã¢â‚¬â€ invoice + allocated number +
 journal entry id. Journal entry id derived from invoice id (`JE-INV-{id}`).
 
-**`credit_note.dart`** â€” Mirrors invoice shape. Ceiling is **uncredited** amount,
+**`credit_note.dart`** Ã¢â‚¬â€ Mirrors invoice shape. Ceiling is **uncredited** amount,
 not outstanding balance (paid invoice can still be credited, creating refund due).
 
-**`issued_credit_note.dart`** â€” `IssuedCreditNote` â€” credit note + number +
+**`issued_credit_note.dart`** Ã¢â‚¬â€ `IssuedCreditNote` Ã¢â‚¬â€ credit note + number +
 journal entry id. Journal entry id = `JE-CRN-{id}`.
 
-**`document_number.dart`** â€” `DocumentNumber` â€” three independent facts: type
+**`document_number.dart`** Ã¢â‚¬â€ `DocumentNumber` Ã¢â‚¬â€ three independent facts: type
 prefix, fiscal year label, sequence position. Format: `INV-2082-83-1042`.
 
-**`document_number_sequence.dart`** â€” Per type and per fiscal year. Allocation
+**`document_number_sequence.dart`** Ã¢â‚¬â€ Per type and per fiscal year. Allocation
 inside unit of work. `peekNext` shows without consuming.
 
-**`document_type.dart`** â€” `DocumentType`: invoice (INV), creditNote (CRN),
+**`document_type.dart`** Ã¢â‚¬â€ `DocumentType`: invoice (INV), creditNote (CRN),
 debitNote (DBN).
 
-**`payment.dart`** â€” Payment is financial record â€” never edited or deleted. Must
+**`payment.dart`** Ã¢â‚¬â€ Payment is financial record Ã¢â‚¬â€ never edited or deleted. Must
 be received into balance sheet account (Bank or Cash). Journal entry id derived
 from payment id (`JE-PAY-{id}`).
 
-**`payment_repository.dart`** â€” Plain insert, not upsert.
+**`payment_repository.dart`** Ã¢â‚¬â€ Plain insert, not upsert.
 
-**`nepali_pan.dart`** â€” `NepaliPan` â€” 9 digits, stored without separators.
+**`nepali_pan.dart`** Ã¢â‚¬â€ `NepaliPan` Ã¢â‚¬â€ 9 digits, stored without separators.
 `grouped` produces `301-234-567` for printing. Null is normal. Malformed PAN
 rejected, not dropped.
 
-**`nepal_tax_rules.dart`** â€” `NepalTaxRules` â€” rate, abbreviated invoice
+**`nepal_tax_rules.dart`** Ã¢â‚¬â€ `NepalTaxRules` Ã¢â‚¬â€ rate, abbreviated invoice
 ceiling (NPR 10,000), buyer PAN threshold (NPR 1,000,000), retention periods
-(VAT: 6 years, Income Tax: 5 years from expiry). **Not constants** â€” Finance Act
+(VAT: 6 years, Income Tax: 5 years from expiry). **Not constants** Ã¢â‚¬â€ Finance Act
 changes them annually. Travels as data with version.
 
-**`hs_code.dart`** â€” `HsCode` â€” 4â€“8 digits. Required on goods invoices per 46th
+**`hs_code.dart`** Ã¢â‚¬â€ `HsCode` Ã¢â‚¬â€ 4Ã¢â‚¬â€œ8 digits. Required on goods invoices per 46th
 amendment.
 
-**`supplier.dart`** â€” Mirrors `Customer` with same identity decision.
+**`supplier.dart`** Ã¢â‚¬â€ Mirrors `Customer` with same identity decision.
 
-**`amount_in_words.dart`** â€” Writes amounts in words using Indian numbering
+**`amount_in_words.dart`** Ã¢â‚¬â€ Writes amounts in words using Indian numbering
 system (lakh, crore). Only whole rupees in words; paisa appended as digits.
 
-### `domain/inventory/` â€” Stock and costing
+### `domain/inventory/` Ã¢â‚¬â€ Stock and costing
 
-**`product.dart`** â€” `Product` â€” what the business sells. **No cost field** â€”
-running inventory value is authoritative. `stockTrackingEnabled` â€” services
+**`product.dart`** Ã¢â‚¬â€ `Product` Ã¢â‚¬â€ what the business sells. **No cost field** Ã¢â‚¬â€
+running inventory value is authoritative. `stockTrackingEnabled` Ã¢â‚¬â€ services
 exempt from negative-stock rule.
 
-**`inventory_movement.dart`** â€” `MovementReason` enum: openingStock, purchase,
+**`inventory_movement.dart`** Ã¢â‚¬â€ `MovementReason` enum: openingStock, purchase,
 sale, saleReturn, purchaseReturn, returnIn, returnOut, adjustment, writeDown,
-transfer. `InventoryMovement` â€” signed quantity and value, always pointing same
+transfer. `InventoryMovement` Ã¢â‚¬â€ signed quantity and value, always pointing same
 way. Value-only movements allowed only for writeDown.
 
-**`product_stock.dart`** â€” `ProductStock` â€” quantity and value **derived by
+**`product_stock.dart`** Ã¢â‚¬â€ `ProductStock` Ã¢â‚¬â€ quantity and value **derived by
 summing movements**, never stored. `costPerUnit` derived from value, rounded for
 display only. `apply` checks negative-stock rule against total of all movements
 (not date-based). `NegativeStockException`. `valueOfIssue` taken from running
 value, clamped so issuing whole holding leaves exactly zero.
 
-**`inventory_repository.dart`** â€” `applyMovement` refuses if it would take
+**`inventory_repository.dart`** Ã¢â‚¬â€ `applyMovement` refuses if it would take
 product below zero, inside one transaction.
 
-### `domain/sync/` â€” Multi-device sync
+### `domain/sync/` Ã¢â‚¬â€ Multi-device sync
 
-**`divergence.dart`** â€” `Divergence` enum: none, localOnly, serverOnly,
+**`divergence.dart`** Ã¢â‚¬â€ `Divergence` enum: none, localOnly, serverOnly,
 bothChanged. `needsAttention`: only serverOnly and bothChanged. `isDangerous`:
 bothChanged only. `SyncComparison` classified from checksums alone.
 
 ---
 
-## APPLICATION LAYER â€” Use cases, commands, queries
+## APPLICATION LAYER Ã¢â‚¬â€ Use cases, commands, queries
 
 The application layer orchestrates transactions. Every business operation goes
 through a use case here.
 
-**`books_session.dart`** â€” `OpenYear`, `BooksSession` interface. Every write use
+**`books_session.dart`** Ã¢â‚¬â€ `OpenYear`, `BooksSession` interface. Every write use
 case belongs to one year's books.
 
-**`account_session.dart`** â€” `AccountSession` â€” the one place that knows a user
+**`account_session.dart`** Ã¢â‚¬â€ `AccountSession` Ã¢â‚¬â€ the one place that knows a user
 is signed in. Coordinates `AuthActions` and `CredentialStore`.
 
-**`business_details.dart`** â€” `BusinessDetails` â€” load/save business profile
+**`business_details.dart`** Ã¢â‚¬â€ `BusinessDetails` Ã¢â‚¬â€ load/save business profile
 through validating domain constructor.
 
-**`load_chart_of_accounts.dart`** â€” `LoadChartOfAccounts` â€” reads stored
+**`load_chart_of_accounts.dart`** Ã¢â‚¬â€ `LoadChartOfAccounts` Ã¢â‚¬â€ reads stored
 accounts (not just built-in chart), so user-added accounts appear.
 
-**`post_journal_entry.dart`** â€” `PostJournalEntry` â€” date validated before
+**`post_journal_entry.dart`** Ã¢â‚¬â€ `PostJournalEntry` Ã¢â‚¬â€ date validated before
 anything written. Spec section 27: transaction dated outside active fiscal year
 is rejected.
 
-**`issue_invoice.dart`** â€” `IssueInvoice` â€” whole operation in one unit of work.
+**`issue_invoice.dart`** Ã¢â‚¬â€ `IssueInvoice` Ã¢â‚¬â€ whole operation in one unit of work.
 Serial allocated only after date validated. Double entry: Dr Receivable / Cr
 Sales Revenue / Cr VAT Payable. Zero-rated invoice omits VAT line entirely.
 
-**`issue_credit_note.dart`** â€” `IssueCreditNote` â€” ceiling is **uncredited**
+**`issue_credit_note.dart`** Ã¢â‚¬â€ `IssueCreditNote` Ã¢â‚¬â€ ceiling is **uncredited**
 amount, not outstanding balance. Double entry: Dr Sales Revenue / Dr VAT Payable
 / Cr Receivable.
 
-**`record_payment.dart`** â€” `RecordPayment` â€” must not exceed outstanding
+**`record_payment.dart`** Ã¢â‚¬â€ `RecordPayment` Ã¢â‚¬â€ must not exceed outstanding
 balance. Double entry: Dr Bank/Cash / Cr Receivable.
 
-**`post_inventory_movement.dart`** â€” `PostInventoryMovement` â€” ties stock
+**`post_inventory_movement.dart`** Ã¢â‚¬â€ `PostInventoryMovement` Ã¢â‚¬â€ ties stock
 movement to accounting entry. Movement and entry commit together or not at all.
 `accountsFor` maps reason+direction to accounts:
 
@@ -3952,270 +4016,270 @@ movement to accounting entry. Movement and entry commit together or not at all.
 | sale | issue | 5020 COGS | 1040 Inventory |
 | writeDown | issue | 5070 Inventory Adjustments | 1040 Inventory |
 
-**`write_down_inventory.dart`** â€” `WriteDownInventory` â€” carries value to net
+**`write_down_inventory.dart`** Ã¢â‚¬â€ `WriteDownInventory` Ã¢â‚¬â€ carries value to net
 realisable value. Quantity does not change. Goes through movement ledger as
 value-only change.
 
-**`create_customer.dart`** â€” `CreateCustomer` â€” random id (`{stamp}-{noise}`),
+**`create_customer.dart`** Ã¢â‚¬â€ `CreateCustomer` Ã¢â‚¬â€ random id (`{stamp}-{noise}`),
 business reference allocated inside unit of work.
 
-**`create_product.dart`** â€” `CreateProduct` â€” random id (`prd-{stamp}-{noise}`).
+**`create_product.dart`** Ã¢â‚¬â€ `CreateProduct` Ã¢â‚¬â€ random id (`prd-{stamp}-{noise}`).
 No product code. Sale price rounded to whole paisa.
 
-**`transfer_cash.dart`** â€” `TransferCash` â€” both sides must be cash accounts.
-Posted through ordinary engine â€” transfer gets no special treatment.
+**`transfer_cash.dart`** Ã¢â‚¬â€ `TransferCash` Ã¢â‚¬â€ both sides must be cash accounts.
+Posted through ordinary engine Ã¢â‚¬â€ transfer gets no special treatment.
 
-**`build_trial_balance.dart`** â€” `BuildTrialBalance` â€” builds from journal
+**`build_trial_balance.dart`** Ã¢â‚¬â€ `BuildTrialBalance` Ã¢â‚¬â€ builds from journal
 entries. `TrialBalanceReport`, `TrialBalanceTotals`.
 
-**`build_general_ledger.dart`** â€” `BuildGeneralLedger` â€” builds ledger for one
+**`build_general_ledger.dart`** Ã¢â‚¬â€ `BuildGeneralLedger` Ã¢â‚¬â€ builds ledger for one
 account over date range. `GeneralLedgerReport`, `GeneralLedgerLoader`.
 
-**`build_profit_and_loss.dart`** â€” `BuildProfitAndLoss`, `BuildBalanceSheet`.
+**`build_profit_and_loss.dart`** Ã¢â‚¬â€ `BuildProfitAndLoss`, `BuildBalanceSheet`.
 Period defaults to fiscal year. `BuildBalanceSheet` calls `assertBalanced` before
 returning.
 
-**`build_receivables.dart`** â€” `BuildReceivables` â€” who owes what, per invoice,
+**`build_receivables.dart`** Ã¢â‚¬â€ `BuildReceivables` Ã¢â‚¬â€ who owes what, per invoice,
 after credit notes. VAT excluded from receivable.
 
-**`build_reports.dart`** â€” `BuildCashFlow`, `BuildSalesSummary`,
+**`build_reports.dart`** Ã¢â‚¬â€ `BuildCashFlow`, `BuildSalesSummary`,
 `BuildInventorySummary`, `BuildTaxSummary`.
 
-**`conclude_fiscal_year.dart`** â€” `ConcludeFiscalYear` â€” the ordering is the
+**`conclude_fiscal_year.dart`** Ã¢â‚¬â€ `ConcludeFiscalYear` Ã¢â‚¬â€ the ordering is the
 whole feature: validate -> post closing entries -> **archive** -> *only then*
 create next year. Closing entries rolled back if archive fails. `_nextYear`
 derived from calendar.
 
-**`restore_backup.dart`** â€” `RestoreBackup` â€” staged outside books folder,
+**`restore_backup.dart`** Ã¢â‚¬â€ `RestoreBackup` Ã¢â‚¬â€ staged outside books folder,
 verified twice, then ordinary backup service's restore takes over.
 
 ---
 
-## INFRASTRUCTURE LAYER â€” Database, backup, sync, HTTP
+## INFRASTRUCTURE LAYER Ã¢â‚¬â€ Database, backup, sync, HTTP
 
-### `infrastructure/database/` â€” SQLite via drift
+### `infrastructure/database/` Ã¢â‚¬â€ SQLite via drift
 
-**`connection.dart`** â€” `openApplicationDatabase` â€” opens fiscal year's SQLite
+**`connection.dart`** Ã¢â‚¬â€ `openApplicationDatabase` Ã¢â‚¬â€ opens fiscal year's SQLite
 file via `path_provider`. Calls `configureNativeSqlite` first.
 
-**`sqlite_native.dart`** â€” SQLite wiring for plain Dart VM. On Windows uses
-`winsqlite3.dll`. `enforceForeignKeys` â€” applied per-connection. `forceReadOnly`
-â€” `PRAGMA query_only` per connection. Openers for file, memory, business
+**`sqlite_native.dart`** Ã¢â‚¬â€ SQLite wiring for plain Dart VM. On Windows uses
+`winsqlite3.dll`. `enforceForeignKeys` Ã¢â‚¬â€ applied per-connection. `forceReadOnly`
+Ã¢â‚¬â€ `PRAGMA query_only` per connection. Openers for file, memory, business
 databases.
 
-**`app_database.dart`** â€” `AppDatabase` â€” one fiscal year's book. Schema version
+**`app_database.dart`** Ã¢â‚¬â€ `AppDatabase` Ã¢â‚¬â€ one fiscal year's book. Schema version
 13. Tables: accounts, journal_entries, journal_lines, document_sequences,
 customers, suppliers, supplier_details, invoices, invoice_lines, payments,
 credit_notes, credit_note_lines, products, inventory_movements,
 customer_details, invoice_sellers, customer_code_sequences.
 
-**`business_database.dart`** â€” `BusinessDatabase` â€” business-level data in
+**`business_database.dart`** Ã¢â‚¬â€ `BusinessDatabase` Ã¢â‚¬â€ business-level data in
 `business.db`. NOT in a fiscal year's database. Singleton table with key
 `primary`.
 
-**`tables.dart`** â€” All drift table definitions. Foreign keys declared
+**`tables.dart`** Ã¢â‚¬â€ All drift table definitions. Foreign keys declared
 explicitly. JournalLines CHECK: `(debit > 0 AND credit = 0) OR (credit > 0 AND
 debit = 0)`. InventoryMovements CHECK: quantity and value point same way;
-value-only allowed only for writeDown. No REAL columns for money â€” all INTEGER.
+value-only allowed only for writeDown. No REAL columns for money Ã¢â‚¬â€ all INTEGER.
 
-**`mappers.dart`** â€” `accountFromRow`/`accountToCompanion`,
+**`mappers.dart`** Ã¢â‚¬â€ `accountFromRow`/`accountToCompanion`,
 `customerFromRow`/`customerToCompanion`.
 
-**`drift_unit_of_work.dart`** â€” `DriftUnitOfWork` â€” drift's `transaction`
+**`drift_unit_of_work.dart`** Ã¢â‚¬â€ `DriftUnitOfWork` Ã¢â‚¬â€ drift's `transaction`
 provides nesting semantics.
 
-**`drift_account_repository.dart`** â€” `saveAll` uses batch insert-on-conflict.
+**`drift_account_repository.dart`** Ã¢â‚¬â€ `saveAll` uses batch insert-on-conflict.
 `all` ordered by code.
 
-**`drift_journal_repository.dart`** â€” `append` â€” entry header + all lines in one
+**`drift_journal_repository.dart`** Ã¢â‚¬â€ `append` Ã¢â‚¬â€ entry header + all lines in one
 transaction. `_rebuild` loads all accounts to resolve account ids.
 
-**`drift_invoice_repository.dart`** â€” Needs `NepaliFiscalCalendar` to rebuild
+**`drift_invoice_repository.dart`** Ã¢â‚¬â€ Needs `NepaliFiscalCalendar` to rebuild
 `DocumentNumber` from stored fiscal year label. Seller snapshot stored
 separately (v11). `_rebuild` re-derives totals via domain constructor.
 
-**`drift_credit_note_repository.dart`** â€” Same pattern as invoice repository.
+**`drift_credit_note_repository.dart`** Ã¢â‚¬â€ Same pattern as invoice repository.
 
-**`drift_payment_repository.dart`** â€” Plain insert, not upsert.
+**`drift_payment_repository.dart`** Ã¢â‚¬â€ Plain insert, not upsert.
 
-**`drift_customer_repository.dart`** â€” Customers and customer_details in
-separate tables (ADR 010). Left outer join â€” customer with no detail row must not
+**`drift_customer_repository.dart`** Ã¢â‚¬â€ Customers and customer_details in
+separate tables (ADR 010). Left outer join Ã¢â‚¬â€ customer with no detail row must not
 be silently dropped.
 
-**`drift_customer_code_sequence.dart`** â€” `DriftCustomerCodeSequence` â€”
+**`drift_customer_code_sequence.dart`** Ã¢â‚¬â€ `DriftCustomerCodeSequence` Ã¢â‚¬â€
 lifetime counter. Row created on first use.
 
-**`drift_document_number_sequence.dart`** â€” Per type and fiscal year.
+**`drift_document_number_sequence.dart`** Ã¢â‚¬â€ Per type and fiscal year.
 Read-then-write inside transaction. `peekNext` does not write.
 
-**`drift_inventory_repository.dart`** â€” `applyMovement` â€” out-of-stock check
+**`drift_inventory_repository.dart`** Ã¢â‚¬â€ `applyMovement` Ã¢â‚¬â€ out-of-stock check
 and write in one transaction. `_stockWithin` computes stock position from all
 movements.
 
-**`drift_business_profile_repository.dart`** â€” Single row with key `primary`.
+**`drift_business_profile_repository.dart`** Ã¢â‚¬â€ Single row with key `primary`.
 `insertOnConflictUpdate`.
 
-**`file_books_session.dart`** â€” `FileBooksSession` â€” one SQLite file per fiscal
+**`file_books_session.dart`** Ã¢â‚¬â€ `FileBooksSession` Ã¢â‚¬â€ one SQLite file per fiscal
 year. `openOn` creates year file if doesn't exist, seeds chart. `_discover`
 finds `accounting-FY-*.db` files. Concluded years opened read-only. Business
 database opened once and kept. `business.db` deliberately NOT named
 `accounting-FY-*.db`.
 
-**`local_fiscal_year_transition.dart`** â€” `LocalFiscalYearTransition` â€” creates
+**`local_fiscal_year_transition.dart`** Ã¢â‚¬â€ `LocalFiscalYearTransition` Ã¢â‚¬â€ creates
 next year's database, seeds chart, posts opening balances as one entry.
 
-### `infrastructure/backup/` â€” File-based backup and archive
+### `infrastructure/backup/` Ã¢â‚¬â€ File-based backup and archive
 
-**`file_book_backup_service.dart`** â€” `FileBookBackupService`. Covers every
+**`file_book_backup_service.dart`** Ã¢â‚¬â€ `FileBookBackupService`. Covers every
 fiscal year's books. Snapshots via `VACUUM INTO`. Every snapshot verified:
 checksum + SQLite `PRAGMA integrity_check` via raw connection. Concluded years
 opened read-only for backup. Business database backed up alongside years.
-`restore` â€” verifies first, takes emergency copy of current before replacing.
+`restore` Ã¢â‚¬â€ verifies first, takes emergency copy of current before replacing.
 `_freeFileFor` guarantees uniqueness. Never overwrites.
 
-**`backup_service_fiscal_year_archive.dart`** â€” `BackupServiceFiscalYearArchive`
-â€” archives by taking backup + uploading snapshot.
+**`backup_service_fiscal_year_archive.dart`** Ã¢â‚¬â€ `BackupServiceFiscalYearArchive`
+Ã¢â‚¬â€ archives by taking backup + uploading snapshot.
 
-**`http_fiscal_year_concluder.dart`** â€” `HttpFiscalYearConcluder` â€” tells
+**`http_fiscal_year_concluder.dart`** Ã¢â‚¬â€ `HttpFiscalYearConcluder` Ã¢â‚¬â€ tells
 server year concluded. Fiscal year label in request body.
 
-### `infrastructure/auth/` â€” Authentication and credentials
+### `infrastructure/auth/` Ã¢â‚¬â€ Authentication and credentials
 
-**`http_auth_client.dart`** â€” `HttpAuthClient` â€” signs in to `/api/auth/login`,
+**`http_auth_client.dart`** Ã¢â‚¬â€ `HttpAuthClient` Ã¢â‚¬â€ signs in to `/api/auth/login`,
 out to `/api/auth/logout`. Every outcome returned as `SignInResult`.
 
-**`secure_credential_store.dart`** â€” `SecureCredentialStore` â€” uses `crossvault`
+**`secure_credential_store.dart`** Ã¢â‚¬â€ `SecureCredentialStore` Ã¢â‚¬â€ uses `crossvault`
 (Windows Credential Manager / macOS Keychain). One JSON object, not four keys.
 Password never written.
 
-### `infrastructure/http/` â€” HTTP transport
+### `infrastructure/http/` Ã¢â‚¬â€ HTTP transport
 
-**`http_transport.dart`** â€” `TransportResponse`, `HttpTransport` interface,
-`IoHttpTransport` â€” one `HttpClient` for whole transport. 30s timeout. Binary
+**`http_transport.dart`** Ã¢â‚¬â€ `TransportResponse`, `HttpTransport` interface,
+`IoHttpTransport` Ã¢â‚¬â€ one `HttpClient` for whole transport. 30s timeout. Binary
 responses never decoded as text.
 
-### `infrastructure/download/` â€” Restore from server
+### `infrastructure/download/` Ã¢â‚¬â€ Restore from server
 
-**`http_backup_downloader.dart`** â€” `HttpBackupDownloader` â€” fetches snapshot
+**`http_backup_downloader.dart`** Ã¢â‚¬â€ `HttpBackupDownloader` Ã¢â‚¬â€ fetches snapshot
 from `/api/books/{bookId}/backup-revisions/{revision}/download`. SHA-256 of
 received bytes compared with `X-Backup-Checksum` header.
 
-### `infrastructure/sync/` â€” Upload to server
+### `infrastructure/sync/` Ã¢â‚¬â€ Upload to server
 
-**`http_backup_uploader.dart`** â€” `HttpBackupUploader` â€” sends verified snapshot
+**`http_backup_uploader.dart`** Ã¢â‚¬â€ `HttpBackupUploader` Ã¢â‚¬â€ sends verified snapshot
 as multipart/form-data. Local snapshot never modified. Checksum and size
 recomputed at upload time. `_nextRevisionFor` looks up current highest revision
-for this fiscal year. Upload log file â€” append-only JSON. Checksum computed in
+for this fiscal year. Upload log file Ã¢â‚¬â€ append-only JSON. Checksum computed in
 separate isolate.
 
 ---
 
-## PRESENTATION LAYER â€” Flutter UI
+## PRESENTATION LAYER Ã¢â‚¬â€ Flutter UI
 
-**`finance_app.dart`** â€” `FinanceApp` â€” `MaterialApp` root. `AppServices`
+**`finance_app.dart`** Ã¢â‚¬â€ `FinanceApp` Ã¢â‚¬â€ `MaterialApp` root. `AppServices`
 injected so widget tests supply stubs.
 
-**`finance_app_shell.dart`** â€” `FinanceAppShell` â€” left navigation rail (232px)
-+ content area. Shell is **free of data access** â€” does not import `domain/` or
-`infrastructure/`. `refreshAccount` â€” rebuilds services after sign-in.
-`selectYear` â€” switches open fiscal year.
+**`finance_app_shell.dart`** Ã¢â‚¬â€ `FinanceAppShell` Ã¢â‚¬â€ left navigation rail (232px)
++ content area. Shell is **free of data access** Ã¢â‚¬â€ does not import `domain/` or
+`infrastructure/`. `refreshAccount` Ã¢â‚¬â€ rebuilds services after sign-in.
+`selectYear` Ã¢â‚¬â€ switches open fiscal year.
 
-**`app_services.dart`** â€” `AppServices` â€” what presentation layer is allowed to
+**`app_services.dart`** Ã¢â‚¬â€ `AppServices` Ã¢â‚¬â€ what presentation layer is allowed to
 reach. `forSession` rebuilds all loaders from new session. `forAccount` re-reads
 after sign-in/out.
 
-**`theme/app_theme.dart`** â€” `AppPalette` (`ThemeExtension`), `AppSpacing`,
+**`theme/app_theme.dart`** Ã¢â‚¬â€ `AppPalette` (`ThemeExtension`), `AppSpacing`,
 `AppRadius`, `AppTheme`. Light palette: warm white canvas (`#F4F3F0`), blue
 accent (`#1F6FB2`). Dark palette: dark canvas (`#1A1A19`), lighter accent
 (`#5AA9E6`). Type scale: page title 32, major section 24, section heading 18,
 body 14, secondary 12-13.
 
-**`navigation/app_navigation.dart`** â€” `NavigationGroup`/`NavigationItem` â€”
+**`navigation/app_navigation.dart`** Ã¢â‚¬â€ `NavigationGroup`/`NavigationItem` Ã¢â‚¬â€
 eight groups: Overview, Accounting, Sales, Purchases, Inventory, Payments,
 Reports, System.
 
 ### Screens
 
-**`dashboard_screen.dart`** â€” Landing screen. Shows Result for period, Total
+**`dashboard_screen.dart`** Ã¢â‚¬â€ Landing screen. Shows Result for period, Total
 assets, Posted to ledger.
 
-**`invoice_screen.dart`** â€” Invoice form. Collects customer reference, line
+**`invoice_screen.dart`** Ã¢â‚¬â€ Invoice form. Collects customer reference, line
 items. Draft id = `draft-{microseconds}`.
 
-**`customer_screen.dart`** â€” Customer list and creation.
+**`customer_screen.dart`** Ã¢â‚¬â€ Customer list and creation.
 
-**`product_screen.dart`** â€” Product catalogue.
+**`product_screen.dart`** Ã¢â‚¬â€ Product catalogue.
 
-**`payment_screen.dart`** â€” Record payment against invoice.
+**`payment_screen.dart`** Ã¢â‚¬â€ Record payment against invoice.
 
-**`credit_note_screen.dart`** â€” Issue credit note.
+**`credit_note_screen.dart`** Ã¢â‚¬â€ Issue credit note.
 
-**`stock_movement_screen.dart`** â€” Post inventory movement.
+**`stock_movement_screen.dart`** Ã¢â‚¬â€ Post inventory movement.
 
-**`journal_entry_screen.dart`** â€” Manual journal entry form.
+**`journal_entry_screen.dart`** Ã¢â‚¬â€ Manual journal entry form.
 
-**`transfer_screen.dart`** â€” Cash transfer between Bank and Cash.
+**`transfer_screen.dart`** Ã¢â‚¬â€ Cash transfer between Bank and Cash.
 
-**`trial_balance_screen.dart`** â€” Trial balance, taps drill to general ledger.
+**`trial_balance_screen.dart`** Ã¢â‚¬â€ Trial balance, taps drill to general ledger.
 
-**`general_ledger_screen.dart`** â€” Account ledger with running balance.
+**`general_ledger_screen.dart`** Ã¢â‚¬â€ Account ledger with running balance.
 
-**`profit_and_loss_screen.dart`** â€” P&L statement.
+**`profit_and_loss_screen.dart`** Ã¢â‚¬â€ P&L statement.
 
-**`balance_sheet_screen.dart`** â€” Balance sheet.
+**`balance_sheet_screen.dart`** Ã¢â‚¬â€ Balance sheet.
 
-**`financial_reports_screen.dart`** â€” Shared screen for Cash Flow, Sales,
+**`financial_reports_screen.dart`** Ã¢â‚¬â€ Shared screen for Cash Flow, Sales,
 Inventory, Tax reports.
 
-**`receivables_screen.dart`** â€” Who owes what.
+**`receivables_screen.dart`** Ã¢â‚¬â€ Who owes what.
 
-**`chart_of_accounts_screen.dart`** â€” Chart of accounts grouped by type.
+**`chart_of_accounts_screen.dart`** Ã¢â‚¬â€ Chart of accounts grouped by type.
 
-**`backup_screen.dart`** â€” Take, verify, restore, upload backups.
+**`backup_screen.dart`** Ã¢â‚¬â€ Take, verify, restore, upload backups.
 
-**`conclude_fiscal_year_screen.dart`** â€” Close fiscal year flow.
+**`conclude_fiscal_year_screen.dart`** Ã¢â‚¬â€ Close fiscal year flow.
 
-**`settings_screen.dart`** â€” Sign in/out, business details.
+**`settings_screen.dart`** Ã¢â‚¬â€ Sign in/out, business details.
 
-**`licenses_screen.dart`** â€” MIT/BSD-3 dependency licences.
+**`licenses_screen.dart`** Ã¢â‚¬â€ MIT/BSD-3 dependency licences.
 
-**`placeholder_screen.dart`** â€” "Not built yet" for unimplemented sections.
+**`placeholder_screen.dart`** Ã¢â‚¬â€ "Not built yet" for unimplemented sections.
 
 ---
 
 ## Key architectural patterns
 
-1. **Domain owns all business rules** â€” repositories, sequences, and services are
+1. **Domain owns all business rules** Ã¢â‚¬â€ repositories, sequences, and services are
    domain interfaces; infrastructure only implements them.
 
-2. **Nothing is stored that can be derived** â€” balances, totals, report figures,
+2. **Nothing is stored that can be derived** Ã¢â‚¬â€ balances, totals, report figures,
    invoice balances all computed from authoritative sources (journal, movements,
    payments).
 
-3. **Unit of work makes multi-repository operations atomic** â€” issuing an invoice
+3. **Unit of work makes multi-repository operations atomic** Ã¢â‚¬â€ issuing an invoice
    creates the invoice, lines, receivable, revenue journal, and COGS journal
    together or not at all.
 
-4. **Immutable financial records** â€” posted entries, issued invoices, payments,
+4. **Immutable financial records** Ã¢â‚¬â€ posted entries, issued invoices, payments,
    and credit notes never edited or deleted. Corrections use reversals, credit
    notes, or compensating movements.
 
-5. **Ids are permanent; codes/names are attributes** â€” renaming an account or
+5. **Ids are permanent; codes/names are attributes** Ã¢â‚¬â€ renaming an account or
    recoding a customer does not break historical references. Random ids prevent
    collisions across installations.
 
-6. **Validation at construction** â€” `ArgumentError` thrown by domain constructors
+6. **Validation at construction** Ã¢â‚¬â€ `ArgumentError` thrown by domain constructors
    means invalid objects cannot exist.
 
-7. **Fiscal year boundaries from calendar, not clock** â€” `NepaliFiscalCalendar`
+7. **Fiscal year boundaries from calendar, not clock** Ã¢â‚¬â€ `NepaliFiscalCalendar`
    is the single source of truth for year boundaries.
 
-8. **One database per fiscal year** (ADR 002) â€” enables read-only concluded
+8. **One database per fiscal year** (ADR 002) Ã¢â‚¬â€ enables read-only concluded
    years, simpler backup, clearer archival.
 
-9. **Backup is verified before accepted** â€” checksum + SQLite integrity check.
+9. **Backup is verified before accepted** Ã¢â‚¬â€ checksum + SQLite integrity check.
 
-10. **Offline-first** â€” all normal operations work without network. Only
+10. **Offline-first** Ã¢â‚¬â€ all normal operations work without network. Only
     authentication, sync, backup upload, and fiscal-year conclusion require
     network.
 
@@ -4225,23 +4289,23 @@ Inventory, Tax reports.
 
 Current schema version: **13** (v13). Tables:
 
-- `accounts` â€” chart of accounts (19 seeded accounts)
-- `journal_entries` â€” entry headers
-- `journal_lines` â€” debit/credit lines, foreign keys to entries and accounts
-- `document_sequences` â€” per-type, per-fiscal-year serial counters
-- `customers` â€” customer id, name, pan
-- `customer_details` â€” customer code, VAT status, business name (v10)
-- `invoices` â€” invoice header, customer, journal entry, VAT rate
-- `invoice_lines` â€” invoice line items
-- `payments` â€” payment against invoice
-- `credit_notes` â€” credit note header
-- `credit_note_lines` â€” credit note lines
-- `products` â€” product catalogue (no cost field)
-- `inventory_movements` â€” stock movements, signed quantity+value
-- `suppliers` â€” supplier records (ADR 012)
-- `supplier_details` â€” supplier code, VAT status (v10)
-- `invoice_sellers` â€” seller snapshot at time of invoice (v11)
-- `customer_code_sequences` â€” lifetime customer code counter (v12)
+- `accounts` Ã¢â‚¬â€ chart of accounts (19 seeded accounts)
+- `journal_entries` Ã¢â‚¬â€ entry headers
+- `journal_lines` Ã¢â‚¬â€ debit/credit lines, foreign keys to entries and accounts
+- `document_sequences` Ã¢â‚¬â€ per-type, per-fiscal-year serial counters
+- `customers` Ã¢â‚¬â€ customer id, name, pan
+- `customer_details` Ã¢â‚¬â€ customer code, VAT status, business name (v10)
+- `invoices` Ã¢â‚¬â€ invoice header, customer, journal entry, VAT rate
+- `invoice_lines` Ã¢â‚¬â€ invoice line items
+- `payments` Ã¢â‚¬â€ payment against invoice
+- `credit_notes` Ã¢â‚¬â€ credit note header
+- `credit_note_lines` Ã¢â‚¬â€ credit note lines
+- `products` Ã¢â‚¬â€ product catalogue (no cost field)
+- `inventory_movements` Ã¢â‚¬â€ stock movements, signed quantity+value
+- `suppliers` Ã¢â‚¬â€ supplier records (ADR 012)
+- `supplier_details` Ã¢â‚¬â€ supplier code, VAT status (v10)
+- `invoice_sellers` Ã¢â‚¬â€ seller snapshot at time of invoice (v11)
+- `customer_code_sequences` Ã¢â‚¬â€ lifetime customer code counter (v12)
 
 All monetary columns are **INTEGER minor units (paisa)**. Foreign keys enforced
 by SQLite (`PRAGMA foreign_keys = ON`). CHECK constraints on journal_lines and
@@ -4257,7 +4321,7 @@ inventory_movements provide second-line defence.
 server-backed prune built. The conclusion operation itself does not exist yet.
 
 **Gate 9:** Upload complete (verified, proven against live PostgreSQL). Restore
-missing â€” no download endpoint, no restore-from-server path.
+missing Ã¢â‚¬â€ no download endpoint, no restore-from-server path.
 
 **Gate 10:** Not started.
 
@@ -4280,13 +4344,13 @@ The instruction for the four critical fixes was: *"fix this without breaking
 existing logic, and before fixing read all md files."*
 
 **I did not.** I read `AGENTS.md`, ADR 002/007/011, part of
-`INVENTORY_EXPLAINED.md` and one section of the specification â€” roughly six of the
+`INVENTORY_EXPLAINED.md` and one section of the specification Ã¢â‚¬â€ roughly six of the
 project's thirty markdown files. `docs/AI_RULES.md`, the file that calls itself
 *"a contract, not a suggestion"*, was read **after** the fixes were written.
 
 Of 325 `.md` files in the tree, ~30 are the project's own; the rest are
 `backend/vendor/`, a duplicated `.kilo/worktrees/` tree, and licence files. The
-size is not an excuse â€” `AI_RULES.md` is 175 lines.
+size is not an excuse Ã¢â‚¬â€ `AI_RULES.md` is 175 lines.
 
 Reading it afterwards found two problems with my own work:
 
@@ -4294,7 +4358,7 @@ Reading it afterwards found two problems with my own work:
 units"* under ALWAYS. Every fix today, the recovered `PROGRESS.md`, and the
 company model were uncommitted, with a **damaged `PROGRESS.md` in `HEAD`**. That
 is both a direct violation and the concrete reason work was lost once already
-(Â§7.32).
+(Ã‚Â§7.32).
 
 **2. Fix 2 is borderline against a NEVER rule.** *"Put accounting logic in UI or
 presentation code."* The stock-movement screen now decides whether a movement is a
@@ -4303,7 +4367,7 @@ receipt or an issue.
 The reasoning it is defensible: **the rule still lives in the domain**
 (`MovementReason.isReceipt`) and **the accounts are still chosen by the application
 layer** (`PostInventoryMovement.accountsFor`), so no accounting knowledge moved
-into the screen â€” it reads a domain predicate to build a valid domain object from
+into the screen Ã¢â‚¬â€ it reads a domain predicate to build a valid domain object from
 form input.
 
 The reasoning it is still wrong to leave unremarked: the contract also says *"route
@@ -4315,18 +4379,18 @@ been flagged before the change, not defended after it.**
 **3. One test was changed, and that must stay visible.** *"Change a test merely to
 make it pass"* is a NEVER. The VAT rounding test was rewritten because it asserted
 the aggregate computation being removed, and its comment stated the false property
-as though it were guaranteed. That is a legitimate reason â€” but it is still a test
+as though it were guaranteed. That is a legitimate reason Ã¢â‚¬â€ but it is still a test
 change, so it belongs in the record rather than in a commit message.
 
 What the late reading **confirmed** was correct:
 
-- *"Write to a historical fiscal-year database. Historical years are read-only."* â€”
+- *"Write to a historical fiscal-year database. Historical years are read-only."* Ã¢â‚¬â€
   fix 3 addresses precisely this violation.
-- *"Use `double` or `num` to represent a monetary amount."* â€” the VAT fix removed
+- *"Use `double` or `num` to represent a monetary amount."* Ã¢â‚¬â€ the VAT fix removed
   the domain's only float.
-- *"Derive reports from accounting data. Never store a report total."* â€” reading
+- *"Derive reports from accounting data. Never store a report total."* Ã¢â‚¬â€ reading
   document VAT is more aligned with this than re-deriving it was.
-- ADR 004: *"A sale posts COGS from the value movement"* â€” fix 2 now produces
+- ADR 004: *"A sale posts COGS from the value movement"* Ã¢â‚¬â€ fix 2 now produces
   `Dr Cost of Goods Sold / Cr Inventory`, asserted by account and side.
 
 ADR 004 also exposes work still open: *"store the running inventory value as
@@ -4357,7 +4421,7 @@ the test. It is checked in, and the comment says how to regenerate it.
 library is self-consistent, which is not the same as proving it agrees with the
 other end of the wire.** The same applies to the canonical format: JSON was rejected
 for signing because its key order is not guaranteed, so two encoders could produce
-different bytes for identical claims and verification would fail *at random* â€” a
+different bytes for identical claims and verification would fail *at random* Ã¢â‚¬â€ a
 failure that would look intermittent and would be blamed on the network.
 
 ### 7.41 "Premature end of PHP process" can be a missing import
@@ -4371,20 +4435,20 @@ Fatal error: Premature end of PHP process when running Tests\Feature\...
 with no file, no line, and no message. That reads like a segfault, and I spent real
 time hunting for a memory or recursion cause: stripping the model down, bisecting
 the factory, removing a scope method. The actual cause was one missing `use`
-statement â€” `use HasFactory;` in the class body with no import, so PHP raised
+statement Ã¢â‚¬â€ `use HasFactory;` in the class body with no import, so PHP raised
 `Trait "App\Models\HasFactory" not found` at class-load time, which PHPUnit's
 process boundary then reported as a crash.
 
 **A hard process-level error from a test runner is not necessarily a hard error in
 your code.** It can be any fatal that happened while the file was still loading, and
-the traceback is gone. The way out is to reproduce outside the runner â€” a plain
-`php` script booting the framework â€” which printed the real error in one attempt
+the traceback is gone. The way out is to reproduce outside the runner Ã¢â‚¬â€ a plain
+`php` script booting the framework Ã¢â‚¬â€ which printed the real error in one attempt
 after several fruitless bisections.
 
 The same class of masking appeared twice more this session: PowerShell
 `Set-Content -Encoding UTF8` wrote a **BOM** before `<?php` in two model files, which
 is a parse error (`Namespace declaration statement has to be the very first
-statement`) â€” the recorded 7.22 corruption, in a new file type.
+statement`) Ã¢â‚¬â€ the recorded 7.22 corruption, in a new file type.
 
 ### 7.42 Both halves of a signed format are a contract, and PHP's is asymmetric
 
@@ -4398,7 +4462,7 @@ real counterpart:
    through fails only at signing time.
 2. **`sodium_crypto_sign_verify_detached` takes `(signature, message, public_key)`**
    while `sodium_crypto_sign_detached` takes `(message, secret_key)`. The asymmetry
-   is real and is not a build quirk â€” reflection confirms the parameter order. Passing
+   is real and is not a build quirk Ã¢â‚¬â€ reflection confirms the parameter order. Passing
    the message first produces *"signature must be 64 bytes long"*, because the message
    is the wrong length, which sends you looking at the wrong argument.
 3. **`updateOrCreate` overwrites every attribute it is given.** My comment claimed
@@ -4420,7 +4484,7 @@ $schemaVersion = 13; dart run drift_dev schema dump ... drift_schema_v13.json
 ```
 
 That produces a file **byte-identical to v16**. Four "snapshots" that each assert a
-shape no real v13 database ever had â€” because `createTable` writes the current
+shape no real v13 database ever had Ã¢â‚¬â€ because `createTable` writes the current
 definition, not the historical one, which is the same trap ADR 010 and 7.17 record
 from the other direction.
 
@@ -4428,10 +4492,10 @@ from the other direction.
 fictional fixture reports green while proving nothing, which is strictly worse than
 having no test.
 
-What was done instead: migrate a **real v9 database** â€” built from a real snapshot â€”
+What was done instead: migrate a **real v9 database** Ã¢â‚¬â€ built from a real snapshot Ã¢â‚¬â€
 through to v16, asserting the data survives and that a purchase can be recorded on
 the upgraded file. That tests every new step against something a previous release
-actually produced. It also surfaced that steps v10â€“v13 had **no migration test at
+actually produced. It also surfaced that steps v10Ã¢â‚¬â€œv13 had **no migration test at
 all**; the existing tests all stopped at v9 because the snapshots did.
 
 ### 7.44 PowerShell 5.1 will corrupt source files here, in more ways than markdown
@@ -4453,7 +4517,7 @@ corruption is not noticed until much later.
 
 ### 7.45 Refuse the thing that cannot be reconciled, rather than the thing that is inconvenient
 
-Three refusals added this session, each for the same underlying reason â€” a silently
+Three refusals added this session, each for the same underlying reason Ã¢â‚¬â€ a silently
 wrong number is worse than a refusal:
 
 - **Selling more stock than is on hand is refused.** Allowing it would post a cost
@@ -4465,7 +4529,7 @@ wrong number is worse than a refusal:
   claiming credit the authority can refuse produces a demand with no explanation.
 - **A missing supplier store makes every purchase's VAT at risk**, never claimable.
   With no way to look up a supplier the claim cannot be substantiated, and the two
-  possible defaults are not equally safe â€” one can only ever overstate what the
+  possible defaults are not equally safe Ã¢â‚¬â€ one can only ever overstate what the
   return demands.
 
 The pattern is worth naming: when a rule has two honest-looking defaults, choose the
@@ -4521,30 +4585,30 @@ verified by hand. Compiling is not passing. See `docs/AI_RULES.md`.
 | 2 | Double-entry accounting engine | Complete and tested. |
 | 3 | SQLite persistence and atomicity | **Complete**, including cross-aggregate atomicity via `UnitOfWork`, **ten schema migrations (v1 through v10)**, and a **separate business-level database** for the business profile. |
 | 4 | Financial reports | **Complete, including a complete VAT return.** All eight reports built (the last four on 2026-10-02). **Input VAT is real as of 2026-10-03**: summed from purchase documents, split into claimable and at-risk so a bill from a supplier with no PAN is reported but not claimed. See 4.47. |
-| 5 | Billing | **Complete for the core cycle**, and now **compliant with the Nepali invoice rules** â€” see 4.35. Debit notes and refunds are not started; see section 5. |
+| 5 | Billing | **Complete for the core cycle**, and now **compliant with the Nepali invoice rules** Ã¢â‚¬â€ see 4.35. Debit notes and refunds are not started; see section 5. |
 | 6 | Inventory and COGS | **Complete.** Products, categories, movements, derived value-first stock with negative stock blocked, ledger posting, and the write-down to the lower of cost and net realisable value. **Sales now issue stock and post COGS at the derived running-average cost** (4.46), so `ProductStock.valueOfIssue` has production callers at last. Locations and transfers are not modelled; see section 5. |
 | 7 | Complete offline workflow | **Complete.** Every way of changing the books has a screen: customers, invoices, payments, products, stock movements, credit notes, journal entries. The shell, theme, navigation, licences screen, Trial Balance, General Ledger, fiscal-year selector, Backup screen, and **Settings** exist and are wired to real use cases. A business can be run through it end to end. |
-| 8 | Fiscal-year conclusion and archival | **Logic done.** The close, its blocking checks, the closing entries, and the archive-before-transition ordering are built and tested (4.43). **The screen, the archive, and the server-backed prune are all built.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** â€” nothing closes a year, and no retention or archival policy is enforced. |
-| 9 | Cloud backup and restore | **Upload and restore both complete.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** â€” there is no download endpoint and no restore-from-server path. |
+| 8 | Fiscal-year conclusion and archival | **Logic done.** The close, its blocking checks, the closing entries, and the archive-before-transition ordering are built and tested (4.43). **The screen, the archive, and the server-backed prune are all built.** A concluded year can be discovered, opened, and reported on, and is read-only enforced by `PRAGMA query_only` rather than by the screen. **The conclusion operation itself does not exist** Ã¢â‚¬â€ nothing closes a year, and no retention or archival policy is enforced. |
+| 9 | Cloud backup and restore | **Upload and restore both complete.** The desktop verifies a snapshot, reads the server's revision sequence, sends the bytes, and reports a refusal, a conflict, a revoked session, and an unreachable server distinctly without ever touching the local copy. Proven against live PostgreSQL. **Restore is missing** Ã¢â‚¬â€ there is no download endpoint and no restore-from-server path. |
 | 10 | Production and real-world scenarios | Not started |
 
-**Test suite:** **1110 Dart tests**, all passing, and **78 Laravel tests**, all
+**Test suite:** **1135 Dart tests**, all passing, and **78 Laravel tests**, all
 passing with 204 assertions. `flutter analyze` reports no issues. `php artisan test`
 reports `{"tests":78,"passed":78,"assertions":204}`. Pint is clean. The newest Dart
-files are `test/application/sale_to_stock_test.dart` (15),
-`test/application/issue_purchase_test.dart` (23), and
-`test/infrastructure/licence_verifier_test.dart` (25) — see 4.46, 4.44 and 7.40.
+files are `test/presentation/licence_gate_widget_test.dart` (8),
+`test/infrastructure/licence_gate_test.dart` (17), and
+`test/application/sale_to_stock_test.dart` (15) — see 4.49 and 4.46.
 
 **Build status: `flutter build windows --debug` succeeds** and produces
-`financeapp.exe`, **with no optional Visual Studio component required** â€” the
+`financeapp.exe`, **with no optional Visual Studio component required** — the
 storage dependency uses only standard Windows SDK headers (4.33).
 
 > Historical: this failed for hours on a `flutter_secure_storage` ATL dependency,
 > then on a Visual Studio component registration that `vs_installer.exe modify
-> --add` removed rather than restored. See 4.32â€“4.34 and 7.24â€“7.25.
+> --add` removed rather than restored. See 4.32Ã¢â‚¬â€œ4.34 and 7.24Ã¢â‚¬â€œ7.25.
 
 **Dependency-risks to check before adding a plugin:** read the plugin's **native**
-sources â€” and for a federated plugin, the `_windows`/`_linux`/`_macos` sub-package,
+sources Ã¢â‚¬â€ and for a federated plugin, the `_windows`/`_linux`/`_macos` sub-package,
 not just the umbrella, which can look clean while the native code carries an
 `#include` on something optional. Neither a green suite nor a clean analyzer is
 evidence the app builds: `flutter test` never compiles C++.
@@ -4572,7 +4636,8 @@ build output; deleting them breaks the migration tests.
 
 | Date | Change |
 | --- | --- |
-| 2026-10-03 | **Closed the three gaps a read-only audit found: purchases, product categories, and licensing.** The audit's judgement was that the application was ~80% of a tradeable MVP but blocked from launch by a purchase side that did not exist, a VAT return with no input credit, and no licensing at all. **Purchases** (`Purchase`, `PurchaseLine`, `IssuedPurchase`, `SupplierPayment`, `PurchaseBalance`, `IssuePurchase`, `RecordSupplierPayment`, `BuildPayables`, `CreateSupplier`, schema v14-v16) put a document behind `2010 Accounts Payable` and make input VAT real. Three decisions are accounting rather than code: inventory is debited with the **net** figure so a recoverable tax never becomes cost of goods sold; input VAT is an **asset** in a new account `1150`; and a purchase line may carry **its own** VAT rate, because one supplier can invoice standard-rated alongside zero-rated goods — which a sales invoice deliberately cannot express. A missing PAN **warns rather than refuses**, because refusing would leave the goods unrecorded. **Input VAT** in the VAT return is split into claimable and at-risk: the VAT a supplier without a PAN charged was genuinely paid and is a real asset, but it is not a safe claim, so counting it would produce a return demanding credit the authority can refuse. A missing supplier store defaults everything to at-risk, never to claimable. **Product categories** with an optional link from a product, stored in a separate table because `createTable` writes the current shape (7.43). **Sale-to-stock**: an invoice line may now name a product, and issuing the invoice issues that stock and posts COGS at the derived running-average cost — so `ProductStock.valueOfIssue` finally has production callers, closing the gap 7.39 identified as still open. **Licensing**, both halves: backend `licences`/`subscriptions`/`registered_desktop_installations` with an Ed25519 signer using the libsodium that ships with PHP, a signed authorisation endpoint and a keypair command; desktop `infrastructure/licensing/` verifying with `cryptography` and **no network**. Adopted `cryptography` on the owner's decision after its native surface was read as `AI_RULES.md` requires: no native sources at all, no `DynamicLibrary.open`, and the only `dart:ffi` import is in Argon2, which this application never touches — pure Dart, so no optional Visual Studio component, the trap that cost two evenings in 4.32 and 7.24. **Two claims I made while choosing it were wrong and are corrected in ADR 014 and `AI_RULES.md`**: I recommended it over `ed25519_edwards` on a licence claim that was false (both are Apache-2.0), and I wrote the two package licences from memory — the exact failure 7.23 records, in the same class of crypto fact. **The most valuable test written was a signature produced by the real PHP signer**, not by the Dart package: it caught that the verifier base64-decoded the claims while the server signs them as plain text, which would have made every licence fail on every machine while every Dart-side test passed (7.40). Three more interop bugs followed from writing the signing code against the actual PHP API rather than from memory: `sodium_crypto_sign_seed_keypair` returns 96 bytes not 64, `verify_detached` takes the signature **first**, and `updateOrCreate` does overwrite the attributes it is given (7.42). Two migration lessons: drift snapshots for v13-v16 were generated, found to be **byte-identical to v16**, and deleted rather than committed, because a migration test validating against a fictional fixture reports green while proving nothing; migration coverage now runs a real v9 database to v16, which revealed that steps v10-v13 had **no migration test at all** (7.43). And **my own hand-written test arithmetic was wrong** — 13% of 800,000 is 104,000, not the 120,000 I asserted; the code was right and writing the figures out is what caught it. Suite 1110 Dart tests (was 843) and 78 Laravel (was 35), analyze clean, Pint clean, Windows build green with the new dependency. **Not done, and said so plainly in section 5: the Purchases, Suppliers and Payables screens; a category screen or grouped report; and wiring the licence check into the shell, so an unlicensed installation is not actually locked yet.** |
+| 2026-10-03 | **Closed the three gaps a read-only audit found: purchases, product categories, and licensing.** The audit's judgement was that the application was ~80% of a tradeable MVP but blocked from launch by a purchase side that did not exist, a VAT return with no input credit, and no licensing at all. **Purchases** (`Purchase`, `PurchaseLine`, `IssuedPurchase`, `SupplierPayment`, `PurchaseBalance`, `IssuePurchase`, `RecordSupplierPayment`, `BuildPayables`, `CreateSupplier`, schema v14-v16) put a document behind `2010 Accounts Payable` and make input VAT real. Three decisions are accounting rather than code: inventory is debited with the **net** figure so a recoverable tax never becomes cost of goods sold; input VAT is an **asset** in a new account `1150`; and a purchase line may carry **its own** VAT rate, because one supplier can invoice standard-rated alongside zero-rated goods â€” which a sales invoice deliberately cannot express. A missing PAN **warns rather than refuses**, because refusing would leave the goods unrecorded. **Input VAT** in the VAT return is split into claimable and at-risk: the VAT a supplier without a PAN charged was genuinely paid and is a real asset, but it is not a safe claim, so counting it would produce a return demanding credit the authority can refuse. A missing supplier store defaults everything to at-risk, never to claimable. **Product categories** with an optional link from a product, stored in a separate table because `createTable` writes the current shape (7.43). **Sale-to-stock**: an invoice line may now name a product, and issuing the invoice issues that stock and posts COGS at the derived running-average cost â€” so `ProductStock.valueOfIssue` finally has production callers, closing the gap 7.39 identified as still open. **Licensing**, both halves: backend `licences`/`subscriptions`/`registered_desktop_installations` with an Ed25519 signer using the libsodium that ships with PHP, a signed authorisation endpoint and a keypair command; desktop `infrastructure/licensing/` verifying with `cryptography` and **no network**. Adopted `cryptography` on the owner's decision after its native surface was read as `AI_RULES.md` requires: no native sources at all, no `DynamicLibrary.open`, and the only `dart:ffi` import is in Argon2, which this application never touches â€” pure Dart, so no optional Visual Studio component, the trap that cost two evenings in 4.32 and 7.24. **Two claims I made while choosing it were wrong and are corrected in ADR 014 and `AI_RULES.md`**: I recommended it over `ed25519_edwards` on a licence claim that was false (both are Apache-2.0), and I wrote the two package licences from memory â€” the exact failure 7.23 records, in the same class of crypto fact. **The most valuable test written was a signature produced by the real PHP signer**, not by the Dart package: it caught that the verifier base64-decoded the claims while the server signs them as plain text, which would have made every licence fail on every machine while every Dart-side test passed (7.40). Three more interop bugs followed from writing the signing code against the actual PHP API rather than from memory: `sodium_crypto_sign_seed_keypair` returns 96 bytes not 64, `verify_detached` takes the signature **first**, and `updateOrCreate` does overwrite the attributes it is given (7.42). Two migration lessons: drift snapshots for v13-v16 were generated, found to be **byte-identical to v16**, and deleted rather than committed, because a migration test validating against a fictional fixture reports green while proving nothing; migration coverage now runs a real v9 database to v16, which revealed that steps v10-v13 had **no migration test at all** (7.43). And **my own hand-written test arithmetic was wrong** â€” 13% of 800,000 is 104,000, not the 120,000 I asserted; the code was right and writing the figures out is what caught it. Suite 1110 Dart tests (was 843) and 78 Laravel (was 35), analyze clean, Pint clean, Windows build green with the new dependency. **Not done, and said so plainly in section 5: the Purchases, Suppliers and Payables screens; a category screen or grouped report; and wiring the licence check into the shell, so an unlicensed installation is not actually locked yet.** |
+| 2026-10-03 | **The owner asked why the login page existed if login was not required. It was a fair question, and the specification agrees with the owner rather than with the code.** Line 2058 says the desktop *"shall obtain a cryptographically signed license authorization **that allows the application to operate**",* and line 2060 says *"**after** successful authentication and license verification, the desktop application shall be capable of operating normally without an active internet connection."* So the sequence is **one online sign-in, then offline operation** — a network call neither per launch nor optional. **I had misread "offline-first" as meaning sign-in was optional, and nothing in the build contradicted me: no gate existed, so every test passed and every launch opened the books.** Now `LicenceGate` decides from the stored authorisation alone and `FinanceAppShell` refuses to **construct the navigation** while locked — the widget tests assert `Trial Balance`, `Sales`, `Stock` and `Purchases` are **absent from the tree**, because a dialog over the books locks nothing. While the verdict is still loading the shell shows a spinner, because a brief flash of a populated shell is what a gate exists to prevent. **The two deadlines stay separate:** expiry locks absolutely, while a passed next-validation date only starts a **seven-day offline grace period**, so a shop whose line drops out for a morning can still trade. A first version put that refusal in the **verifier**, which is the bug the requirement exists to prevent, and it moved to the gate — the layer that owns the policy. Sign-in now **fetches and verifies the licence before anything is stored**, because a token alone is not a licence, and a failure signs the token back out rather than leaving a session that appears signed in while locked. The locked screen says on every path that the accounting records are safe, because someone whose business will not open assumes the worst and a user deleting files is the real damage. `architecture_test.dart` caught the verdict types being placed in `infrastructure/`, correctly: a screen importing a verifier has imported a signature checker. They moved to `domain/shared/licence_access.dart`, mirroring every repository here, and the whitelist entry was added deliberately — which is what that test is for. One deliberate bypass: a build with no licence service is unlocked, and its sign-in path **throws** rather than opening the books. 25 new tests. 1135 Dart tests, 78 Laravel, analyze clean, Pint clean, Windows build green. |
 | 2026-09-29 | Read all three specifications. Chose Flutter over the TBD desktop framework; recorded as ADR 008. Scaffolded Laravel `backend/` and Flutter `desktop/`. Created the layered directory structure. Implemented the `Money` value object with 20 tests, fixing two bugs the tests caught. Wrote `docs/AI_RULES.md`, `docs/ARCHITECTURE.md`, and ADRs 001-008. Created this file. |
 | 2026-09-29 | Read the full Laravel and Flutter scaffolding. Recorded the backend gaps in section 5.1. |
 | 2026-09-29 | Implemented the double-entry accounting engine in five domain files with 36 tests. Verified the worked example by hand and asserted the accounting equation. Suite 56 tests. |
@@ -4598,26 +4663,26 @@ build output; deleting them breaks the migration tests.
 | 2026-09-30 | Added the General Ledger screen, the second report screen. The **opening balance** is the substance of it: a range starting after an account's first posting must carry the earlier balance forward, or the closing figure silently disagrees with the Trial Balance and the user has no way to detect it. Cross-checked against `TrialBalance` in the use-case test, so a future divergence points straight at the pair of numbers to check. A type check on the loader broke the moment a test supplied a stub, so account selection moved onto the interface. 10 application tests, 11 widget tests. Suite 557. |
 | 2026-09-30 | Implemented local backup and verified restore, at the owner's priority because a lost file is a **legal** problem, not merely an inconvenience. The snapshot uses SQLite's `VACUUM INTO` rather than a file copy, because a copy taken while the application is writing can capture a half-written database that looks fine and is not; SQLite here is 3.51.1 and supports it. Every snapshot is verified before it is filed -- SHA-256 for the bytes, `PRAGMA integrity_check` for whether it is a database at all -- and a snapshot failing either is **deleted and reported as a failed backup**, because a directory of files that feel like a safety net and are not is worse than an empty one. Restoring verifies first, so an unusable backup is refused before anything is touched, and backs up the current books before overwriting them. The test takes a backup, changes the books, restores, and asserts the original figures returned: an untested backup is not a backup. Added `crypto` for the checksum, so the dependency and licence records had to be updated. 15 infrastructure tests, 10 widget tests. Suite 582. |
 | 2026-09-30 | Found and closed a gap the owner found by asking the obvious question -- "our logic says a SQLite per year, so?". The first implementation backed up only the **current** year, and the app **did not know the other years existed**: `main.dart` computed the current year and opened that one file, never looking for the rest. Two faults, and the second is worse -- the screen warned that a backup does not survive losing the computer while saying nothing about older years having no backup at all, and those are the years closest to the retention clock. Every `accounting-FY-*.db` is now discovered and snapshotted, the current year through the connection already open and a concluded year by opening it briefly, both through the same verification path. A year that cannot be backed up is **named in the failures**, never skipped, proved by a test with a corrupt year among good ones. Two bugs of my own: restore wrote to the snapshot's file name instead of that year's books file, so it never replaced the real books, and the stray files it left were then rediscovered as extra years, which is why the suite went from one second to five minutes. Suite 597. |
-| 2026-09-30 | Implemented opening a concluded fiscal year, read-only -- a specified requirement in three places, including the acceptance test *"Historical year â†’ opens read-only"*, that had not been built. **Read-only is enforced by the database, not the screen**: `PRAGMA query_only` is set through the `setup` hook so every connection the executor opens refuses writes, and a test asserts the exact SQL insertion fails and that the file on disk is untouched. A rule living only in the UI is one any future caller walks past. Read-only does not mean unreadable, and the figures still load. The trading year stays writable, asserted separately: a guard that stopped the business trading would be worse than the problem it solves. Switching year replaces the whole service bundle, because every use case belongs to one year's books. A hidden clock dependency was removed while building this -- the session had been recomputing "the current year" from `DateTime.now()`, which would have made the decision untestable; the trading year is now given, never inferred. Suite 609. |
+| 2026-09-30 | Implemented opening a concluded fiscal year, read-only -- a specified requirement in three places, including the acceptance test *"Historical year Ã¢â€ â€™ opens read-only"*, that had not been built. **Read-only is enforced by the database, not the screen**: `PRAGMA query_only` is set through the `setup` hook so every connection the executor opens refuses writes, and a test asserts the exact SQL insertion fails and that the file on disk is untouched. A rule living only in the UI is one any future caller walks past. Read-only does not mean unreadable, and the figures still load. The trading year stays writable, asserted separately: a guard that stopped the business trading would be worse than the problem it solves. Switching year replaces the whole service bundle, because every use case belongs to one year's books. A hidden clock dependency was removed while building this -- the session had been recomputing "the current year" from `DateTime.now()`, which would have made the decision untestable; the trading year is now given, never inferred. Suite 609. |
 | 2026-09-30 | Implemented the backend: Sanctum, PostgreSQL, `books` and `backup_revisions`, the upload verification chain, and store/index/show routes. **An unverified upload is never treated as a valid backup**, enforced as four ordered checks, cheapest-and-safest first: magic header, declared size, declared SHA-256, then SQLite's own `integrity_check`. The first failure stops the upload and nothing is written -- no file, no row. There is deliberately no "uploaded but not yet checked" state, because such a row is a backup the desktop might later report as stored. The integrity check is **last on purpose**: opening a received file with SQLite parses data from outside, so it runs only after the file is known to be a SQLite database whose checksum matches a trusted client, and it is opened read-only. Most of the 11 tests are about **refusal**, since a backup feature is only worth having if it can say no -- including a corrupted database with a valid header and a matching checksum, which only the integrity check catches, and a revision that does not follow the latest, which is a conflict rather than a silent overwrite so two copies cannot clobber each other. The SQLite file is not in the database: `object_key` points at the `backups` disk, so moving to object storage is a config change. A stored revision has no `updated_at`, because the specification's column list has none and a revision is immutable. `APP_NAME` is `financeapp`. Tests run on in-memory SQLite, so no external database is needed. 13 Laravel tests, suite 620 Dart tests, Windows build verified. |
 | 2026-09-30 | **Recovered `PROGRESS.md` from a self-inflicted loss.** Splicing the file by line number in PowerShell destroyed 1,300 lines, because a failed `AddRange` conversion threw *after* the head and tail were computed. Restoring from `git checkout HEAD -- PROGRESS.md` brought back the corruption rather than the text: commit `ae3c63b` already contains five corrupt bytes, because PowerShell 5.1 cannot encode an em dash and `Set-Content` had replaced each with a lone `0x97`. Repaired at the byte level, then sections 4.22 to 4.26 and 7.19 to 7.21 were rewritten by hand. The two lessons are recorded in 7.19 and are the most transferable findings of the session: **never use `Set-Content` on a `.md` file here, and never splice one by line number.** The file is 0 corrupt bytes. |
-| 2026-09-30 | Closed both remaining blockers to a live run. The owner supplied the PostgreSQL password; `DB_PASSWORD` was empty in `backend/.env` and the database itself had never been created, so the two faults presented the *same* symptom from outside â€” `FATAL: database "financeapp" does not exist` â€” and only surfaced separately once authentication succeeded. Created `financeapp` (UTF-8, PostgreSQL 17.4) and ran all six migrations against it. Then implemented **token issuance**: `register`, `login`, `logout`, `me`, with 18 tests. `register` and `login` sit **outside** the `auth:sanctum` group, because no token can be obtained without them and guarding them would make every route unreachable. Registration creates the account's one book (ADR 003), without which the desktop has nothing to upload a backup against. An unknown email and a wrong password return the identical response so accounts cannot be enumerated, and logout revokes only the token used. **This is token issuance, not licensing**: the specification's signed licence authorisation with subscription status, expiry, device binding, and an offline public-key check is a separate capability, and a half-built licence check that looks authoritative is worse than none. **One test bug was mine and worth recording** â€” asserting that a revoked token returns 401 in a second request in the same test method passes or fails on Sanctum's guard memoising the resolved user for the lifetime of the shared application instance, so it tests the framework's caching rather than the feature; the assertion was moved to the stored row, and a separate test proves the guard does read the database. The factory's default password of `'password'` is too short to pass the new registration policy, so a `withPassword` state was added rather than weakening the policy to fit the test. Verified end to end over HTTP against live PostgreSQL: register, login, `me`, a genuine SQLite snapshot uploaded with its real checksum and size, and seven refusals including a bad checksum, a stale revision, and a file that is not a database â€” **one revision remained stored afterwards**, which is the property that matters. 31 Laravel tests / 77 assertions, Pint clean, 620 Dart tests, Windows build verified. |
-| 2026-09-30 | Corrected stale documentation after reading every markdown file in the repository. **Three documents contradicted the code they described.** `docs/INVENTORY_EXPLAINED.md` still stated that the write-down to net realisable value was **"not implemented"** and that it "must be built before inventory can be called complete" â€” it was completed in 4.19; ADR 004 carried the same stale follow-on. The root `README.md` said **"PostgreSQL is not needed yet. No migrations have been written"** and that the backend "still defaults to its shipped configuration", and named the backend **Laravel 12** when it is 13. `docs/BACKUP_AND_RETENTION.md` said there is "no server copy" and that cloud backup "needs the backend, which is not built". Also fixed: a **broken table row** in `docs/ARCHITECTURE.md` where two rows were joined by `||` and rendered as one; `docs/AI_RULES.md` listed four packages as approved dependencies without saying that none of them are actually in `pubspec.yaml`; and `PROGRESS.md` claimed "no commits have been made" when there were five. The two stock template files were replaced â€” `desktop/README.md` ("A new Flutter project") and `backend/README.md` (the Laravel boilerplate) â€” and `backend/AGENTS.md` and `backend/CLAUDE.md`, which contained only the Laravel Boost bootstrap instructing agents to `composer require laravel/boost`, were replaced with the real instructions plus an explicit **"Do not install Laravel Boost"** note, because the product owner has declined it and the files would otherwise keep telling every future agent to add it. A stale `description` in `pubspec.yaml` was corrected too. |
-| 2026-09-30 | Implemented the desktop half of cloud backup: **a verified snapshot now crosses the wire**. An `UploadActions` port in the domain, `HttpBackupUploader` in infrastructure over `dart:io`'s `HttpClient`, and a "Send to the server" button on the Backup screen. **The local backup is never touched, on any path**, which is the invariant the feature rests on: it is opened for reading and its bytes are sent, and every refusal test asserts the file is byte-identical afterwards. A success is claimed only for a `201` carrying a revision number â€” a `201` whose body cannot be read is not a success, because the answer exists to confirm what was stored. The declared checksum and size are **recomputed from the file**, not taken from the `BookBackup`, because the server checks them against the bytes it receives. The revision sequence is **read from the server before each upload**, filtered to the fiscal year being sent, so a reinstall does not conflict and a new year starts at 1. A `409` is reported as a conflict and **never retried**; a connection failure and a server error both become `unreachable`, because for the user they are one thing. `dart:io` rather than `package:http`, so the feature adds **no dependency**. 26 infrastructure tests, 8 widget tests, 654 total. |
-| 2026-09-30 | **Mutation-tested the new upload tests, and found one that was measuring the wrong thing.** Removing the fiscal-year filter from the revision logic left all 26 tests passing, because the test asserted the revision the **fake transport echoed** rather than the one the **uploader declared** â€” the fake replies with whatever a test scripts, so the assertion was testing the fake. The test now reads the `revision` field out of the multipart body, and the same mutation is caught. Four further mutations were checked deliberately (a stale checksum, a conflict reported as success, failures reported as success on the screen, and uploading a year with no local backup); each was caught. This is the same class of defect as 7.15 and 7.21 and was found only by breaking the code on purpose. **A second finding was the live check's own expectation**: it asserted that re-uploading the same snapshot returns a conflict. It does not and should not, because the uploader re-reads the sequence first, so a second upload from the same installation legitimately becomes the next revision; a `409` is for another installation uploading between the read and the write. The expectation was corrected rather than the code. |
-| 2026-09-30 | **Verified the upload against the real stack, because the unit tests replace the transport** and therefore leave the actual socket and the multipart encoding on the wire unverified. Added `tool/live_upload_check.dart`: six checks against a running Laravel server and the live PostgreSQL database using the real `IoHttpTransport`. It registers a throwaway account each run so it starts from a book with no revisions and can assert exact revision numbers â€” the first version pointed at a book that already had revisions, which made its absolute assertions meaningless. All six passed: a snapshot uploads and is confirmed as revision 1, a re-upload advances to 2, a second fiscal year starts independently at 1, a non-database file is refused with the server's own reason, an unreachable server is reported with the local backup intact, and **a refused upload is not recorded as a local success**. The rows were then read back out of PostgreSQL. `flutter test` skips the file by name, so the suite stays hermetic. |
-| 2026-09-30 | **Reviewed the uncommitted work and fixed all twelve findings.** The two that mattered were written the same day. **The upload never checked that the snapshot was still the verified one**: `BookBackup.checksum` was ignored, so a file corrupted or edited after the backup would have been uploaded, accepted by the server (whose check only covers the trip), and reported as a safe off-machine copy. It now streams a checksum and refuses on mismatch via a new `UploadStatus.unverified`. **Registration returned a 500 on ordinary input**: `unique:users,email` was checked against the address as typed while the lower-cased value was stored, so `SITA@Example.COM` after `sita@example.com` passed the rule and then hit the unique index; normalisation now happens before validation. Also fixed: the Backup screen counted only attempted years and so claimed "every year is now stored off this computer" while a year had no backup at all; the public `register`/`login` routes had **no rate limit** (verified against the framework: the `api` group gets `throttle:api` only when `throttleApi()` is called, and `bootstrap/app.php` leaves it empty) and now carry `throttle:6,1`; and a new test asserted `contains('9')` for the schema version, which the snapshot's own bytes already satisfied, so it **could not fail** â€” it now compares the declared field to `currentSchemaVersion`. The rest: login leaked account existence through a bcrypt short-circuit; registration confirmed that an email exists, contradicting login's anti-enumeration design; a plaintext remote server was accepted, which would have put the token and the whole database on the network readable; the body was copied three or four times in memory and hashed on the UI isolate; a fresh `HttpClient` per request discarded connection reuse; and `UploadResult.localBackupIsIntact` was dead. 660 Dart tests, 35 Laravel tests / 97 assertions, Pint and analyze clean, Windows build green, and all six live checks against the real server and PostgreSQL still pass. |
-| 2026-09-30 | **Mutation-tested every fix from the review, and caught a failure mode worse than a bad test.** Three of four new tests initially appeared not to catch their own regression â€” but the mutations had not applied at all: the search strings contained CRLF and the files used LF, so the replace matched nothing and the suite stayed green for the wrong reason. Re-applied through the editor, all of them failed without their fix, as they should. **A mutation that does not apply is indistinguishable from a test that works**, which is now recorded as 7.22 alongside the second instance of a test that could not fail (7.21's defect, repeated within a day). A third discovery: the timing fix's first version used a hand-written bcrypt-looking literal, which would have kept the leak while looking fixed, because `password_verify` against a malformed hash returns in **0.04 ms** against **191 ms** for a real one â€” measured, not assumed. Recorded as 7.23. |
-| 2026-09-30 | **Added `NEW_MACHINE.md`, the guide for setting the project up on a different device.** It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories â€” `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
-| 2026-09-30 | **Implemented sign-in, so a backup can actually be sent by a user** â€” the task section 6 has held since 4.28. `CredentialStore`, `SignInResult` and `AuthActions` ports; an HTTP client for `POST /api/auth/login` and `/logout`; `SecureCredentialStore` writing the token to protected OS storage; `AccountSession` coordinating them; and a Settings screen with the account panel. **The password is never stored, structurally** â€” `BackendSession` has no field for it â€” and the test asserts that against the *values* in the stored map, because a key called `password_hash` would pass an absence check while holding the secret. **Signing out always signs out**: the local session is cleared first, the server is told best-effort, and neither step may throw. Two tests for those failure paths found **two real bugs in my first version**, which had relied on the implementations swallowing their own errors instead of making the caller robust â€” a locked keyring would have stopped the application starting, and a dead network would have produced a sign-out that did not happen. The HTTP transport moved to `infrastructure/http/` rather than being copied, so status handling exists once. The plain-text rule moved into the domain as `isUsableServerAddress`, because the screen and the client both need it and two copies would drift â€” and the failure mode of that drift is sending a token and a whole accounting database over clear text. **The decision section 6 asked for**: a `401` now reports `unauthenticated` ("sign in again") instead of `unreachable` ("try again later"), because retrying a `401` fails identically forever. Making that change properly **surfaced a second bug**: a revoked session usually fails the *revision lookup* first, and that path collapsed every failure into `unreachable`, so the new tests failed until `_nextRevisionFor` returned a three-state result instead of a bare `int?`. 16 + 17 + 15 new tests, 712 total, analyze clean. |
-| 2026-09-30 | **Found a blocker: the Windows build does not compile.** `flutter build windows` fails with `Cannot open include file: 'atlstr.h'`, because `flutter_secure_storage` holds the token in protected OS storage and its Windows plugin includes that header, which ships in Visual Studio's **optional** "C++ ATL for latest v10 build tools" component rather than the base C++ workload. Verified rather than assumed: every version of `flutter_secure_storage_windows` from **2.x through 4.2.2** includes `atlstr.h`, so downgrading does not help, and 1.2.0 does not exist on pub. **This was not caught by adding the dependency, by `flutter analyze`, or by 712 passing tests â€” only by building.** That is the lesson: an analyzer cannot see a native toolchain requirement. Recorded in `docs/AI_RULES.md`, `desktop/README.md`, and `NEW_MACHINE.md` so it is found at install time, and escalated as an owner decision because the three ways out are not an agent's to choose. **The weaker-storage option is explicitly rejected in the task text**: a bearer token must not go into a plain file. |
-| 2026-09-30 | **Mutation testing failed in a new way: a mutation that changes nothing.** Removing the guard around `signOut`'s store clear left all 16 account tests passing â€” not because the tests were weak but because the mutation itself was invalid. `if (false) rethrow;` inside a catch is a no-op, so it proved nothing while looking like a deliberate break. Re-applied by actually deleting the `try`, the new test caught it. Recorded as 7.22 seen from a new angle: **verify the mutation changed behaviour, or a green suite means nothing at all.** |
-| 2026-09-30 | **Settled the Windows build, which had failed for hours.** Two dependencies were rejected on evidence and one adopted. `flutter_secure_storage` needs Visual Studio's optional C++ ATL component â€” a single `#include <atlstr.h>`. `webauthn_secure_storage` needs the Windows App SDK (`<winrt/...>`) **and** uses `<experimental/coroutine>`, which MSVC 14.51 rejects outright. `local_storage_cache` and `get_secure_storage` were rejected because they encrypt with a key stored on the same disk, which protects against nothing on that machine. `keyring` needs a **Rust toolchain**. **`crossvault`** was adopted: MIT, standard Windows SDK headers only (`wincred.h`, `ncrypt.h`, `bcrypt.h`), no coroutines, **no optional toolchain component** â€” and `flutter build windows --debug` now succeeds, producing a 1.27 MB `financeapp.exe`. Its one limitation is recorded rather than glossed: **no Linux implementation**, so on Linux the token lives in memory for the session and the user signs in again after a restart; because `CredentialStore` is an interface, adding it later touches one file. |
-| 2026-09-30 | **The most valuable finding was about checking method, not about plugins.** Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella â€” `webauthn_secure_storage`'s umbrella looked clean while its sub-package carried the ATL and the WinRT. |
-| 2026-09-30 | **Learned what a Nepali invoice legally requires, and implemented it.** The specification set the standard: tax rules *"shall not be treated as permanently fixed application constants"*, so the rules became `NepalTaxRules` â€” data with a version string â€” rather than a `const int vatStandardRate` that would be silently wrong the year the Finance Act changed it. Implemented: the two legal document forms (Rule 17 tax invoice and the Rule 17(Ka) abbreviated retail invoice, limited to a ceiling of NPR 10,000); the seller's PAN gating everything, since a bill without it is not a valid tax bill; the buyer's PAN required when the buyer is VAT-registered, the document is a full tax invoice, or the total reaches the threshold, with a **malformed PAN reported as missing rather than printed**; a VAT-registered business charging no VAT; total in words in lakh and crore; and the HS code added by the 46th amendment. **Nothing was inferred where the sources conflict** â€” VAT registration thresholds are reported inconsistently (NPR 20 lakh vs 30 lakh for services), so no threshold is implemented at all and the flag is stated by the owner; guessing would produce confidently wrong compliance advice. **Corrected a retention error**: Income Tax Act Â§81(2), verified against the statutory text, is five years **from the expiry of the income year**, not from the transaction date, and VAT's commonly cited six years is the binding period â€” `BACKUP_AND_RETENTION.md` had flattened this into one undifferentiated "six years". Compliance is **advisory, not blocking**: refusing to issue an invoice at closing time would push the owner to work around the application entirely. |
-| 2026-09-30 | **The tests caught two real defects in new code, both before shipping.** `amountInWords` produced **"Rupees Ten Hundred Crore"** for Rs 100,000, because the divisor list and the name list were **misaligned** â€” `units[0]` was crore while `names[0]` was the empty string â€” so every lakh and crore figure on every invoice would have been wrong. And the abbreviated-invoice ceiling test **never actually reached the ceiling**: it derived a price from `rupees * 1.13` and assumed that equalled NPR 10,000, but VAT is rounded per paisa so it does not for most inputs, meaning a compliance boundary test was passing without exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% = Rs 10,000.00) and asserts the total first. Both are the same lesson as 7.21 and 7.25 from the other direction: **a test that does not reach the condition it names is not a test.** Mutation-checked both â€” making the ceiling exclusive, and restoring the misaligned lists, each fail. 749 Dart tests. | Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella â€” `webauthn_secure_storage`'s umbrella was clean while its sub-package carried the ATL and the WinRT include. 712 Dart tests, 35 Laravel tests, analyze clean, Pint clean, Windows build green. | It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories â€” `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
-| 2026-10-01 | **Customer identity decided and recorded: a random internal id plus a separate sequential business code** (`C-0001`), chosen by the owner after being offered a single sequential identifier and a name-based key. Recorded in **ADR 010**. **This closes the open question in 7.16** â€” ids must not collide if two installations ever sync, and a random id cannot, so that risk is closed now rather than after data exists. **Duplicate detection came from the PAN, not the name**: a unique index on `pan_number` is the one key that cannot produce a false collision, because two businesses cannot share a PAN, whereas a Nepali name repeats and changes on marriage â€” making it identity would repoint history. Also **fixed a duplication I had introduced myself**: a new `Party` type sat alongside the existing `Customer`, which already covered the same ground and was wired into `IssueInvoice`, `RecordPayment`, and three test files; `Party` is deleted and its PAN and VAT handling folded into `Customer`. |
-| 2026-10-02 | **Built the four remaining reports: cash flow, sales, stock held, and VAT.** These were the last four navigation entries in `ui.txt` still showing as dead placeholders. A cash statement is **deliberately not derivable from the profit and loss report** and the two are *supposed* to disagree: a sale on credit moves no cash and a payment of an old invoice is cash without a sale, so the statement reads only the bank and cash accounts, and it is derived from the chart of accounts rather than from hardcoded account ids, so a business that adds a second cash box is covered without a code change. Output VAT follows **invoices issued, not cash received**, because waiting for the cash would understate the liability. **Input VAT is zero, and that is recorded as a limitation rather than hidden**: there are no purchase records in the application at all, so there is nothing to compute input VAT from, and a figure that merely looked computed would be worse than a stated gap. Sales and VAT credit notes are **subtracted, not ignored**, since a credit note reduces what has been sold on exactly the documents a business issues when something has gone wrong. VAT is computed on the amount **excluding** VAT and rounds half-up once, in paisa. A credit note landing in a period with no sales yields a **negative** taxable figure rather than being clamped to zero, because clamping would hide a credit the business is entitled to carry forward. One screen serves all four, and the four navigation entries each open it on its own report. **Two real defects surfaced on the way, both found by tests rather than review.** `AppServices.forSession` and `forAccount` â€” the two methods that rebuild the whole service bundle â€” **silently dropped five declared fields** (`createProduct`, `postMovement`, `issueCreditNote`, `postEntry`, `concludeYear`), so changing fiscal year or signing in quietly removed the catalogue, stock, credit-note, journal and year-end screens from the navigation; nothing failed and all tests passed. `test/presentation/app_services_test.dart` now asserts every field by name, because the fix is not the five lines but the test that makes the next omission a **named** failure (recorded as **7.26**). And `BuildCashFlow` with no date range read every entry as one undifferentiated period, which put the **opening-balance entry into "received"** â€” opening cash Rs 0.00 and received Rs 120,000.00, where the truth was Rs 100,000 and Rs 20,000. The closing figure stayed correct throughout, so **every use-case test passed**; only a widget test that printed the screen could see it. Defaulting the period to the fiscal year exposed the second half: the opening entry is dated *on* the first day rather than the day before, so `openingIncludesBoundary` now states that boundary for the whole-year view, while an explicit caller-supplied range keeps the strict rule (**7.27**). Inventory deliberately got no year boundary, because stock is a balance as at today and the opening entry is exactly what makes that balance correct â€” filtering it would have been the change that looked like a fix and was not. The presentation-layer architecture test caught the new domain import and it was **added to the allowlist with its justification** rather than the import being worked around. 34 new tests, 889 total, analyze clean, Windows debug build green. |
-| 2026-10-02 | **Built the company model, and lost 628 lines of this file doing it.** Two things happened, and the second is the one that matters. First: the four missing reports (cash flow, sales, stock held, VAT) â€” these were the last dead navigation entries in `ui.txt`. A cash statement is **deliberately not derivable from profit and loss** and the two are *supposed* to disagree, because a credit sale moves no cash and a payment of an old invoice is cash without a sale. Output VAT follows **invoices issued, not cash received**. **Input VAT is zero and that is recorded as a limitation, not hidden**: no purchase records exist in the application at all. Second: a concluded year is **immutable** (`PRAGMA query_only`), so every snapshot of it is byte-identical and the extras are duplicates rather than history â€” `ConcludedFiscalYearPruner` now keeps the newest revision and deletes the rest, **after** re-hashing the survivor on disk, tombstoning the rows rather than deleting them, and running **after** the fiscal transition so the server can never hold a closed year this computer still allows editing. Three real defects surfaced: `AppServices.forSession`/`forAccount` **silently dropped five declared fields**, so changing year or signing in removed the catalogue, stock, credit-note, journal and year-end screens from the navigation with nothing failing; `BuildCashFlow` with no date range put the **opening-balance entry into "received"** â€” opening Rs 0.00 against a truth of Rs 100,000 â€” and the closing figure stayed correct throughout, so **every use-case test passed** and only a widget test could see it; and `AppServices` needed a `company_id` because **a company is a legal entity, not the person signing in**, which is what lets an owner and an accountant exist at all. Both were found by tests, and both are recorded with mutation checks in 7.26, 7.27 and 7.31. The live-database migration then produced the finding no test could: `username NOT NULL` with no backfill **passed all 60 tests and failed against 19 real accounts**, because `RefreshDatabase` migrates an *empty* schema â€” **a migration is only tested against a database that already contains data** (7.28). Two more PostgreSQL-only failures followed (`HAVING` on an aggregate alias, `split_part`), fixed by backfilling in chunked PHP so one code path serves both drivers. **And then I destroyed this document.** Rewriting section 6, the PowerShell slice had a start index greater than its end index â€” which PowerShell does not reject, it walks descending, so the "range" returned two lines and everything between section 6 and section 8 was dropped: **the `## 7` heading and entries 7.1 through 7.28, the accumulated discoveries of many sessions.** The write succeeded, the file stayed valid UTF-8, and no test reads this file, so nothing complained. It was found only because the next command printed the section-6 text and `## 7.` was not in it, and recovered only because the lost content was in `git show HEAD` â€” **the discoveries were committed but the edits on top of them were not**. A descending slice is a silent delete; build replacements as `head + new + tail` and **compare before/after line counts**, because a write reporting success is not evidence of a correct write. Restored and re-applied with verified bounds: 3,299 lines, entries 1â€“32 with no gaps or duplicates, ascending, all sections present. Also built: `Divergence`/`SyncComparison` classifying all four drift cases from three checksums rather than revision numbers, 14 tests, mutation-verified â€” and the discovery that `needsAttention` was true for `localOnly`, which is wrong, because prompting a user to confirm work with no alternative teaches them to ignore the prompt (7.31). 912 Dart tests, 60 Laravel tests, both analyzers clean. |
-| 2026-10-02 | **Fixed three critical accounting defects and a VAT return that disagreed with the books.** Found by four read-only audits run in parallel over the whole application; **not one defect was caught by a test**, and several sat in cases where a test asserted something adjacent to the real behaviour. **(1) Concluding a fiscal year destroyed that year's books.** `beginNextYear` names the database file from the year it is handed, and was handed the year being **closed** â€” so the concluded year's file was reopened read-write and given the next year's opening entry, dated a year before its own closing entry. By hand: assets 4,360,000 against liabilities and equity 2,180,000, so `BalanceSheet.assertBalanced()` threw on every later read of that year, and the next year was never created at all. Survived because the fake counted invocations and never asserted **which** year it received; it now records them. Fixing it exposed two more: `_nextYear` was `endDate + one day`, a two-day year starting the day the old one ends, and the test fixture declared `FY 2082/83` as 2026-07â†’2027-07 when the real one is 2025-07-17â†’2026-07-16 â€” **the suite was validating a year that does not exist**, which is why neither bug was visible. **(2) The Stock Movement screen always posted a receipt**, whatever reason was chosen. Recording a *sale* credited cost of goods sold instead of debiting it, raised stock, raised profit by the value of the goods, and recognised no revenue â€” and there was no way to record an issue at all, so the one reason that posts COGS was unreachable from the application. Everything balanced; the entry was well formed and meant the opposite of what was asked. Direction now comes from `MovementReason.isReceipt`, the same predicate the posting use case keys off. **(3) Verifying a backup rewrote it.** `PRAGMA integrity_check` is a read-only question, asked through a drift `AppDatabase`, and drift migrates on open â€” so every `verify()` wrote tables, and taking a backup migrated every **concluded year in place**, contradicting ADR002's "never silently modified". The suite was structurally blind: every test file is created through `openFileDatabase` so `user_version` is already current, and a test asserting "the backup is usable" passes *on a file the check just modified*. Both halves now use a raw read-only connection. **(4) The VAT return could not be filed.** It re-derived tax in `double`, on the aggregate, at a flat 13%, while the books compute per invoice in integer paisa at each document's own rate. Per-invoice rounding â‰  aggregate rounding, and a zero-rated invoice was charged 13%: two 10,000 invoices reported 260,000 against 130,000 charged. Two auditors found this independently, which is the best-evidenced finding in the audit and the argument for overlapping audits. `TaxSummary` now computes nothing â€” it takes the figures `BuildTaxSummary` sums from `invoice.vat` â€” so the return equals the ledger **by construction** and there is no second implementation of the VAT rule to drift. Recorded as **7.33â€“7.37**, including **7.37**: three of my own expectations were wrong (a purchase credits Payable not COGS; a fiscal year spans 364 days between bounds; 13% of 1 paisa rounds to zero, so my first distinguishing amount proved nothing), and each was one edit away from making the suite green by making the code match a wrong belief. An existing test was **asserting the bug** â€” it tested the aggregate computation being removed and its comment stated the false property as guaranteed. Mutation-checked each fix; the read-only flag proved to be defence in depth rather than load-bearing, and one mutation **did not apply** and still reported green, so the verification prints whether the break landed (Â§7.22, fourth occurrence). 928 Dart tests, 60 Laravel tests, both analyzers clean. **Still uncommitted, and `HEAD` holds a damaged `PROGRESS.md`.** |
-| 2026-10-03 | **Closed three of the eight dead navigation entries: Profit & Loss, Balance Sheet, Chart of Accounts.** Started from an inventory that was **wrong four times in a row** before it was right â€” a regex with a forward lookahead reported Purchases, Suppliers and Payables as routed; a corrected window mis-assigned routes to neighbouring entries; a PowerShell recursive glob does not expand, so `licenses_screen.dart` looked unwired when it is wired; and a Dart test run with an empty `AppServices` made **every** conditional route null and reported 29 of 30 entries unbuilt. The reliable method parses each `NavigationItem` block **scoped by indentation**. `NavigationItem.route` is documented as *"builds the screen this opens, or `null` when it has not been built yet"* â€” so the right way to ask is to inspect the built items, but only **with realistic services**, because the routes are conditional on use cases being present. That last point is the lesson: four wrong answers in a row came from not noticing it. **Profit & Loss and Balance Sheet** needed only screens and use cases â€” the report types existed and were tested â€” with two decisions worth recording: the period **defaults to the fiscal year** rather than to "everything", because a report with no bounds would silently include a prior year if the books ever held more than one, which is wrong rather than obviously broken; and **`BuildBalanceSheet` calls `assertBalanced()` before returning**, so the balance assertion lives in the use case rather than the screen and a year whose books do not reconcile reports a **failure** instead of rendering a statement whose sides disagree â€” a balance sheet that does not balance is worse than none, because it is trusted. **Chart of Accounts** reads the **stored** accounts rather than the built-in `ChartOfAccounts.all` constant, so an account the business added appears instead of being invisible while still being postable; groups come out in the same order the two statements use so all three read alike, and an account whose type the group order does not name is **shown at the end rather than dropped**. Before this screen existed a user could post to an account and had **no way to see it**. 21 new tests, 953 total, analyzer clean. Three more screens are live than the previous inventory claimed, and the number that was wrong is now recorded rather than quietly corrected. |
+| 2026-09-30 | Closed both remaining blockers to a live run. The owner supplied the PostgreSQL password; `DB_PASSWORD` was empty in `backend/.env` and the database itself had never been created, so the two faults presented the *same* symptom from outside Ã¢â‚¬â€ `FATAL: database "financeapp" does not exist` Ã¢â‚¬â€ and only surfaced separately once authentication succeeded. Created `financeapp` (UTF-8, PostgreSQL 17.4) and ran all six migrations against it. Then implemented **token issuance**: `register`, `login`, `logout`, `me`, with 18 tests. `register` and `login` sit **outside** the `auth:sanctum` group, because no token can be obtained without them and guarding them would make every route unreachable. Registration creates the account's one book (ADR 003), without which the desktop has nothing to upload a backup against. An unknown email and a wrong password return the identical response so accounts cannot be enumerated, and logout revokes only the token used. **This is token issuance, not licensing**: the specification's signed licence authorisation with subscription status, expiry, device binding, and an offline public-key check is a separate capability, and a half-built licence check that looks authoritative is worse than none. **One test bug was mine and worth recording** Ã¢â‚¬â€ asserting that a revoked token returns 401 in a second request in the same test method passes or fails on Sanctum's guard memoising the resolved user for the lifetime of the shared application instance, so it tests the framework's caching rather than the feature; the assertion was moved to the stored row, and a separate test proves the guard does read the database. The factory's default password of `'password'` is too short to pass the new registration policy, so a `withPassword` state was added rather than weakening the policy to fit the test. Verified end to end over HTTP against live PostgreSQL: register, login, `me`, a genuine SQLite snapshot uploaded with its real checksum and size, and seven refusals including a bad checksum, a stale revision, and a file that is not a database Ã¢â‚¬â€ **one revision remained stored afterwards**, which is the property that matters. 31 Laravel tests / 77 assertions, Pint clean, 620 Dart tests, Windows build verified. |
+| 2026-09-30 | Corrected stale documentation after reading every markdown file in the repository. **Three documents contradicted the code they described.** `docs/INVENTORY_EXPLAINED.md` still stated that the write-down to net realisable value was **"not implemented"** and that it "must be built before inventory can be called complete" Ã¢â‚¬â€ it was completed in 4.19; ADR 004 carried the same stale follow-on. The root `README.md` said **"PostgreSQL is not needed yet. No migrations have been written"** and that the backend "still defaults to its shipped configuration", and named the backend **Laravel 12** when it is 13. `docs/BACKUP_AND_RETENTION.md` said there is "no server copy" and that cloud backup "needs the backend, which is not built". Also fixed: a **broken table row** in `docs/ARCHITECTURE.md` where two rows were joined by `||` and rendered as one; `docs/AI_RULES.md` listed four packages as approved dependencies without saying that none of them are actually in `pubspec.yaml`; and `PROGRESS.md` claimed "no commits have been made" when there were five. The two stock template files were replaced Ã¢â‚¬â€ `desktop/README.md` ("A new Flutter project") and `backend/README.md` (the Laravel boilerplate) Ã¢â‚¬â€ and `backend/AGENTS.md` and `backend/CLAUDE.md`, which contained only the Laravel Boost bootstrap instructing agents to `composer require laravel/boost`, were replaced with the real instructions plus an explicit **"Do not install Laravel Boost"** note, because the product owner has declined it and the files would otherwise keep telling every future agent to add it. A stale `description` in `pubspec.yaml` was corrected too. |
+| 2026-09-30 | Implemented the desktop half of cloud backup: **a verified snapshot now crosses the wire**. An `UploadActions` port in the domain, `HttpBackupUploader` in infrastructure over `dart:io`'s `HttpClient`, and a "Send to the server" button on the Backup screen. **The local backup is never touched, on any path**, which is the invariant the feature rests on: it is opened for reading and its bytes are sent, and every refusal test asserts the file is byte-identical afterwards. A success is claimed only for a `201` carrying a revision number Ã¢â‚¬â€ a `201` whose body cannot be read is not a success, because the answer exists to confirm what was stored. The declared checksum and size are **recomputed from the file**, not taken from the `BookBackup`, because the server checks them against the bytes it receives. The revision sequence is **read from the server before each upload**, filtered to the fiscal year being sent, so a reinstall does not conflict and a new year starts at 1. A `409` is reported as a conflict and **never retried**; a connection failure and a server error both become `unreachable`, because for the user they are one thing. `dart:io` rather than `package:http`, so the feature adds **no dependency**. 26 infrastructure tests, 8 widget tests, 654 total. |
+| 2026-09-30 | **Mutation-tested the new upload tests, and found one that was measuring the wrong thing.** Removing the fiscal-year filter from the revision logic left all 26 tests passing, because the test asserted the revision the **fake transport echoed** rather than the one the **uploader declared** Ã¢â‚¬â€ the fake replies with whatever a test scripts, so the assertion was testing the fake. The test now reads the `revision` field out of the multipart body, and the same mutation is caught. Four further mutations were checked deliberately (a stale checksum, a conflict reported as success, failures reported as success on the screen, and uploading a year with no local backup); each was caught. This is the same class of defect as 7.15 and 7.21 and was found only by breaking the code on purpose. **A second finding was the live check's own expectation**: it asserted that re-uploading the same snapshot returns a conflict. It does not and should not, because the uploader re-reads the sequence first, so a second upload from the same installation legitimately becomes the next revision; a `409` is for another installation uploading between the read and the write. The expectation was corrected rather than the code. |
+| 2026-09-30 | **Verified the upload against the real stack, because the unit tests replace the transport** and therefore leave the actual socket and the multipart encoding on the wire unverified. Added `tool/live_upload_check.dart`: six checks against a running Laravel server and the live PostgreSQL database using the real `IoHttpTransport`. It registers a throwaway account each run so it starts from a book with no revisions and can assert exact revision numbers Ã¢â‚¬â€ the first version pointed at a book that already had revisions, which made its absolute assertions meaningless. All six passed: a snapshot uploads and is confirmed as revision 1, a re-upload advances to 2, a second fiscal year starts independently at 1, a non-database file is refused with the server's own reason, an unreachable server is reported with the local backup intact, and **a refused upload is not recorded as a local success**. The rows were then read back out of PostgreSQL. `flutter test` skips the file by name, so the suite stays hermetic. |
+| 2026-09-30 | **Reviewed the uncommitted work and fixed all twelve findings.** The two that mattered were written the same day. **The upload never checked that the snapshot was still the verified one**: `BookBackup.checksum` was ignored, so a file corrupted or edited after the backup would have been uploaded, accepted by the server (whose check only covers the trip), and reported as a safe off-machine copy. It now streams a checksum and refuses on mismatch via a new `UploadStatus.unverified`. **Registration returned a 500 on ordinary input**: `unique:users,email` was checked against the address as typed while the lower-cased value was stored, so `SITA@Example.COM` after `sita@example.com` passed the rule and then hit the unique index; normalisation now happens before validation. Also fixed: the Backup screen counted only attempted years and so claimed "every year is now stored off this computer" while a year had no backup at all; the public `register`/`login` routes had **no rate limit** (verified against the framework: the `api` group gets `throttle:api` only when `throttleApi()` is called, and `bootstrap/app.php` leaves it empty) and now carry `throttle:6,1`; and a new test asserted `contains('9')` for the schema version, which the snapshot's own bytes already satisfied, so it **could not fail** Ã¢â‚¬â€ it now compares the declared field to `currentSchemaVersion`. The rest: login leaked account existence through a bcrypt short-circuit; registration confirmed that an email exists, contradicting login's anti-enumeration design; a plaintext remote server was accepted, which would have put the token and the whole database on the network readable; the body was copied three or four times in memory and hashed on the UI isolate; a fresh `HttpClient` per request discarded connection reuse; and `UploadResult.localBackupIsIntact` was dead. 660 Dart tests, 35 Laravel tests / 97 assertions, Pint and analyze clean, Windows build green, and all six live checks against the real server and PostgreSQL still pass. |
+| 2026-09-30 | **Mutation-tested every fix from the review, and caught a failure mode worse than a bad test.** Three of four new tests initially appeared not to catch their own regression Ã¢â‚¬â€ but the mutations had not applied at all: the search strings contained CRLF and the files used LF, so the replace matched nothing and the suite stayed green for the wrong reason. Re-applied through the editor, all of them failed without their fix, as they should. **A mutation that does not apply is indistinguishable from a test that works**, which is now recorded as 7.22 alongside the second instance of a test that could not fail (7.21's defect, repeated within a day). A third discovery: the timing fix's first version used a hand-written bcrypt-looking literal, which would have kept the leak while looking fixed, because `password_verify` against a malformed hash returns in **0.04 ms** against **191 ms** for a real one Ã¢â‚¬â€ measured, not assumed. Recorded as 7.23. |
+| 2026-09-30 | **Added `NEW_MACHINE.md`, the guide for setting the project up on a different device.** It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories Ã¢â‚¬â€ `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
+| 2026-09-30 | **Implemented sign-in, so a backup can actually be sent by a user** Ã¢â‚¬â€ the task section 6 has held since 4.28. `CredentialStore`, `SignInResult` and `AuthActions` ports; an HTTP client for `POST /api/auth/login` and `/logout`; `SecureCredentialStore` writing the token to protected OS storage; `AccountSession` coordinating them; and a Settings screen with the account panel. **The password is never stored, structurally** Ã¢â‚¬â€ `BackendSession` has no field for it Ã¢â‚¬â€ and the test asserts that against the *values* in the stored map, because a key called `password_hash` would pass an absence check while holding the secret. **Signing out always signs out**: the local session is cleared first, the server is told best-effort, and neither step may throw. Two tests for those failure paths found **two real bugs in my first version**, which had relied on the implementations swallowing their own errors instead of making the caller robust Ã¢â‚¬â€ a locked keyring would have stopped the application starting, and a dead network would have produced a sign-out that did not happen. The HTTP transport moved to `infrastructure/http/` rather than being copied, so status handling exists once. The plain-text rule moved into the domain as `isUsableServerAddress`, because the screen and the client both need it and two copies would drift Ã¢â‚¬â€ and the failure mode of that drift is sending a token and a whole accounting database over clear text. **The decision section 6 asked for**: a `401` now reports `unauthenticated` ("sign in again") instead of `unreachable` ("try again later"), because retrying a `401` fails identically forever. Making that change properly **surfaced a second bug**: a revoked session usually fails the *revision lookup* first, and that path collapsed every failure into `unreachable`, so the new tests failed until `_nextRevisionFor` returned a three-state result instead of a bare `int?`. 16 + 17 + 15 new tests, 712 total, analyze clean. |
+| 2026-09-30 | **Found a blocker: the Windows build does not compile.** `flutter build windows` fails with `Cannot open include file: 'atlstr.h'`, because `flutter_secure_storage` holds the token in protected OS storage and its Windows plugin includes that header, which ships in Visual Studio's **optional** "C++ ATL for latest v10 build tools" component rather than the base C++ workload. Verified rather than assumed: every version of `flutter_secure_storage_windows` from **2.x through 4.2.2** includes `atlstr.h`, so downgrading does not help, and 1.2.0 does not exist on pub. **This was not caught by adding the dependency, by `flutter analyze`, or by 712 passing tests Ã¢â‚¬â€ only by building.** That is the lesson: an analyzer cannot see a native toolchain requirement. Recorded in `docs/AI_RULES.md`, `desktop/README.md`, and `NEW_MACHINE.md` so it is found at install time, and escalated as an owner decision because the three ways out are not an agent's to choose. **The weaker-storage option is explicitly rejected in the task text**: a bearer token must not go into a plain file. |
+| 2026-09-30 | **Mutation testing failed in a new way: a mutation that changes nothing.** Removing the guard around `signOut`'s store clear left all 16 account tests passing Ã¢â‚¬â€ not because the tests were weak but because the mutation itself was invalid. `if (false) rethrow;` inside a catch is a no-op, so it proved nothing while looking like a deliberate break. Re-applied by actually deleting the `try`, the new test caught it. Recorded as 7.22 seen from a new angle: **verify the mutation changed behaviour, or a green suite means nothing at all.** |
+| 2026-09-30 | **Settled the Windows build, which had failed for hours.** Two dependencies were rejected on evidence and one adopted. `flutter_secure_storage` needs Visual Studio's optional C++ ATL component Ã¢â‚¬â€ a single `#include <atlstr.h>`. `webauthn_secure_storage` needs the Windows App SDK (`<winrt/...>`) **and** uses `<experimental/coroutine>`, which MSVC 14.51 rejects outright. `local_storage_cache` and `get_secure_storage` were rejected because they encrypt with a key stored on the same disk, which protects against nothing on that machine. `keyring` needs a **Rust toolchain**. **`crossvault`** was adopted: MIT, standard Windows SDK headers only (`wincred.h`, `ncrypt.h`, `bcrypt.h`), no coroutines, **no optional toolchain component** Ã¢â‚¬â€ and `flutter build windows --debug` now succeeds, producing a 1.27 MB `financeapp.exe`. Its one limitation is recorded rather than glossed: **no Linux implementation**, so on Linux the token lives in memory for the session and the user signs in again after a restart; because `CredentialStore` is an interface, adding it later touches one file. |
+| 2026-09-30 | **The most valuable finding was about checking method, not about plugins.** Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella Ã¢â‚¬â€ `webauthn_secure_storage`'s umbrella looked clean while its sub-package carried the ATL and the WinRT. |
+| 2026-09-30 | **Learned what a Nepali invoice legally requires, and implemented it.** The specification set the standard: tax rules *"shall not be treated as permanently fixed application constants"*, so the rules became `NepalTaxRules` Ã¢â‚¬â€ data with a version string Ã¢â‚¬â€ rather than a `const int vatStandardRate` that would be silently wrong the year the Finance Act changed it. Implemented: the two legal document forms (Rule 17 tax invoice and the Rule 17(Ka) abbreviated retail invoice, limited to a ceiling of NPR 10,000); the seller's PAN gating everything, since a bill without it is not a valid tax bill; the buyer's PAN required when the buyer is VAT-registered, the document is a full tax invoice, or the total reaches the threshold, with a **malformed PAN reported as missing rather than printed**; a VAT-registered business charging no VAT; total in words in lakh and crore; and the HS code added by the 46th amendment. **Nothing was inferred where the sources conflict** Ã¢â‚¬â€ VAT registration thresholds are reported inconsistently (NPR 20 lakh vs 30 lakh for services), so no threshold is implemented at all and the flag is stated by the owner; guessing would produce confidently wrong compliance advice. **Corrected a retention error**: Income Tax Act Ã‚Â§81(2), verified against the statutory text, is five years **from the expiry of the income year**, not from the transaction date, and VAT's commonly cited six years is the binding period Ã¢â‚¬â€ `BACKUP_AND_RETENTION.md` had flattened this into one undifferentiated "six years". Compliance is **advisory, not blocking**: refusing to issue an invoice at closing time would push the owner to work around the application entirely. |
+| 2026-09-30 | **The tests caught two real defects in new code, both before shipping.** `amountInWords` produced **"Rupees Ten Hundred Crore"** for Rs 100,000, because the divisor list and the name list were **misaligned** Ã¢â‚¬â€ `units[0]` was crore while `names[0]` was the empty string Ã¢â‚¬â€ so every lakh and crore figure on every invoice would have been wrong. And the abbreviated-invoice ceiling test **never actually reached the ceiling**: it derived a price from `rupees * 1.13` and assumed that equalled NPR 10,000, but VAT is rounded per paisa so it does not for most inputs, meaning a compliance boundary test was passing without exercising the boundary. It now builds an exact price (Rs 8,849.56 + 13% = Rs 10,000.00) and asserts the total first. Both are the same lesson as 7.21 and 7.25 from the other direction: **a test that does not reach the condition it names is not a test.** Mutation-checked both Ã¢â‚¬â€ making the ceiling exclusive, and restoring the misaligned lists, each fail. 749 Dart tests. | Two claims I made during this were wrong and both came from a check that could not fail. `if ($r)` on `vswhere` output reported the toolchain as fixed when it had returned `[]`, because PowerShell treats that string as truthy. And a regex pattern for ATL usage missed `CA2W` while matching `su**bstr**r` in `substr`. Both are recorded in **7.25**, with the rule: **when a verification is about to confirm something inconvenient, write down first what result would make it fail.** A check that cannot fail looks exactly like a check that passed. The corollary is in 7.24: read a plugin's **native** sources before adopting it, and for a federated plugin open the `_windows` sub-package, not the umbrella Ã¢â‚¬â€ `webauthn_secure_storage`'s umbrella was clean while its sub-package carried the ATL and the WinRT include. 712 Dart tests, 35 Laravel tests, analyze clean, Pint clean, Windows build green. | It records the step-by-step commands in both bash and Windows PowerShell (three of them differ), what to verify and the expected numbers, what is committed versus regenerated and why, and the trap that costs the most: **the PostgreSQL password lives only in `backend/.env`, which is not committed, so it is not recoverable from GitHub.** It also carries the repository's PowerShell `.md` corruption warning, because a new machine is exactly where that lesson gets re-learned. **The README's setup section was reduced to a pointer rather than left as a second copy of the same steps**, since two copies of setup instructions drift and the drift is invisible. Corrected **section 3**, which had gone as stale as the documents fixed earlier: it claimed the presentation layer was "still empty" and that only `domain/shared/money.dart` had content, and it listed `domain/` subfolders that are in fact empty directories Ã¢â‚¬â€ `customers/`, `products/`, `payments/`, `expenses/`, `suppliers/`. The concepts live inside `billing/` and `inventory/`, except for suppliers and expenses, which **do not exist at all**; that distinction matters for estimating what is left, and section 3 now says so plainly rather than implying five more modules are in progress. |
+| 2026-10-01 | **Customer identity decided and recorded: a random internal id plus a separate sequential business code** (`C-0001`), chosen by the owner after being offered a single sequential identifier and a name-based key. Recorded in **ADR 010**. **This closes the open question in 7.16** Ã¢â‚¬â€ ids must not collide if two installations ever sync, and a random id cannot, so that risk is closed now rather than after data exists. **Duplicate detection came from the PAN, not the name**: a unique index on `pan_number` is the one key that cannot produce a false collision, because two businesses cannot share a PAN, whereas a Nepali name repeats and changes on marriage Ã¢â‚¬â€ making it identity would repoint history. Also **fixed a duplication I had introduced myself**: a new `Party` type sat alongside the existing `Customer`, which already covered the same ground and was wired into `IssueInvoice`, `RecordPayment`, and three test files; `Party` is deleted and its PAN and VAT handling folded into `Customer`. |
+| 2026-10-02 | **Built the four remaining reports: cash flow, sales, stock held, and VAT.** These were the last four navigation entries in `ui.txt` still showing as dead placeholders. A cash statement is **deliberately not derivable from the profit and loss report** and the two are *supposed* to disagree: a sale on credit moves no cash and a payment of an old invoice is cash without a sale, so the statement reads only the bank and cash accounts, and it is derived from the chart of accounts rather than from hardcoded account ids, so a business that adds a second cash box is covered without a code change. Output VAT follows **invoices issued, not cash received**, because waiting for the cash would understate the liability. **Input VAT is zero, and that is recorded as a limitation rather than hidden**: there are no purchase records in the application at all, so there is nothing to compute input VAT from, and a figure that merely looked computed would be worse than a stated gap. Sales and VAT credit notes are **subtracted, not ignored**, since a credit note reduces what has been sold on exactly the documents a business issues when something has gone wrong. VAT is computed on the amount **excluding** VAT and rounds half-up once, in paisa. A credit note landing in a period with no sales yields a **negative** taxable figure rather than being clamped to zero, because clamping would hide a credit the business is entitled to carry forward. One screen serves all four, and the four navigation entries each open it on its own report. **Two real defects surfaced on the way, both found by tests rather than review.** `AppServices.forSession` and `forAccount` Ã¢â‚¬â€ the two methods that rebuild the whole service bundle Ã¢â‚¬â€ **silently dropped five declared fields** (`createProduct`, `postMovement`, `issueCreditNote`, `postEntry`, `concludeYear`), so changing fiscal year or signing in quietly removed the catalogue, stock, credit-note, journal and year-end screens from the navigation; nothing failed and all tests passed. `test/presentation/app_services_test.dart` now asserts every field by name, because the fix is not the five lines but the test that makes the next omission a **named** failure (recorded as **7.26**). And `BuildCashFlow` with no date range read every entry as one undifferentiated period, which put the **opening-balance entry into "received"** Ã¢â‚¬â€ opening cash Rs 0.00 and received Rs 120,000.00, where the truth was Rs 100,000 and Rs 20,000. The closing figure stayed correct throughout, so **every use-case test passed**; only a widget test that printed the screen could see it. Defaulting the period to the fiscal year exposed the second half: the opening entry is dated *on* the first day rather than the day before, so `openingIncludesBoundary` now states that boundary for the whole-year view, while an explicit caller-supplied range keeps the strict rule (**7.27**). Inventory deliberately got no year boundary, because stock is a balance as at today and the opening entry is exactly what makes that balance correct Ã¢â‚¬â€ filtering it would have been the change that looked like a fix and was not. The presentation-layer architecture test caught the new domain import and it was **added to the allowlist with its justification** rather than the import being worked around. 34 new tests, 889 total, analyze clean, Windows debug build green. |
+| 2026-10-02 | **Built the company model, and lost 628 lines of this file doing it.** Two things happened, and the second is the one that matters. First: the four missing reports (cash flow, sales, stock held, VAT) Ã¢â‚¬â€ these were the last dead navigation entries in `ui.txt`. A cash statement is **deliberately not derivable from profit and loss** and the two are *supposed* to disagree, because a credit sale moves no cash and a payment of an old invoice is cash without a sale. Output VAT follows **invoices issued, not cash received**. **Input VAT is zero and that is recorded as a limitation, not hidden**: no purchase records exist in the application at all. Second: a concluded year is **immutable** (`PRAGMA query_only`), so every snapshot of it is byte-identical and the extras are duplicates rather than history Ã¢â‚¬â€ `ConcludedFiscalYearPruner` now keeps the newest revision and deletes the rest, **after** re-hashing the survivor on disk, tombstoning the rows rather than deleting them, and running **after** the fiscal transition so the server can never hold a closed year this computer still allows editing. Three real defects surfaced: `AppServices.forSession`/`forAccount` **silently dropped five declared fields**, so changing year or signing in removed the catalogue, stock, credit-note, journal and year-end screens from the navigation with nothing failing; `BuildCashFlow` with no date range put the **opening-balance entry into "received"** Ã¢â‚¬â€ opening Rs 0.00 against a truth of Rs 100,000 Ã¢â‚¬â€ and the closing figure stayed correct throughout, so **every use-case test passed** and only a widget test could see it; and `AppServices` needed a `company_id` because **a company is a legal entity, not the person signing in**, which is what lets an owner and an accountant exist at all. Both were found by tests, and both are recorded with mutation checks in 7.26, 7.27 and 7.31. The live-database migration then produced the finding no test could: `username NOT NULL` with no backfill **passed all 60 tests and failed against 19 real accounts**, because `RefreshDatabase` migrates an *empty* schema Ã¢â‚¬â€ **a migration is only tested against a database that already contains data** (7.28). Two more PostgreSQL-only failures followed (`HAVING` on an aggregate alias, `split_part`), fixed by backfilling in chunked PHP so one code path serves both drivers. **And then I destroyed this document.** Rewriting section 6, the PowerShell slice had a start index greater than its end index Ã¢â‚¬â€ which PowerShell does not reject, it walks descending, so the "range" returned two lines and everything between section 6 and section 8 was dropped: **the `## 7` heading and entries 7.1 through 7.28, the accumulated discoveries of many sessions.** The write succeeded, the file stayed valid UTF-8, and no test reads this file, so nothing complained. It was found only because the next command printed the section-6 text and `## 7.` was not in it, and recovered only because the lost content was in `git show HEAD` Ã¢â‚¬â€ **the discoveries were committed but the edits on top of them were not**. A descending slice is a silent delete; build replacements as `head + new + tail` and **compare before/after line counts**, because a write reporting success is not evidence of a correct write. Restored and re-applied with verified bounds: 3,299 lines, entries 1Ã¢â‚¬â€œ32 with no gaps or duplicates, ascending, all sections present. Also built: `Divergence`/`SyncComparison` classifying all four drift cases from three checksums rather than revision numbers, 14 tests, mutation-verified Ã¢â‚¬â€ and the discovery that `needsAttention` was true for `localOnly`, which is wrong, because prompting a user to confirm work with no alternative teaches them to ignore the prompt (7.31). 912 Dart tests, 60 Laravel tests, both analyzers clean. |
+| 2026-10-02 | **Fixed three critical accounting defects and a VAT return that disagreed with the books.** Found by four read-only audits run in parallel over the whole application; **not one defect was caught by a test**, and several sat in cases where a test asserted something adjacent to the real behaviour. **(1) Concluding a fiscal year destroyed that year's books.** `beginNextYear` names the database file from the year it is handed, and was handed the year being **closed** Ã¢â‚¬â€ so the concluded year's file was reopened read-write and given the next year's opening entry, dated a year before its own closing entry. By hand: assets 4,360,000 against liabilities and equity 2,180,000, so `BalanceSheet.assertBalanced()` threw on every later read of that year, and the next year was never created at all. Survived because the fake counted invocations and never asserted **which** year it received; it now records them. Fixing it exposed two more: `_nextYear` was `endDate + one day`, a two-day year starting the day the old one ends, and the test fixture declared `FY 2082/83` as 2026-07Ã¢â€ â€™2027-07 when the real one is 2025-07-17Ã¢â€ â€™2026-07-16 Ã¢â‚¬â€ **the suite was validating a year that does not exist**, which is why neither bug was visible. **(2) The Stock Movement screen always posted a receipt**, whatever reason was chosen. Recording a *sale* credited cost of goods sold instead of debiting it, raised stock, raised profit by the value of the goods, and recognised no revenue Ã¢â‚¬â€ and there was no way to record an issue at all, so the one reason that posts COGS was unreachable from the application. Everything balanced; the entry was well formed and meant the opposite of what was asked. Direction now comes from `MovementReason.isReceipt`, the same predicate the posting use case keys off. **(3) Verifying a backup rewrote it.** `PRAGMA integrity_check` is a read-only question, asked through a drift `AppDatabase`, and drift migrates on open Ã¢â‚¬â€ so every `verify()` wrote tables, and taking a backup migrated every **concluded year in place**, contradicting ADR002's "never silently modified". The suite was structurally blind: every test file is created through `openFileDatabase` so `user_version` is already current, and a test asserting "the backup is usable" passes *on a file the check just modified*. Both halves now use a raw read-only connection. **(4) The VAT return could not be filed.** It re-derived tax in `double`, on the aggregate, at a flat 13%, while the books compute per invoice in integer paisa at each document's own rate. Per-invoice rounding Ã¢â€°Â  aggregate rounding, and a zero-rated invoice was charged 13%: two 10,000 invoices reported 260,000 against 130,000 charged. Two auditors found this independently, which is the best-evidenced finding in the audit and the argument for overlapping audits. `TaxSummary` now computes nothing Ã¢â‚¬â€ it takes the figures `BuildTaxSummary` sums from `invoice.vat` Ã¢â‚¬â€ so the return equals the ledger **by construction** and there is no second implementation of the VAT rule to drift. Recorded as **7.33Ã¢â‚¬â€œ7.37**, including **7.37**: three of my own expectations were wrong (a purchase credits Payable not COGS; a fiscal year spans 364 days between bounds; 13% of 1 paisa rounds to zero, so my first distinguishing amount proved nothing), and each was one edit away from making the suite green by making the code match a wrong belief. An existing test was **asserting the bug** Ã¢â‚¬â€ it tested the aggregate computation being removed and its comment stated the false property as guaranteed. Mutation-checked each fix; the read-only flag proved to be defence in depth rather than load-bearing, and one mutation **did not apply** and still reported green, so the verification prints whether the break landed (Ã‚Â§7.22, fourth occurrence). 928 Dart tests, 60 Laravel tests, both analyzers clean. **Still uncommitted, and `HEAD` holds a damaged `PROGRESS.md`.** |
+| 2026-10-03 | **Closed three of the eight dead navigation entries: Profit & Loss, Balance Sheet, Chart of Accounts.** Started from an inventory that was **wrong four times in a row** before it was right Ã¢â‚¬â€ a regex with a forward lookahead reported Purchases, Suppliers and Payables as routed; a corrected window mis-assigned routes to neighbouring entries; a PowerShell recursive glob does not expand, so `licenses_screen.dart` looked unwired when it is wired; and a Dart test run with an empty `AppServices` made **every** conditional route null and reported 29 of 30 entries unbuilt. The reliable method parses each `NavigationItem` block **scoped by indentation**. `NavigationItem.route` is documented as *"builds the screen this opens, or `null` when it has not been built yet"* Ã¢â‚¬â€ so the right way to ask is to inspect the built items, but only **with realistic services**, because the routes are conditional on use cases being present. That last point is the lesson: four wrong answers in a row came from not noticing it. **Profit & Loss and Balance Sheet** needed only screens and use cases Ã¢â‚¬â€ the report types existed and were tested Ã¢â‚¬â€ with two decisions worth recording: the period **defaults to the fiscal year** rather than to "everything", because a report with no bounds would silently include a prior year if the books ever held more than one, which is wrong rather than obviously broken; and **`BuildBalanceSheet` calls `assertBalanced()` before returning**, so the balance assertion lives in the use case rather than the screen and a year whose books do not reconcile reports a **failure** instead of rendering a statement whose sides disagree Ã¢â‚¬â€ a balance sheet that does not balance is worse than none, because it is trusted. **Chart of Accounts** reads the **stored** accounts rather than the built-in `ChartOfAccounts.all` constant, so an account the business added appears instead of being invisible while still being postable; groups come out in the same order the two statements use so all three read alike, and an account whose type the group order does not name is **shown at the end rather than dropped**. Before this screen existed a user could post to an account and had **no way to see it**. 21 new tests, 953 total, analyzer clean. Three more screens are live than the previous inventory claimed, and the number that was wrong is now recorded rather than quietly corrected. |

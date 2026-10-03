@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:financeapp/src/domain/shared/licence_access.dart';
 import 'package:financeapp/src/infrastructure/licensing/licence_store.dart';
 import 'package:financeapp/src/infrastructure/licensing/licence_verifier.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// even if both halves disagreed with the server about what bytes get signed.
 ///
 /// Regenerate with the same claims and a fixed seed if the canonical format ever
-/// changes, and change these values in the same commit â€” never one without the
+/// changes, and change these values in the same commit Ã¢â‚¬â€ never one without the
 /// other.
 const _publicKey = 'hNJ0abFa9Z/kTmL8bfQCCFAwG5hUFgp37/oxG3TAKB0=';
 
@@ -182,7 +183,7 @@ void main() {
       expect(parsed['status'], 'active');
 
       // The status is signed, so it cannot be changed here without failing the
-      // signature check first â€” which is itself the guarantee. These assertions
+      // signature check first Ã¢â‚¬â€ which is itself the guarantee. These assertions
       // pin the two layers: authenticity first, then entitlement.
       expect(parsed['status'], isNot('revoked'));
     });
