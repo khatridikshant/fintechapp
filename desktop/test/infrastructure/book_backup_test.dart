@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:financeapp/src/domain/accounting/chart_of_accounts.dart';
 import 'package:financeapp/src/domain/accounting/journal_entry.dart';
@@ -11,7 +11,9 @@ import 'package:financeapp/src/infrastructure/backup/file_book_backup_service.da
 import 'package:financeapp/src/infrastructure/database/app_database.dart';
 import 'package:financeapp/src/infrastructure/database/drift_account_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_journal_repository.dart';
+import 'package:crypto/crypto.dart';
 import 'package:financeapp/src/infrastructure/database/sqlite_native.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
@@ -83,6 +85,34 @@ void main() {
       rentEntry(500, date: DateTime(2026, 9, 1)),
     );
     return db;
+  }
+
+  /// The SHA-256 of a file's bytes, matching how backups record theirs.
+  Future<String> sha256Of(File file) async =>
+      sha256.convert(await file.readAsBytes()).toString();
+
+  /// Reads `PRAGMA user_version` with a **raw** connection.
+  ///
+  /// Raw rather than drift, because the whole point is to inspect the file without
+  /// opening it in a way that might itself change it.
+  Future<int> schemaVersionOf(File file) async {
+    final db = sqlite.sqlite3.open(file.path, mode: sqlite.OpenMode.readOnly);
+    try {
+      return db.select('PRAGMA user_version').first.values.first as int;
+    } finally {
+      db.dispose();
+    }
+  }
+
+  /// Sets `PRAGMA user_version`, which is how a file is made to look like it was
+  /// written by an older build.
+  Future<void> setSchemaVersion(File file, int version) async {
+    final db = sqlite.sqlite3.open(file.path);
+    try {
+      db.execute('PRAGMA user_version = $version');
+    } finally {
+      db.dispose();
+    }
   }
 
   FileBookBackupService serviceFor(
@@ -395,6 +425,157 @@ void main() {
       );
       expect(partial.isComplete, isFalse);
       expect(partial.failures.single.fiscalYearLabel, 'FY 2081/82');
+    });
+  });
+
+  group('Verifying must not change what is verified', () {
+    // ## The defect
+    //
+    // `PRAGMA integrity_check` is a read-only question, but it was asked through a
+    // drift `AppDatabase`. Drift runs `onUpgrade` when a connection opens a file
+    // whose `user_version` is behind, so **asking the question wrote tables**. Every
+    // call to `verify()` therefore mutated the file it was checking, and taking a
+    // backup migrated each concluded year's database in place — contradicting ADR
+    // 002, which says a concluded year opens read-only and is never silently
+    // modified.
+    //
+    // ## Why the existing tests could not see it
+    //
+    // After the mutation `user_version` is current, so drift does not migrate again
+    // and nothing throws. A test asserting "the backup is a usable database"
+    // therefore **passes on a file the check just modified**.
+
+    test('verifying a backup leaves the file byte-for-byte identical',
+        () async {
+      await createYear('FY 2082/83', date: DateTime(2026, 3, 1));
+      final current = await openCurrentYear('FY 2083/84');
+      addTearDown(current.close);
+
+      final service = serviceFor(current);
+      final run = await service.takeBackup();
+      expect(run.isComplete, isTrue, reason: 'the run must succeed first');
+
+      final backup = run.backups.first;
+      final file = File(backup.filePath);
+
+      // **Bytes, not just a checksum of the logical content.** A migration adds
+      // tables and bumps `user_version`, which changes the bytes even where the
+      // accounting rows are identical.
+      final before = file.readAsBytesSync();
+
+      final verification = await service.verify(backup);
+
+      expect(verification.integrityPassed, isTrue,
+          reason: 'a snapshot we just took is intact');
+      expect(
+        file.readAsBytesSync(),
+        before,
+        reason: 'asking whether a file is damaged must not alter it',
+      );
+    });
+
+    test('a concluded year at an older schema version is not migrated',
+        () async {
+      // **The reproduction that matters.** A snapshot written by an earlier build
+      // has an older `user_version`. Backing it up used to open it through drift,
+      // which migrates on open -- so taking a backup silently rewrote the archived
+      // year, contradicting ADR 002 ("concluded years open read-only and are never
+      // silently modified") and destroying the evidence of what that file actually
+      // contained when it was archived.
+      await createYear('FY 2081/82', date: DateTime(2026, 3, 1));
+      await createYear('FY 2082/83', date: DateTime(2026, 3, 1));
+      final current = await openCurrentYear('FY 2083/84');
+      addTearDown(current.close);
+
+      // Downgrade **before** the run, so the file really is an older snapshot.
+      await setSchemaVersion(booksFileFor('FY 2081/82'), 1);
+
+      final run = await serviceFor(current).takeBackup();
+      expect(run.isComplete, isTrue);
+
+      expect(
+        await schemaVersionOf(booksFileFor('FY 2081/82')),
+        1,
+        reason:
+            'backing up must not migrate an archived year: it is a historical '
+            'record, not something the application may bring up to date',
+      );
+    });
+
+    test('verifying an older snapshot succeeds and does not migrate it',
+        () async {
+      // The same condition, checked through `verify` rather than through a run.
+      //
+      // The checksum is recorded **after** the downgrade, so `verify` is comparing
+      // like with like. Editing the file after it was recorded would make
+      // `checksumMatches` false and the integrity check would never run -- a real
+      // outcome, but not the one under test here.
+      await createYear('FY 2082/83', date: DateTime(2026, 3, 1));
+      final current = await openCurrentYear('FY 2083/84');
+      addTearDown(current.close);
+
+      final service = serviceFor(current);
+      final backup = (await service.takeBackup()).backups.first;
+      final file = File(backup.filePath);
+      await setSchemaVersion(file, 1);
+
+      // Re-record the checksum so the verification reaches the integrity check.
+      final reRecorded = BookBackup(
+        filePath: backup.filePath,
+        fileName: backup.fileName,
+        fiscalYearLabel: backup.fiscalYearLabel,
+        fileSizeBytes: backup.fileSizeBytes,
+        checksum: await sha256Of(file),
+        takenAt: backup.takenAt,
+      );
+
+      final verification = await service.verify(reRecorded);
+
+      expect(verification.checksumMatches, isTrue);
+      expect(verification.integrityPassed, isTrue,
+          reason:
+              'an older snapshot is still a valid database; calling it damaged '
+              'would prevent recovering a backup taken by an earlier build');
+      expect(await schemaVersionOf(file), 1,
+          reason: 'verifying must not migrate the file it checked');
+    });
+
+    test('verifying twice is idempotent', () async {
+      // A check that mutates on the first call and not the second is the
+      // signature of a hidden migration: the second call sees a current schema and
+      // has nothing left to do.
+      await createYear('FY 2082/83', date: DateTime(2026, 3, 1));
+      final current = await openCurrentYear('FY 2083/84');
+      addTearDown(current.close);
+
+      final service = serviceFor(current);
+      final backup = (await service.takeBackup()).backups.first;
+      final file = File(backup.filePath);
+
+      await service.verify(backup);
+      final afterFirst = file.readAsBytesSync();
+      await service.verify(backup);
+
+      expect(file.readAsBytesSync(), afterFirst);
+    });
+
+    test('a concluded year is not migrated by taking a backup', () async {
+      // The consequence that matters: a concluded year must be byte-identical after
+      // a backup run, because it is the archived record of that year and ADR 002
+      // forbids silently modifying it.
+      await createYear('FY 2081/82', date: DateTime(2026, 3, 1));
+      await createYear('FY 2082/83', date: DateTime(2026, 3, 1));
+      final current = await openCurrentYear('FY 2083/84');
+      addTearDown(current.close);
+
+      final concluded = booksFileFor('FY 2081/82');
+      final before = concluded.readAsBytesSync();
+
+      final run = await serviceFor(current).takeBackup();
+      expect(run.isComplete, isTrue);
+
+      expect(concluded.readAsBytesSync(), before,
+          reason: 'backing up must not touch the archived year at all');
     });
   });
 }

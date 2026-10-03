@@ -168,7 +168,7 @@ class _Transition implements FiscalYearTransition {
 
   @override
   Future<void> beginNextYear({
-    required FiscalYear fiscalYear,
+    required FiscalYear nextYear,
     required Map<Account, Money> openingBalances,
   }) async {
     calls++;

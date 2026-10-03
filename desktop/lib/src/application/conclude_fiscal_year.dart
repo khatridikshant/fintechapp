@@ -8,6 +8,7 @@ import '../domain/accounting/account_type.dart';
 import '../domain/accounting/journal_repository.dart';
 import '../domain/accounting/year_end.dart';
 import '../domain/fiscal/fiscal_year.dart';
+import '../domain/fiscal/nepali_fiscal_calendar.dart';
 import '../domain/shared/money.dart';
 import '../domain/shared/unit_of_work.dart';
 
@@ -87,13 +88,21 @@ enum ConcludeOutcome {
 
 /// Creates and activates the next fiscal year's database, with opening balances.
 abstract interface class FiscalYearTransition {
-  /// Creates the next year's database carrying [openingBalances].
+  /// Creates the database of [nextYear], carrying [openingBalances] into it.
   ///
   /// Called **only** after the archive has been confirmed. If this fails, the
   /// archived old year and a local recovery copy must both survive — which is the
   /// caller's responsibility, and the reason the ordering is enforced here.
+  ///
+  /// ## The parameter is the NEW year, and it is named that way on purpose
+  ///
+  /// It was called `fiscalYear`, which read as "the year being closed" and was
+  /// in fact called that way. The implementation names the file from this value,
+  /// so passing the wrong year did not fail — it reopened a concluded year and
+  /// corrupted it. **A parameter whose meaning is ambiguous will eventually be
+  /// supplied wrongly**, so the name now states which year it must be.
   Future<void> beginNextYear({
-    required FiscalYear fiscalYear,
+    required FiscalYear nextYear,
     required Map<Account, Money> openingBalances,
   });
 }
@@ -175,7 +184,14 @@ class ConcludeFiscalYear {
     required this.archive,
     required this.transition,
     required this.accounts,
+    this.calendar,
   });
+
+  /// The calendar the successor year is derived from.
+  ///
+  /// Optional so a caller need not supply one, and injectable so a test can prove
+  /// the successor comes from the calendar rather than from date arithmetic.
+  final NepaliFiscalCalendar? calendar;
 
   /// The year being closed.
   final FiscalYear fiscalYear;
@@ -234,8 +250,15 @@ class ConcludeFiscalYear {
 
     // Step 13 onward: safe to create the next year, because the archive is
     // confirmed.
+    //
+    // **`_nextYear`, not `fiscalYear`.** This method creates the database named by
+    // the year it is handed, so handing it the year being *closed* reopens that
+    // concluded year's file read-write and appends the next year's opening entry
+    // into it. The archived year would then hold both the closing entries and an
+    // opening entry, assets would be posted twice, and every later read of that
+    // year would fail `assertBalanced`. The next year would also never exist.
     await transition.beginNextYear(
-      fiscalYear: fiscalYear,
+      nextYear: _nextYear,
       openingBalances: opening,
     );
 
@@ -257,13 +280,47 @@ class ConcludeFiscalYear {
     );
   }
 
-  /// The year that follows. Derived from the current one, never from the clock:
-  /// a close must not depend on what day it happens to be run.
-  late final FiscalYear _nextYear = FiscalYear(
-    label: _labelAfter(fiscalYear),
-    start: fiscalYear.endDate,
-    end: fiscalYear.endDate.add(const Duration(days: 1)),
-  );
+  /// The year that follows, derived from the calendar rather than by arithmetic.
+  ///
+  /// ## Why not `endDate + one day`
+  ///
+  /// It was, and it was wrong twice. It started the new year on the day the old
+  /// one **ends** rather than the day after, and it gave the new year two days of
+  /// life. Every document after Shrawan would then be filed by a rule nobody
+  /// wrote down, and the year boundaries would no longer be the ones the calendar
+  /// data describes.
+  ///
+  /// ## Why the calendar and not the clock
+  ///
+  /// A close must not depend on what day it happens to be run. The start Bikram
+  /// Sambat year comes from [fiscalYear]'s own label, so the same books always
+  /// close into the same successor.
+  late final FiscalYear _nextYear = _calendar.forBsYear(_startBsYear + 1);
+
+  /// The Bikram Sambat year [fiscalYear] starts in, read from its label.
+  ///
+  /// `FY 2082/83` is `2082`. Parsed once and cached, because it is needed to
+  /// derive the successor.
+  late final int _startBsYear = () {
+    final match = RegExp(r'^FY (\d{4})/\d{2}$').firstMatch(fiscalYear.label);
+    if (match == null) {
+      // **Cannot happen through the UI**, which only ever offers years the
+      // calendar produced. Throwing beats guessing: a wrong successor here would
+      // create the wrong file, and a silently-created file is far worse than a
+      // close that refuses and says why.
+      throw ArgumentError(
+        'The fiscal year label "${fiscalYear.label}" is not in the form '
+        '"FY 2082/83", so the year that follows it cannot be derived. Close the '
+        'year through the application rather than naming it by hand.',
+      );
+    }
+    return int.parse(match.group(1)!);
+  }();
+
+  /// The calendar, injected so the successor is derived from the same data the
+  /// rest of the application uses.
+  late final NepaliFiscalCalendar _calendar =
+      calendar ?? const NepaliFiscalCalendar();
 
   YearEndValidation _validate(List<JournalEntry> entries) {
     final blockers = <YearEndBlocker>[];
@@ -364,16 +421,5 @@ class ConcludeFiscalYear {
         lines: lines,
       ),
     );
-  }
-
-  static String _labelAfter(FiscalYear year) {
-    final match = RegExp(r'FY (\d{4})/(\d{2})').firstMatch(year.label);
-    if (match == null) return '${year.label} (closed)';
-    // A Nepali fiscal year is labelled by both of the Gregorian years it
-    // touches, so `FY 2082/83` is followed by `FY 2083/84` -- **both** parts
-    // advance, not just the first.
-    final from = int.parse(match.group(1)!);
-    final to = int.parse(match.group(2)!);
-    return 'FY ${from + 1}/${(to + 1) % 100}';
   }
 }

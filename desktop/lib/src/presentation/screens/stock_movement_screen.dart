@@ -20,6 +20,22 @@ import '../theme/app_theme.dart';
 /// The one choice offered is *why* the stock moved — purchase, opening stock, a
 /// return, a write-off — because that is a fact only the user knows, and it
 /// changes how the movement reads later.
+/// Which way a stock movement moves the goods.
+///
+/// Only ever asked for reasons whose direction is **not** implied by the reason
+/// itself — currently just an adjustment, which is either a found surplus or a
+/// shortage. Every other reason carries its direction in its name, so offering a
+/// control for them would invite the user to contradict the meaning of the word
+/// they picked.
+enum StockDirection {
+  /// More stock than the books recorded: goods coming in.
+  arriving,
+
+  /// Fewer goods than the books recorded: goods going out.
+  leaving,
+}
+
+/// The form for recording goods arriving or leaving.
 class StockMovementScreen extends StatefulWidget {
   const StockMovementScreen({super.key, required this.postMovement});
 
@@ -36,6 +52,13 @@ class _StockMovementScreenState extends State<StockMovementScreen> {
   final _value = TextEditingController();
 
   MovementReason? _reason = MovementReason.purchase;
+
+  /// Which way an **adjustment** moves stock.
+  ///
+  /// Only consulted for [MovementReason.adjustment]. Every other reason's direction
+  /// is implied by the reason itself, so showing a control for them would offer a
+  /// choice that does not exist.
+  StockDirection _direction = StockDirection.arriving;
   bool _busy = false;
   String? _problem;
   String? _done;
@@ -60,6 +83,93 @@ class _StockMovementScreenState extends State<StockMovementScreen> {
     final value = num.tryParse(text);
     if (value == null) return null;
     return Money.fromMajorUnits(value, 'NPR');
+  }
+
+  /// Builds the movement, with its direction taken from **the reason**.
+  ///
+  /// ## Why this exists
+  ///
+  /// It used to call `InventoryMovement.receipt(...)` unconditionally. Every reason
+  /// therefore produced stock coming **in**, so choosing "Sale" credited cost of
+  /// goods sold instead of debiting it, raised stock, raised profit by the value of
+  /// the goods, and recognised no revenue. Nothing detected it: the entry balanced,
+  /// the trial balance balanced and the balance sheet balanced, because the entry was
+  /// well formed and simply meant the opposite of what was asked for.
+  ///
+  /// There was also **no way to record an issue at all**, so `sale` — the only reason
+  /// that posts cost of goods sold — was unreachable from the application.
+  ///
+  /// The SQLite `CHECK` constraints eventually refused it, and the user saw a raw
+  /// `SqliteException` where a stock sale should simply have worked.
+  ///
+  /// ## Why the domain decides, not this method
+  ///
+  /// [MovementReason.isReceipt] already encodes which way each reason moves stock,
+  /// and it is the same rule the posting use case keys off. Deriving the direction
+  /// here from that one predicate means the screen and the journal cannot disagree
+  /// about what "Sale" means.
+  InventoryMovement _movementFor({
+    required MovementReason reason,
+    required int quantity,
+    required Money value,
+  }) {
+    final id = 'mv-${DateTime.now().microsecondsSinceEpoch}';
+    final productId = _product.text.trim();
+    final date = DateTime.now();
+
+    // A write-down is the one reason whose shape is different: the goods are still
+    // held, so the quantity does not move and only the carrying value falls. It is
+    // the only value-only movement the domain permits.
+    if (reason == MovementReason.writeDown) {
+      return InventoryMovement(
+        id: id,
+        productId: productId,
+        date: date,
+        reason: reason,
+        quantity: 0,
+        value: value.negated(),
+      );
+    }
+
+    // A stock-count correction can go either way, so the operator says which. It is
+    // the only reason whose direction is not implied by its own name.
+    if (reason == MovementReason.adjustment) {
+      return _direction == StockDirection.leaving
+          ? InventoryMovement.issue(
+              id: id,
+              productId: productId,
+              date: date,
+              reason: reason,
+              quantity: quantity,
+              value: value,
+            )
+          : InventoryMovement.receipt(
+              id: id,
+              productId: productId,
+              date: date,
+              reason: reason,
+              quantity: quantity,
+              value: value,
+            );
+    }
+
+    return reason.isReceipt
+        ? InventoryMovement.receipt(
+            id: id,
+            productId: productId,
+            date: date,
+            reason: reason,
+            quantity: quantity,
+            value: value,
+          )
+        : InventoryMovement.issue(
+            id: id,
+            productId: productId,
+            date: date,
+            reason: reason,
+            quantity: quantity,
+            value: value,
+          );
   }
 
   Future<void> _post() async {
@@ -91,10 +201,7 @@ class _StockMovementScreenState extends State<StockMovementScreen> {
     });
 
     try {
-      final movement = InventoryMovement.receipt(
-        id: 'mv-${DateTime.now().microsecondsSinceEpoch}',
-        productId: _product.text.trim(),
-        date: DateTime.now(),
+      final movement = _movementFor(
         reason: reason,
         quantity: quantity,
         value: value,
@@ -222,6 +329,35 @@ class _StockMovementScreenState extends State<StockMovementScreen> {
                 onChanged:
                     _busy ? null : (value) => setState(() => _reason = value),
               ),
+
+              // **Only for a reason whose direction is genuinely open.**
+              //
+              // Shown for an adjustment alone: a stock count can find a surplus or
+              // a shortage, whereas "Sale" already means the goods left. Offering
+              // this control for every reason would let the user contradict the
+              // meaning of the word they just picked, and the resulting movement
+              // would be well formed and wrong.
+              if (_reason == MovementReason.adjustment) ...<Widget>[
+                const SizedBox(height: AppSpacing.md),
+                SegmentedButton<StockDirection>(
+                  key: const ValueKey<String>('movement-direction-field'),
+                  segments: const <ButtonSegment<StockDirection>>[
+                    ButtonSegment<StockDirection>(
+                      value: StockDirection.arriving,
+                      label: Text('Found more'),
+                    ),
+                    ButtonSegment<StockDirection>(
+                      value: StockDirection.leaving,
+                      label: Text('Found fewer'),
+                    ),
+                  ],
+                  selected: <StockDirection>{_direction},
+                  onSelectionChanged: _busy
+                      ? null
+                      : (Set<StockDirection> selected) =>
+                          setState(() => _direction = selected.first),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
 
               FilledButton.icon(

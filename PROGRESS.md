@@ -3153,6 +3153,106 @@ Recovered from `git show HEAD:PROGRESS.md`, which is the only reason the loss wa
 survivable: **the accumulated discoveries were in git but not yet committed, and the
 edit sat on top of them.** This file is read by the next agent and nothing else reads
 it, so nothing would have told anyone it had been truncated.
+### 7.33 A parameter named `fiscalYear` destroyed the year it was meant to follow
+
+Concluding a fiscal year passed the year being **closed** to `beginNextYear`, which
+creates the database named by the year it is handed. The concluded year's file was
+reopened read-write, re-seeded, and given an opening entry dated a year before its
+own closing entry.
+
+By hand, with assets of 2,180,000: after the close the archived year reports
+**assets 4,360,000 against liabilities and equity 2,180,000**, so
+`BalanceSheet.assertBalanced()` throws on every later read of that year. And
+because the next year's database was never created, next Shrawan it is opened
+blank — no chart, no opening balances, every carried-forward asset silently
+dropped.
+
+**Why it survived.** The transition fake counted invocations and never asserted
+*which* `FiscalYear` it received. Counting is blind to this: the count was correct
+while the argument was the wrong year. The fake now records the years, and two
+tests assert the transition is handed the successor.
+
+**The fix had a second half.** `_nextYear` was derived as `endDate + one day`,
+which starts the new year on the day the old one **ends** and gives it two days of
+life. That was harmless while nobody used the value — and it became load-bearing
+the moment it was passed to the transition. It now comes from
+`NepaliFiscalCalendar.forBsYear`, because that is the only place the
+Shrawan-to-Ashadh rule is written.
+
+**And the fixture was fiction.** The test declared
+`FiscalYear(label: 'FY 2082/83', start: DateTime(2026, 7), end: DateTime(2027, 7))`.
+The real FY 2082/83 runs 17 Jul 2025 to 16 Jul 2026. The whole suite was validating
+a year that does not exist, which is why neither the wrong argument nor the two-day
+successor could be seen — **the assertions lined up with the stub instead of with
+the application.** It now uses the calendar.
+
+The parameter is renamed `nextYear` because a name that admits two readings will
+eventually be supplied with the wrong one, and this method writes a file whose name
+comes from that argument.
+
+### 7.34 The reason told the screen what to do, and the screen ignored it
+
+The Stock Movement screen called `InventoryMovement.receipt(...)` unconditionally
+while offering all nine `MovementReason` values. Choosing **Sale** produced stock
+coming **in**: cost of goods sold was credited instead of debited, stock rose,
+profit rose by the value of the goods, and no revenue was recognised. There was
+**no way to record an issue at all**, so the one reason that posts COGS was
+unreachable from the application.
+
+Everything balanced. The entry was well formed and simply meant the opposite of
+what was asked for, which is the hardest class of bug to catch and the most
+expensive to miss.
+
+**What caught it was the database, not a test.** The movement `CHECK` constraints
+refused the combination, and the user saw a raw
+`SqliteException(787): FOREIGN KEY constraint failed` where a stock sale should
+simply have worked. The eight tests written here failed on exactly that error
+before the fix.
+
+**Two of my own expectations were wrong, and that is the instructive part.**
+I asserted a purchase would credit cost of goods sold. It credits **Payable** —
+buying stock consumes nothing and creates a liability; COGS is recognised on the
+sale. Had I "fixed" the screen to match my expectation I would have encoded a real
+accounting error and made the suite green. The second was a duration assertion that
+said 365 days when a fiscal year *spans* 364 days between its bounds.
+
+Direction now comes from `MovementReason.isReceipt` — the same predicate the
+posting use case keys off, so the screen and the journal cannot disagree about what
+"Sale" means. The one reason whose direction is genuinely open, an adjustment, now
+asks, and only shows that control when the reason is an adjustment.
+
+### 7.35 Asking whether a file is healthy changed the file
+
+`PRAGMA integrity_check` is a read-only question. It was asked through a drift
+`AppDatabase`, and **drift runs `onUpgrade` when it opens a file whose
+`user_version` is behind.** So every `verify()` wrote tables to the file it was
+checking, and `takeBackup` — which opened each concluded year the same way —
+migrated every archived year in place.
+
+That contradicts ADR 002 directly: *concluded years open read-only and are never
+silently modified*. The archived record of a year was being brought up to date by
+the act of backing it up, which destroys the evidence of what it contained.
+
+**The suite was structurally blind to it.** Every test file in this area is created
+through `openFileDatabase`, so its `user_version` is already current and drift has
+nothing to migrate. Worse, a test asserting "the backup is a usable database"
+**passes on a file the check just modified** — after migration the schema is
+current, so nothing throws on the second open.
+
+Reproducing it needed the real condition: a file whose `user_version` is behind,
+which is what a snapshot from an earlier build actually is. With that, the test
+watches the concluded year go from version 1 to 12 during a backup run.
+
+Both halves now use a **raw read-only `sqlite3` connection**. `VACUUM INTO` writes
+only the destination and never modifies its source, so read-only makes the
+guarantee structural rather than a matter of which statements happen to run.
+
+**Mutation-checked, and the first attempt lied.** Changing `readOnly` to
+`readWrite` left the suite green — read-only turned out to be defence in depth, not
+the load-bearing part. The first mutation I tried **did not apply at all** and the
+suite passed, which is §7.22 again: I only trusted it after printing whether the
+mutation was present. Reverting to the drift connection is caught
+(`Expected: <1>, Actual: <12>`).
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.

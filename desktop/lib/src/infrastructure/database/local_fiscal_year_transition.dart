@@ -30,12 +30,16 @@ class LocalFiscalYearTransition implements FiscalYearTransition {
 
   @override
   Future<void> beginNextYear({
-    required FiscalYear fiscalYear,
+    required FiscalYear nextYear,
     required Map<Account, Money> openingBalances,
   }) async {
     await booksDirectory.create(recursive: true);
 
-    final database = openFileDatabase(_fileFor(fiscalYear));
+    // **The file is named from [nextYear], which is why the parameter is not
+    // called `fiscalYear`.** It was, and passing the year being concluded then
+    // created that year's database instead — reopening a concluded year and
+    // appending an opening entry to it.
+    final database = openFileDatabase(_fileFor(nextYear));
 
     try {
       // The chart first: the opening entry references these accounts, and a
@@ -48,10 +52,10 @@ class LocalFiscalYearTransition implements FiscalYearTransition {
       if (lines.isNotEmpty) {
         await DriftJournalRepository(database).append(
           JournalEntry(
-            id: 'OPEN-${fiscalYear.label}',
-            date: fiscalYear.startDate,
-            description: 'Opening balances carried from ${fiscalYear.label}',
-            reference: 'OPENING-${fiscalYear.label}',
+            id: 'OPEN-${nextYear.label}',
+            date: nextYear.startDate,
+            description: 'Opening balances carried from ${nextYear.label}',
+            reference: 'OPENING-${nextYear.label}',
             lines: lines,
           ),
         );

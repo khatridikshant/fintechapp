@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:path/path.dart' as p;
 
 import '../../domain/shared/book_backup.dart';
@@ -144,7 +145,6 @@ class FileBookBackupService implements BookBackupService {
     final staging = File('${target.path}.staging');
 
     // Two different schema classes, closed the same way.
-    AppDatabase? openedYear;
     BusinessDatabase? openedBusiness;
     try {
       if (await staging.exists()) await staging.delete();
@@ -167,9 +167,26 @@ class FileBookBackupService implements BookBackupService {
             BusinessDatabase(openExecutor(File(year.filePath)));
         await business.customStatement(stagingStatement);
       } else {
-        final app =
-            openedYear = AppDatabase(NativeDatabase(File(year.filePath)));
-        await app.customStatement(stagingStatement);
+        // **A concluded year, on a raw read-only connection.**
+        //
+        // It used to be opened as `AppDatabase(NativeDatabase(File(...)))`. Drift
+        // runs `onUpgrade` when it opens a file whose `user_version` is behind, so
+        // taking a backup silently **migrated every archived year in place** —
+        // contradicting ADR 002, which says a concluded year opens read-only and is
+        // never silently modified, and destroying the evidence of what the file
+        // contained when it was archived.
+        //
+        // `VACUUM INTO` writes only the destination file and never modifies its
+        // source, so it needs no write access at all. Read-only therefore makes the
+        // guarantee structural rather than a matter of which statements run: there
+        // is no code path by which this could write to an archived year.
+        final source =
+            sqlite.sqlite3.open(year.filePath, mode: sqlite.OpenMode.readOnly);
+        try {
+          source.execute(stagingStatement);
+        } finally {
+          source.dispose();
+        }
       }
     } catch (error) {
       if (await staging.exists()) await staging.delete();
@@ -178,7 +195,6 @@ class FileBookBackupService implements BookBackupService {
         cause: error,
       );
     } finally {
-      await openedYear?.close();
       await openedBusiness?.close();
     }
 
@@ -423,16 +439,34 @@ class FileBookBackupService implements BookBackupService {
 
   /// Asks SQLite whether the file is a valid, undamaged database.
   ///
-  /// Opens it with a real connection rather than trusting the header, because a
-  /// truncated or half-written file can still begin with the SQLite magic bytes.
+  /// ## Through a raw connection, deliberately
+  ///
+  /// It used to open an `AppDatabase` and run `customSelect`. Drift runs
+  /// `onUpgrade` when it opens a file whose `user_version` is behind, so **asking
+  /// the question wrote tables** — every `verify()` mutated the file it was
+  /// checking, and a snapshot from an older build was rewritten to the current
+  /// schema before it could be restored. Worse, where the migration could not be
+  /// applied the check simply reported failure, so a perfectly good older snapshot
+  /// was called damaged.
+  ///
+  /// `PRAGMA integrity_check` is a property of the **file**, not of any particular
+  /// schema, so the right way to ask it is with a connection that has no schema
+  /// expectations at all.
+  ///
+  /// ## Opened read-only
+  ///
+  /// Read-only so a check cannot write even if a future change reintroduced a
+  /// statement with a side effect. `PRAGMA query_only` is set on the connection for
+  /// the same reason.
   Future<bool> _integrityCheck(File file) async {
-    final probe = AppDatabase(NativeDatabase(file));
+    final database =
+        sqlite.sqlite3.open(file.path, mode: sqlite.OpenMode.readOnly);
     try {
-      final result =
-          await probe.customSelect('PRAGMA integrity_check').getSingle();
-      return result.data.values.first == 'ok';
+      final result = database.select('PRAGMA integrity_check');
+      final first = result.first.values.first;
+      return first == 'ok';
     } finally {
-      await probe.close();
+      database.dispose();
     }
   }
 

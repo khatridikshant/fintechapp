@@ -8,6 +8,7 @@ import 'package:financeapp/src/domain/accounting/chart_of_accounts.dart';
 import 'package:financeapp/src/domain/accounting/journal_entry.dart';
 import 'package:financeapp/src/domain/accounting/journal_line.dart';
 import 'package:financeapp/src/domain/fiscal/fiscal_year.dart';
+import 'package:financeapp/src/domain/fiscal/nepali_fiscal_calendar.dart';
 import 'package:financeapp/src/domain/shared/money.dart';
 import 'package:financeapp/src/infrastructure/database/app_database.dart';
 import 'package:financeapp/src/infrastructure/database/drift_account_repository.dart';
@@ -27,11 +28,15 @@ import 'package:flutter_test/flutter_test.dart';
 /// old year with no record of it on the server — which is the one failure this
 /// feature exists to prevent.
 void main() {
-  final year = FiscalYear(
-    label: 'FY 2082/83',
-    start: DateTime(2026, 7),
-    end: DateTime(2027, 7),
-  );
+  /// The year under test, **taken from the calendar** rather than hand-written.
+  ///
+  /// It was `FiscalYear(label: 'FY 2082/83', start: DateTime(2026, 7), end:
+  /// DateTime(2027, 7))`, which is wrong: the real FY 2082/83 runs 17 Jul 2025 to
+  /// 16 Jul 2026. A fictional fiscal year made the whole suite validate a world
+  /// that does not exist, and is precisely why neither the wrong year handed to
+  /// the transition nor the two-day successor could be seen — the assertions
+  /// lined up with the stub rather than with the application.
+  final year = const NepaliFiscalCalendar().forBsYear(2082);
 
   late AppDatabase db;
   late DriftJournalRepository journal;
@@ -54,7 +59,7 @@ void main() {
     // A year with sales, a cost, and a cash balance, so the closing has work.
     await journal.append(JournalEntry(
       id: 'JE-1',
-      date: DateTime(2026, 9, 1),
+      date: DateTime(2026, 3, 1),
       description: 'Sale',
       lines: <JournalLine>[
         JournalLine.debit(
@@ -69,7 +74,7 @@ void main() {
     ));
     await journal.append(JournalEntry(
       id: 'JE-2',
-      date: DateTime(2026, 9, 2),
+      date: DateTime(2026, 3, 2),
       description: 'Stock cost',
       lines: <JournalLine>[
         JournalLine.debit(
@@ -145,6 +150,64 @@ void main() {
       final outcome = await useCase()() as FiscalYearConcluded;
 
       expect(outcome.nextYear.label, 'FY 2083/84');
+    });
+
+    test('the next year is a real calendar year, not two days of arithmetic',
+        () async {
+      // FY 2082/83 runs 17 Jul 2025 to 16 Jul 2026. FY 2083/84 therefore **starts
+      // the day after 2082/83 ends**, not on the same day, and lasts a year.
+      final outcome = await useCase()() as FiscalYearConcluded;
+
+      expect(outcome.nextYear.startDate, DateTime(2026, 7, 17),
+          reason: 'must begin the day after the closed year ends');
+      expect(outcome.nextYear.endDate, DateTime(2027, 7, 16));
+      expect(
+        outcome.nextYear.endDate.difference(outcome.nextYear.startDate).inDays,
+        anyOf(364, 365),
+        reason:
+            'a fiscal year spans 365 or 366 days inclusive, so 364 or 365 days '
+            'between the bounds. A two-day year would file every document after '
+            'Shrawan into the wrong year.',
+      );
+    });
+  });
+
+  group('which year the transition is asked to create', () {
+    test('it is given the NEXT year, never the one being closed', () async {
+      // **The defect this pins.** `beginNextYear` creates the database named by
+      // the year it is handed. Handing it the year being closed therefore reopens
+      // that concluded year's file read-write and appends the next year's opening
+      // entry into it -- so the archived year holds both the closing entries and an
+      // opening entry, assets are posted twice, `BalanceSheet.assertBalanced()`
+      // throws on every later read of that year, and the next year is never
+      // created at all.
+      await useCase()();
+
+      expect(transition.years, hasLength(1));
+      expect(
+        transition.years.single.label,
+        'FY 2083/84',
+        reason: 'the transition must create the NEXT year',
+      );
+      expect(
+        transition.years.single.label,
+        isNot(year.label),
+        reason: 'creating the year being concluded is what corrupts it',
+      );
+    });
+
+    test('the year created starts when the closed year stops', () async {
+      // The dates must be contiguous. A gap loses transactions; an overlap files
+      // them into two years.
+      await useCase()();
+
+      final created = transition.years.single;
+      expect(created.startDate, DateTime(2026, 7, 17));
+      expect(
+        created.startDate.difference(year.endDate).inDays,
+        1,
+        reason: 'the new year must begin the day after the old one ends',
+      );
     });
   });
 
@@ -324,12 +387,20 @@ class _Archive implements FiscalYearArchive {
 class _Transition implements FiscalYearTransition {
   int calls = 0;
 
+  /// Every year this was asked to create.
+  ///
+  /// **Recorded, not merely counted.** Counting was exactly the gap that let the
+  /// real defect through: the count was right while the year handed over was
+  /// wrong, and counting cannot tell those apart.
+  final List<FiscalYear> years = <FiscalYear>[];
+
   @override
   Future<void> beginNextYear({
-    required FiscalYear fiscalYear,
+    required FiscalYear nextYear,
     required Map<Account, Money> openingBalances,
   }) async {
     calls++;
+    years.add(nextYear);
   }
 }
 
@@ -379,7 +450,7 @@ class _OrderRecordingTransition implements FiscalYearTransition {
 
   @override
   Future<void> beginNextYear({
-    required FiscalYear fiscalYear,
+    required FiscalYear nextYear,
     required Map<Account, Money> openingBalances,
   }) async =>
       order.add('transition');
