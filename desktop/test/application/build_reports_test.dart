@@ -1,4 +1,5 @@
 import 'package:financeapp/src/application/build_reports.dart';
+import 'package:financeapp/src/application/issue_invoice.dart';
 import 'package:financeapp/src/domain/accounting/chart_of_accounts.dart';
 import 'package:financeapp/src/domain/accounting/journal_entry.dart';
 import 'package:financeapp/src/domain/accounting/journal_line.dart';
@@ -22,7 +23,9 @@ import 'package:financeapp/src/infrastructure/database/drift_account_repository.
 import 'package:financeapp/src/infrastructure/database/drift_credit_note_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_customer_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_inventory_repository.dart';
+import 'package:financeapp/src/infrastructure/database/drift_document_number_sequence.dart';
 import 'package:financeapp/src/infrastructure/database/drift_invoice_repository.dart';
+import 'package:financeapp/src/infrastructure/database/drift_unit_of_work.dart';
 import 'package:financeapp/src/infrastructure/database/drift_journal_repository.dart';
 import 'package:financeapp/src/infrastructure/database/sqlite_native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -728,41 +731,43 @@ void main() {
       expect(tax.rateBasisPoints, 1300);
     });
 
-    test('input VAT is zero, because no purchases are recorded yet', () async {
-      // **A real limitation, stated rather than papered over.** There are no
-      // purchase records in the application, so there is nothing to compute input
-      // VAT from. Returning zero is correct: claiming input VAT on purchases that
-      // have never been recorded would be claiming credit for nothing.
+    test('output VAT is what each invoice actually charged', () async {
       final db = openInMemoryDatabase();
       addTearDown(db.close);
-      await seedSales(db);
-
-      final tax = await BuildTaxSummary(
-        fiscalYear: fiscalYear,
-        invoices: DriftInvoiceRepository(db),
-        creditNotes: DriftCreditNoteRepository(db),
-      ).load();
-
-      expect(tax.taxablePurchases.isZero, isTrue);
-      expect(tax.inputVat.isZero, isTrue);
-    });
-
-    test('output VAT follows invoices issued, not money received', () async {
-      // A sale invoiced but unpaid creates output VAT. Waiting for the cash would
-      // understate the liability, and the return would be wrong.
-      final db = openInMemoryDatabase();
-      addTearDown(db.close);
-      final unpaid = invoiceOn(DateTime(2026, 3, 5),
-          lines: [line(1, 10000, description: 'Keyboard')]);
-      await seedBilling(db, invoices: <Invoice>[unpaid]);
-      final invoices = DriftInvoiceRepository(db);
-      await invoices.save(
-        IssuedInvoice(
-          invoice: unpaid,
-          number: DocumentNumber.of(
-              type: DocumentType.invoice, fiscalYear: fiscalYear, sequence: 1),
-        ),
+      // Built through the real posting path, so the VAT in the ledger is the VAT
+      // `IssueInvoice` would really have charged. `seedBilling` creates the
+      // customer, the chart, and the matching journal entries.
+      //
+      // Two invoices at **different rates**. The old report added the subtotals
+      // together and applied 13% once to the total, so the zero-rated invoice was
+      // charged 13% it never bore.
+      final standard = Invoice(
+        id: 'INV-A',
+        issueDate: DateTime(2026, 3, 5),
+        customerId: 'cust-1',
+        vatRateBasisPoints: 1300,
+        lines: <InvoiceLine>[line(1, 10000, description: 'Standard rated')],
       );
+      final zeroRated = Invoice(
+        id: 'INV-B',
+        issueDate: DateTime(2026, 3, 6),
+        customerId: 'cust-1',
+        vatRateBasisPoints: 0,
+        lines: <InvoiceLine>[line(1, 10000, description: 'Zero rated')],
+      );
+      await seedBilling(db, invoices: <Invoice>[standard, zeroRated]);
+      final invoices = DriftInvoiceRepository(db);
+
+      await invoices.save(IssuedInvoice(
+        invoice: standard,
+        number: DocumentNumber.of(
+            type: DocumentType.invoice, fiscalYear: fiscalYear, sequence: 1),
+      ));
+      await invoices.save(IssuedInvoice(
+        invoice: zeroRated,
+        number: DocumentNumber.of(
+            type: DocumentType.invoice, fiscalYear: fiscalYear, sequence: 2),
+      ));
 
       final tax = await BuildTaxSummary(
         fiscalYear: fiscalYear,
@@ -770,9 +775,87 @@ void main() {
         creditNotes: DriftCreditNoteRepository(db),
       ).load();
 
-      expect(tax.outputVat.minorUnits, 130000);
+      // 10,000 at 13% is 1,300. 10,000 at 0% is nothing. Total 1,300.
+      expect(tax.outputVat.minorUnits, 130000,
+          reason: 'the zero-rated invoice must contribute no VAT');
+      expect(tax.taxableSales.minorUnits, 2000000,
+          reason: 'both invoices count towards taxable sales');
     });
 
+    test('the return agrees with the VAT posted to the ledger', () async {
+      // **The property that matters: the return equals the books.**
+      //
+      // Issued through the real `IssueInvoice`, so the VAT credited to account 2020
+      // is the VAT the business actually charged. The report is then compared with
+      // that ledger balance -- not with a second re-derivation, which would only
+      // prove the code agrees with itself.
+      //
+      // **Three five-paisa invoices**, chosen because per-invoice rounding differs
+      // from rounding the aggregate:
+      //
+      //   per invoice: 5 x 13% = 0.65 -> 1 paisa, so 3 x 1 = **3**
+      //   aggregate:  15 x 13% = 1.95 -> **2**
+      //
+      // The old report returned 2. One paisa, which was my first choice, does not
+      // work: 13% of 1 paisa is 0.13, which rounds to nothing.
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      await seedBilling(db);
+
+      final invoiceRepo = DriftInvoiceRepository(db);
+      final useCase = IssueInvoice(
+        fiscalYear: fiscalYear,
+        customers: DriftCustomerRepository(db),
+        numbers: DriftDocumentNumberSequence(db),
+        journal: DriftJournalRepository(db),
+        invoices: invoiceRepo,
+        unitOfWork: DriftUnitOfWork(db),
+      );
+
+      for (var i = 1; i <= 3; i++) {
+        final issued = await useCase(Invoice(
+          id: 'INV-R$i',
+          issueDate: DateTime(2026, 3, i),
+          customerId: 'cust-1',
+          vatRateBasisPoints: 1300,
+          lines: <InvoiceLine>[
+            InvoiceLine(
+              description: 'item',
+              quantity: 1,
+              unitPrice: Money.minor(5, npr),
+            ),
+          ],
+        ));
+        expect(issued, isA<InvoiceIssued>(),
+            reason:
+                'the invoice must be accepted for this test to mean anything');
+      }
+
+      final vatPosted = (await DriftJournalRepository(db).all())
+          .expand((JournalEntry e) => e.lines)
+          .where((JournalLine l) => l.account == ChartOfAccounts.vatPayable)
+          .fold<int>(
+            0,
+            (int sum, JournalLine l) => sum + l.amount.minorUnits,
+          );
+
+      final tax = await BuildTaxSummary(
+        fiscalYear: fiscalYear,
+        invoices: invoiceRepo,
+        creditNotes: DriftCreditNoteRepository(db),
+      ).load();
+
+      // **Hand-computed:** 3 x (5 paisa of sales -> 0.65 -> 1 paisa of VAT) = 3.
+      expect(tax.outputVat.minorUnits, 3,
+          reason: 'per-invoice rounding, not rounding the aggregate');
+
+      expect(
+        tax.outputVat.minorUnits,
+        vatPosted,
+        reason:
+            'the return must equal the VAT posted to 2020, or it cannot be filed',
+      );
+    });
     test('a credit note reduces the period it falls in', () async {
       final db = openInMemoryDatabase();
       addTearDown(db.close);
@@ -811,18 +894,23 @@ void main() {
       expect(march.taxableSales.minorUnits, 1000000);
 
       // April, where the credit note lands but no sale does. The period is **2,000
-      // in credit**: nothing was sold, 2,000 was credited back.
+      // in credit**, and its VAT is a credit too: 2,000 at 13% is 260, reversed.
       //
-      // The negative figure is the honest one. Clamping it to zero would say "no
-      // VAT due" and hide a credit the business is entitled to carry forward, so
-      // the report shows a negative position instead.
+      // Both negatives are the honest ones. Clamping either to zero would say "no
+      // VAT due" and hide a credit the business is entitled to carry forward. This
+      // is the same principle already asserted on `taxableSales` below, applied to
+      // the tax — and the old implementation clamped exactly here, because its
+      // `_vatOn` helper returned 0 for any non-positive input.
       final april = await BuildTaxSummary(
         fiscalYear: fiscalYear,
         invoices: invoices,
         creditNotes: notes,
       ).load(from: DateTime(2026, 4, 1), to: DateTime(2026, 4, 30));
       expect(april.taxableSales.minorUnits, -200000);
-      expect(april.outputVat.minorUnits, 0);
+      expect(april.outputVat.minorUnits, -26000,
+          reason: 'the credit note reversed the VAT it had charged');
+      expect(april.netVatPayable.minorUnits, -26000,
+          reason: 'with no input VAT, a credit position is a refund due');
       expect(april.credits.minorUnits, 200000);
     });
 
@@ -844,8 +932,18 @@ void main() {
     });
 
     test('rounds VAT to whole paisa, half up', () async {
-      // 3,333 paisa at 13% is 433.29 paisa. The return cannot show a fraction of
-      // a paisa, so it rounds to 433.
+      // **Rewritten, deliberately.**
+      //
+      // This used to assert that 3,333 paisa of sales at 13% rounds to 433 -- which
+      // tested the aggregate computation that was itself the defect. Rounding a
+      // rate to whole paisa is now `Money.applyBasisPoints`' job, tested there,
+      // and it happens **per document** because that is where it is applied.
+      //
+      // What matters here is the opposite property: the return reports the figures
+      // it is handed, without recomputing anything. 3333 paisa of sales with 100
+      // paisa of VAT charged is a legitimate position -- a single zero-rated or
+      // reduced-rated document -- and the return must show 100, not a figure
+      // derived from the sales total.
       const threeThousandThreeHundredThirtyThree = 3333;
       final tax = TaxSummary.from(
         taxableSales: <ReportTotal>[
@@ -856,11 +954,16 @@ void main() {
         ],
         taxablePurchases: const <ReportTotal>[],
         credits: const <ReportTotal>[],
-        rateBasisPoints: 1300,
+        outputVatCharged: Money.minor(100, npr),
+        inputVatClaimable: Money.minor(0, npr),
+        standardRateBasisPoints: 1300,
         currency: npr,
       );
 
-      expect(tax.outputVat.minorUnits, 433);
+      expect(tax.outputVat.minorUnits, 100,
+          reason:
+              'the return must show the VAT the documents charged, not a figure '
+              're-derived from the sales total');
     });
 
     test('a business that sold nothing owes no VAT', () async {

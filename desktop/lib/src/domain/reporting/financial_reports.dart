@@ -234,14 +234,40 @@ class TaxSummary {
     required this.credits,
   });
 
-  /// The standard rate the figures were computed at.
+  /// The standard rate, for reference on the return.
+  ///
+  /// **This is no longer the rate the figures are computed at.** It is shown so a
+  /// reader knows the standard rate in force during the period. The actual VAT is
+  /// whatever each document charged, at that document's own rate.
   static const int standardRateBasisPoints = 1300;
 
+  /// Builds the return from figures that have **already been computed**.
+  ///
+  /// ## Why there is no arithmetic in here
+  ///
+  /// This used to take the taxable sales and re-derive VAT at
+  /// [standardRateBasisPoints]. That was wrong three separate ways:
+  ///
+  /// 1. **Rounding.** The books compute VAT per invoice, in integer paisa, with
+  ///    half-up at each document. Rounding once over the aggregate is a different
+  ///    number, and the return therefore **disagreed with the ledger** — which is
+  ///    the one thing a tax return must never do.
+  /// 2. **Rate.** A zero-rated or reduced-rated invoice was charged the standard
+  ///    rate it never bore. Two 10,000 invoices, one standard-rated and one
+  ///    zero-rated, reported 2,600 of VAT against 1,300 actually charged.
+  /// 3. **Type.** The old arithmetic was `double`. `money.dart` states that a
+  ///    monetary figure is never a floating-point value, and this was the one
+  ///    place in the domain that broke it.
+  ///
+  /// Now the caller sums the VAT the documents already carry, so the return equals
+  /// the books **by construction** rather than by agreeing with them.
   factory TaxSummary.from({
     required List<ReportTotal> taxableSales,
     required List<ReportTotal> taxablePurchases,
     required List<ReportTotal> credits,
-    required int rateBasisPoints,
+    required Money outputVatCharged,
+    required Money inputVatClaimable,
+    required int standardRateBasisPoints,
     required String currency,
   }) {
     var sales = 0;
@@ -257,16 +283,17 @@ class TaxSummary {
       credited += line.amount.minorUnits;
     }
 
-    // VAT is computed on the amount **excluding** VAT, and the return shows both.
-    final netSales = sales - credited;
-
+    // Credits are **netted off the sales they reversed, and their VAT comes out of
+    // the output figure with them** -- the caller has already deducted it from
+    // [outputVatCharged]. Deducting the credit's gross again here would charge
+    // VAT on a document that no longer exists.
     return TaxSummary._(
       currency: currency,
-      rateBasisPoints: rateBasisPoints,
-      taxableSales: Money.minor(netSales, currency),
-      outputVat: Money.minor(_vatOn(netSales, rateBasisPoints), currency),
+      rateBasisPoints: standardRateBasisPoints,
+      taxableSales: Money.minor(sales - credited, currency),
+      outputVat: outputVatCharged,
       taxablePurchases: Money.minor(purchases, currency),
-      inputVat: Money.minor(_vatOn(purchases, rateBasisPoints), currency),
+      inputVat: inputVatClaimable,
       credits: Money.minor(credited, currency),
     );
   }
@@ -294,13 +321,6 @@ class TaxSummary {
 
   /// Output VAT less input VAT. **Negative means a refund is due.**
   Money get netVatPayable => outputVat.subtract(inputVat);
-
-  /// VAT is computed in basis points and rounded **half-up once**, so the figure on
-  /// the return is the figure that was stored.
-  static int _vatOn(int netExcludingVat, int rateBasisPoints) {
-    if (netExcludingVat <= 0) return 0;
-    return (netExcludingVat * rateBasisPoints / 10000).round();
-  }
 
   @override
   String toString() =>

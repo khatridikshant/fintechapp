@@ -2205,6 +2205,38 @@ finished code.
   this repository. **See 7.19 before editing any markdown file from a shell.**
 
 ## 6. Next task
+
+> **REVISED PRIORITY, 2026-10-03.** The task below is still the right next piece of
+> feature work, but a full read-only audit found four critical defects ahead of it,
+> all now fixed and recorded as **7.33**-**7.36**. **The order below is no longer what
+> to do first.**
+>
+> **Do these before anything else:**
+>
+> 1. **Commit.** Everything since the company model is uncommitted and `HEAD` still
+>    holds a **damaged `PROGRESS.md`** — see 7.32. Work has already been lost once
+>    today to exactly this.
+> 2. **The backend revision race** — `store()` reads `max(revision) + 1` outside a
+>    transaction and writes the file before the row. Two concurrent uploads both
+>    take revision N, the second overwrite wins, and the row records device A's
+>    checksum over device B's bytes. `download` then returns **409 forever** and the
+>    year has **no restorable copy**, after device A was told "verified and stored".
+>    The code comment claims the sequence prevents this; as written it causes it.
+> 3. **`ConcludeFiscalYear` commits its closing entries before archiving**, then
+>    reports "your books are unchanged" if the archive fails — contradicting its own
+>    contract. Local corruption in the failure path.
+> 4. **Signing in mid-session never enables year conclusion** — `main.dart` captures
+>    `account.upload` once at wiring. The comment directly below it fixes this exact
+>    stale-capture bug for the concluder, but not for the uploader.
+>
+> **Then the divergence task described below**, followed by: `Money.fromMajorUnits`
+> not rounding half-up on every typed amount; registration enumerating emails via
+> the 422 **error keys** despite identical wording; no rate limit or size cap on any
+> authenticated endpoint; `download` buffering the whole file twice; a credit
+> note's VAT rate never checked against its invoice's; report period filters
+> dropping the current day because they compare instants against date-only bounds;
+> and `verify()` recomputing checksums at list time, which makes the uploader's
+> tamper guard unreachable.
 This is the next bounded task, ready to hand to an agent verbatim.
 
 > **Give a signed-in desktop the divergence table, and say plainly when two
@@ -3253,6 +3285,77 @@ the load-bearing part. The first mutation I tried **did not apply at all** and t
 suite passed, which is §7.22 again: I only trusted it after printing whether the
 mutation was present. Reverting to the drift connection is caught
 (`Expected: <1>, Actual: <12>`).
+### 7.36 A tax return that disagreed with the books
+
+The VAT report took the taxable sales and **re-derived the tax at the standard
+rate**. Three separate defects in one expression:
+
+```dart
+return (netExcludingVat * rateBasisPoints / 10000).round();   // double
+```
+
+**1. Rounding.** The books compute VAT per invoice, in integer paisa, half-up at
+each document. Rounding once over the aggregate is a *different number*. Three
+five-paisa invoices at 13% post 1 paisa each — 3 in total — while the aggregate
+15 paisa rounds to 2. **A return that cannot equal the ledger is a return that
+cannot be filed**, and this one could not.
+
+**2. Rate.** `IssueInvoice` supports a per-invoice `vatRateBasisPoints`, including
+zero. The report ignored it and charged the standard rate on everything. Two
+10,000 invoices, one standard-rated and one zero-rated, reported **260,000 of VAT
+against 130,000 actually charged** — exactly double.
+
+**3. Type.** `money.dart` states that a monetary figure is never a floating-point
+value, and this was the single place in the domain that broke the rule. It agreed
+with the integer path for realistic magnitudes, which is why it survived.
+
+Two auditors found this independently, which is the strongest evidence in the
+whole audit — and it is also the argument for **overlapping audits**, because one
+finding a second reader corroborates is far more likely to be real.
+
+`TaxSummary` no longer computes anything. It takes `outputVatCharged` and
+`inputVatClaimable` as figures, and `BuildTaxSummary` sums `invoice.vat` and
+`creditNote.vat` — the exact integers the posting use case already produced, at
+each document's own rate. The return now equals the books **by construction**
+rather than by agreeing with them, and there is no longer a second implementation
+of "what VAT does this sale attract" to drift.
+
+The test that matters issues invoices through the **real `IssueInvoice`**, then
+compares the report with the VAT credited to account 2020. Comparing the report
+against a second re-derivation would only prove the code agrees with itself.
+
+### 7.37 Three of my own expectations were wrong, and each would have made the suite green
+
+The same pattern, three times in one fix, and it is the part worth keeping:
+
+1. **A purchase credits Payable, not COGS.** I asserted buying stock would credit
+   cost of goods sold. It creates a liability to the supplier; COGS is recognised
+   on the *sale*. Matching my expectation would have debited COGS on every
+   delivery and understated profit all year.
+2. **A fiscal year spans 364 days between its bounds.** I asserted 365. It spans
+   365 or 366 days *inclusive*. The assertion was wrong in a way that would have
+   rejected correct calendar data.
+3. **13% of 1 paisa rounds to zero.** My first "distinguishing" test amount was one
+   paisa, on the reasoning that it must expose the per-invoice/aggregate
+   difference. It exposes nothing: 0.13 paisa rounds to nothing, so both methods
+   agree on zero. The amount that actually separates them is **five** paisa —
+   0.65 → 1 each (3 total) against 1.95 → 2.
+
+In each case I was one edit away from adjusting the code until the suite passed,
+which would have converted a wrong belief into an enforced invariant. The rule
+that prevents it: **a failing test is a claim about the domain, and the claim must
+be checked against the accounting before the code is changed** — not after.
+
+A fourth error was caught mid-fix rather than in review: a credit note's **gross**
+total was briefly passed where `taxableSales` is stated excluding VAT,
+understating sales by exactly the VAT credited. The same class of mistake as the
+one being removed, introduced by the fix.
+
+One existing test — "VAT rounds half-up once, so the figure on the return is the
+figure that was stored" — was **asserting the bug**. It tested the aggregate
+computation that had to go, and its comment stated the false property as though it
+were guaranteed. It is rewritten to assert the opposite: the return reports the
+figures it is handed.
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.
@@ -3398,3 +3501,4 @@ build output; deleting them breaks the migration tests.
 | 2026-10-01 | **Customer identity decided and recorded: a random internal id plus a separate sequential business code** (`C-0001`), chosen by the owner after being offered a single sequential identifier and a name-based key. Recorded in **ADR 010**. **This closes the open question in 7.16** — ids must not collide if two installations ever sync, and a random id cannot, so that risk is closed now rather than after data exists. **Duplicate detection came from the PAN, not the name**: a unique index on `pan_number` is the one key that cannot produce a false collision, because two businesses cannot share a PAN, whereas a Nepali name repeats and changes on marriage — making it identity would repoint history. Also **fixed a duplication I had introduced myself**: a new `Party` type sat alongside the existing `Customer`, which already covered the same ground and was wired into `IssueInvoice`, `RecordPayment`, and three test files; `Party` is deleted and its PAN and VAT handling folded into `Customer`. |
 | 2026-10-02 | **Built the four remaining reports: cash flow, sales, stock held, and VAT.** These were the last four navigation entries in `ui.txt` still showing as dead placeholders. A cash statement is **deliberately not derivable from the profit and loss report** and the two are *supposed* to disagree: a sale on credit moves no cash and a payment of an old invoice is cash without a sale, so the statement reads only the bank and cash accounts, and it is derived from the chart of accounts rather than from hardcoded account ids, so a business that adds a second cash box is covered without a code change. Output VAT follows **invoices issued, not cash received**, because waiting for the cash would understate the liability. **Input VAT is zero, and that is recorded as a limitation rather than hidden**: there are no purchase records in the application at all, so there is nothing to compute input VAT from, and a figure that merely looked computed would be worse than a stated gap. Sales and VAT credit notes are **subtracted, not ignored**, since a credit note reduces what has been sold on exactly the documents a business issues when something has gone wrong. VAT is computed on the amount **excluding** VAT and rounds half-up once, in paisa. A credit note landing in a period with no sales yields a **negative** taxable figure rather than being clamped to zero, because clamping would hide a credit the business is entitled to carry forward. One screen serves all four, and the four navigation entries each open it on its own report. **Two real defects surfaced on the way, both found by tests rather than review.** `AppServices.forSession` and `forAccount` — the two methods that rebuild the whole service bundle — **silently dropped five declared fields** (`createProduct`, `postMovement`, `issueCreditNote`, `postEntry`, `concludeYear`), so changing fiscal year or signing in quietly removed the catalogue, stock, credit-note, journal and year-end screens from the navigation; nothing failed and all tests passed. `test/presentation/app_services_test.dart` now asserts every field by name, because the fix is not the five lines but the test that makes the next omission a **named** failure (recorded as **7.26**). And `BuildCashFlow` with no date range read every entry as one undifferentiated period, which put the **opening-balance entry into "received"** — opening cash Rs 0.00 and received Rs 120,000.00, where the truth was Rs 100,000 and Rs 20,000. The closing figure stayed correct throughout, so **every use-case test passed**; only a widget test that printed the screen could see it. Defaulting the period to the fiscal year exposed the second half: the opening entry is dated *on* the first day rather than the day before, so `openingIncludesBoundary` now states that boundary for the whole-year view, while an explicit caller-supplied range keeps the strict rule (**7.27**). Inventory deliberately got no year boundary, because stock is a balance as at today and the opening entry is exactly what makes that balance correct — filtering it would have been the change that looked like a fix and was not. The presentation-layer architecture test caught the new domain import and it was **added to the allowlist with its justification** rather than the import being worked around. 34 new tests, 889 total, analyze clean, Windows debug build green. |
 | 2026-10-02 | **Built the company model, and lost 628 lines of this file doing it.** Two things happened, and the second is the one that matters. First: the four missing reports (cash flow, sales, stock held, VAT) — these were the last dead navigation entries in `ui.txt`. A cash statement is **deliberately not derivable from profit and loss** and the two are *supposed* to disagree, because a credit sale moves no cash and a payment of an old invoice is cash without a sale. Output VAT follows **invoices issued, not cash received**. **Input VAT is zero and that is recorded as a limitation, not hidden**: no purchase records exist in the application at all. Second: a concluded year is **immutable** (`PRAGMA query_only`), so every snapshot of it is byte-identical and the extras are duplicates rather than history — `ConcludedFiscalYearPruner` now keeps the newest revision and deletes the rest, **after** re-hashing the survivor on disk, tombstoning the rows rather than deleting them, and running **after** the fiscal transition so the server can never hold a closed year this computer still allows editing. Three real defects surfaced: `AppServices.forSession`/`forAccount` **silently dropped five declared fields**, so changing year or signing in removed the catalogue, stock, credit-note, journal and year-end screens from the navigation with nothing failing; `BuildCashFlow` with no date range put the **opening-balance entry into "received"** — opening Rs 0.00 against a truth of Rs 100,000 — and the closing figure stayed correct throughout, so **every use-case test passed** and only a widget test could see it; and `AppServices` needed a `company_id` because **a company is a legal entity, not the person signing in**, which is what lets an owner and an accountant exist at all. Both were found by tests, and both are recorded with mutation checks in 7.26, 7.27 and 7.31. The live-database migration then produced the finding no test could: `username NOT NULL` with no backfill **passed all 60 tests and failed against 19 real accounts**, because `RefreshDatabase` migrates an *empty* schema — **a migration is only tested against a database that already contains data** (7.28). Two more PostgreSQL-only failures followed (`HAVING` on an aggregate alias, `split_part`), fixed by backfilling in chunked PHP so one code path serves both drivers. **And then I destroyed this document.** Rewriting section 6, the PowerShell slice had a start index greater than its end index — which PowerShell does not reject, it walks descending, so the "range" returned two lines and everything between section 6 and section 8 was dropped: **the `## 7` heading and entries 7.1 through 7.28, the accumulated discoveries of many sessions.** The write succeeded, the file stayed valid UTF-8, and no test reads this file, so nothing complained. It was found only because the next command printed the section-6 text and `## 7.` was not in it, and recovered only because the lost content was in `git show HEAD` — **the discoveries were committed but the edits on top of them were not**. A descending slice is a silent delete; build replacements as `head + new + tail` and **compare before/after line counts**, because a write reporting success is not evidence of a correct write. Restored and re-applied with verified bounds: 3,299 lines, entries 1–32 with no gaps or duplicates, ascending, all sections present. Also built: `Divergence`/`SyncComparison` classifying all four drift cases from three checksums rather than revision numbers, 14 tests, mutation-verified — and the discovery that `needsAttention` was true for `localOnly`, which is wrong, because prompting a user to confirm work with no alternative teaches them to ignore the prompt (7.31). 912 Dart tests, 60 Laravel tests, both analyzers clean. |
+| 2026-10-02 | **Fixed three critical accounting defects and a VAT return that disagreed with the books.** Found by four read-only audits run in parallel over the whole application; **not one defect was caught by a test**, and several sat in cases where a test asserted something adjacent to the real behaviour. **(1) Concluding a fiscal year destroyed that year's books.** `beginNextYear` names the database file from the year it is handed, and was handed the year being **closed** — so the concluded year's file was reopened read-write and given the next year's opening entry, dated a year before its own closing entry. By hand: assets 4,360,000 against liabilities and equity 2,180,000, so `BalanceSheet.assertBalanced()` threw on every later read of that year, and the next year was never created at all. Survived because the fake counted invocations and never asserted **which** year it received; it now records them. Fixing it exposed two more: `_nextYear` was `endDate + one day`, a two-day year starting the day the old one ends, and the test fixture declared `FY 2082/83` as 2026-07→2027-07 when the real one is 2025-07-17→2026-07-16 — **the suite was validating a year that does not exist**, which is why neither bug was visible. **(2) The Stock Movement screen always posted a receipt**, whatever reason was chosen. Recording a *sale* credited cost of goods sold instead of debiting it, raised stock, raised profit by the value of the goods, and recognised no revenue — and there was no way to record an issue at all, so the one reason that posts COGS was unreachable from the application. Everything balanced; the entry was well formed and meant the opposite of what was asked. Direction now comes from `MovementReason.isReceipt`, the same predicate the posting use case keys off. **(3) Verifying a backup rewrote it.** `PRAGMA integrity_check` is a read-only question, asked through a drift `AppDatabase`, and drift migrates on open — so every `verify()` wrote tables, and taking a backup migrated every **concluded year in place**, contradicting ADR002's "never silently modified". The suite was structurally blind: every test file is created through `openFileDatabase` so `user_version` is already current, and a test asserting "the backup is usable" passes *on a file the check just modified*. Both halves now use a raw read-only connection. **(4) The VAT return could not be filed.** It re-derived tax in `double`, on the aggregate, at a flat 13%, while the books compute per invoice in integer paisa at each document's own rate. Per-invoice rounding ≠ aggregate rounding, and a zero-rated invoice was charged 13%: two 10,000 invoices reported 260,000 against 130,000 charged. Two auditors found this independently, which is the best-evidenced finding in the audit and the argument for overlapping audits. `TaxSummary` now computes nothing — it takes the figures `BuildTaxSummary` sums from `invoice.vat` — so the return equals the ledger **by construction** and there is no second implementation of the VAT rule to drift. Recorded as **7.33–7.37**, including **7.37**: three of my own expectations were wrong (a purchase credits Payable not COGS; a fiscal year spans 364 days between bounds; 13% of 1 paisa rounds to zero, so my first distinguishing amount proved nothing), and each was one edit away from making the suite green by making the code match a wrong belief. An existing test was **asserting the bug** — it tested the aggregate computation being removed and its comment stated the false property as guaranteed. Mutation-checked each fix; the read-only flag proved to be defence in depth rather than load-bearing, and one mutation **did not apply** and still reported green, so the verification prints whether the break landed (§7.22, fourth occurrence). 928 Dart tests, 60 Laravel tests, both analyzers clean. **Still uncommitted, and `HEAD` holds a damaged `PROGRESS.md`.** |

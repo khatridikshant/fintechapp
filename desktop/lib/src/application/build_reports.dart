@@ -245,26 +245,48 @@ class BuildTaxSummary {
 
     // Output VAT is on invoices issued, not on money received, so a customer
     // paying in instalments creates no extra output VAT.
+    //
+    // **Each document's own VAT, summed.** Not the subtotal with one rate applied
+    // to the total, which is what this used to do: rounding once over an aggregate
+    // disagrees with rounding once per document, and a zero-rated invoice was
+    // charged the standard rate. Summing what each invoice actually charged makes
+    // the return equal the ledger by construction.
     var salesExcludingVat = 0;
+    var outputVatCharged = 0;
     for (final record in issued) {
       if (!inRange(record.invoice.issueDate)) continue;
       salesExcludingVat += record.invoice.subtotal.minorUnits;
+      outputVatCharged += record.invoice.vat.minorUnits;
     }
 
     // **No purchase records exist yet**, so there is nothing to compute input VAT
     // from. Zero, rather than a figure that merely looks computed.
     const purchasesExcludingVat = 0;
 
+    // A credit note reverses the VAT it charged, so it comes out of the output
+    // figure here. Using the note's own `vat` rather than a rate applied to its
+    // total means a credit against a zero-rated invoice removes nothing, which is
+    // correct.
+    //
+    // The list below carries the note's **net** amount, because `taxableSales` is
+    // stated excluding VAT and the two must be on the same footing. Subtracting a
+    // gross figure from a net one would understate sales by exactly the VAT that
+    // was credited — which is the same class of mistake this whole change exists
+    // to remove.
+    var creditVatReversed = 0;
     final credits = <ReportTotal>[];
     for (final note in credited) {
       if (!inRange(note.creditNote.date)) continue;
-      var total = 0;
+      creditVatReversed += note.creditNote.vat.minorUnits;
+      var net = 0;
       for (final line in note.creditNote.lines) {
-        total += line.lineTotal.minorUnits;
+        net += line.lineTotal.minorUnits;
       }
       credits.add(
         ReportTotal(
-            label: note.number.value, amount: Money.minor(total, currency)),
+          label: note.number.value,
+          amount: Money.minor(net, currency),
+        ),
       );
     }
 
@@ -285,7 +307,12 @@ class BuildTaxSummary {
               ),
             ],
       credits: credits,
-      rateBasisPoints: rateBasisPoints,
+      outputVatCharged:
+          Money.minor(outputVatCharged - creditVatReversed, currency),
+      // **Zero, and honestly so.** There is no purchase side to claim input VAT
+      // from, so claiming any would be claiming credit for nothing.
+      inputVatClaimable: Money.minor(0, currency),
+      standardRateBasisPoints: rateBasisPoints,
       currency: currency,
     );
   }
