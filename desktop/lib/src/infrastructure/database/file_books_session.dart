@@ -341,6 +341,10 @@ class FileBooksSession implements BooksSession {
         // The seller's details are stamped onto the invoice, so the stored
         // document carries what was printed on it.
         sellers: DriftBusinessProfileRepository(_businessDb),
+        // **Always supplied.** An invoice naming a product must issue that stock
+        // and post the derived cost of sales; without this the sale would be
+        // recorded while the goods stayed on hand.
+        inventory: DriftInventoryRepository(_database),
       );
 
   /// This business's own details, in the **separate** `business.db`.

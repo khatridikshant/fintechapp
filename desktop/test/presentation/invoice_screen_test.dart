@@ -9,6 +9,7 @@ import 'package:financeapp/src/domain/billing/document_number.dart';
 import 'package:financeapp/src/domain/billing/document_number_sequence.dart';
 import 'package:financeapp/src/domain/billing/document_type.dart';
 import 'package:financeapp/src/domain/billing/invoice.dart';
+import 'package:financeapp/src/domain/inventory/inventory_repository.dart';
 import 'package:financeapp/src/domain/billing/invoice_line.dart';
 import 'package:financeapp/src/domain/shared/money.dart';
 import 'package:financeapp/src/domain/billing/invoice_repository.dart';
@@ -36,7 +37,7 @@ class _FakeIssueInvoice implements IssueInvoice {
   );
 
   /// `IssueInvoice` is a class with dependencies. Each is a stub that throws if
-  /// touched, because nothing under test reaches them — the screen only hands the
+  /// touched, because nothing under test reaches them â€” the screen only hands the
   /// use case an invoice.
   @override
   final CustomerRepository customers = _UnusedCustomerRepo();
@@ -57,13 +58,16 @@ class _FakeIssueInvoice implements IssueInvoice {
   final BusinessProfileRepository? sellers = null;
 
   @override
+  final InventoryRepository? inventory = null;
+
+  @override
   FiscalYear get fiscalYear => _year;
 
   /// A journal entry for a fake to hand back.
   ///
   /// **Balanced, and at least two lines.** `JournalEntry` refuses an unbalanced or
   /// single-line entry, so a stub with no lines throws *inside the use case*, and
-  /// the screen then correctly reports a problem instead of the issued number — which
+  /// the screen then correctly reports a problem instead of the issued number â€” which
   /// looks exactly like a screen bug and is not one.
   JournalEntry _balancedEntry(Invoice invoice) => JournalEntry(
         id: IssuedInvoice.journalEntryIdFor(invoice),
@@ -87,7 +91,14 @@ class _FakeIssueInvoice implements IssueInvoice {
       );
 
   @override
-  JournalEntry journalEntryFor(Invoice invoice, DocumentNumber number) =>
+  /// The `costOfGoodsSold` argument is accepted and ignored: the screen never
+  /// passes it, and a fake that did not declare it would no longer satisfy the
+  /// interface after sale-to-stock added it.
+  JournalEntry journalEntryFor(
+    Invoice invoice,
+    DocumentNumber number, {
+    Money? costOfGoodsSold,
+  }) =>
       _balancedEntry(invoice);
 
   @override
