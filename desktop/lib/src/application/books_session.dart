@@ -3,6 +3,7 @@ import '../domain/shared/book_backup_service.dart';
 import 'build_general_ledger.dart';
 import '../domain/accounting/account_repository.dart';
 import 'build_profit_and_loss.dart';
+import 'build_receivables.dart';
 import 'load_chart_of_accounts.dart';
 import 'build_reports.dart';
 import 'build_trial_balance.dart';
@@ -115,6 +116,13 @@ abstract interface class BooksSession {
   /// Read-only, and built on the **stored** accounts so an account the business
   /// added appears rather than being invisible while still being postable.
   ChartOfAccountsLoader get chartOfAccounts;
+
+  /// Who owes what.
+  ///
+  /// **Read-only.** Derived from invoices, payments and credit notes that already
+  /// exist, so nothing here can drift from the invoice screens -- it uses the
+  /// same InvoiceBalance.
+  ReceivablesLoader get receivables;
   ProfitAndLossLoader get profitAndLoss;
 
   /// The Balance Sheet for the open year.

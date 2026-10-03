@@ -11,6 +11,7 @@ import '../screens/stock_movement_screen.dart';
 import '../screens/invoice_screen.dart';
 import '../screens/payment_screen.dart';
 import '../screens/profit_and_loss_screen.dart';
+import '../screens/receivables_screen.dart';
 import '../screens/product_screen.dart';
 import '../screens/financial_reports_screen.dart';
 import '../screens/chart_of_accounts_screen.dart';
@@ -166,7 +167,14 @@ List<NavigationGroup> buildNavigation(
                   CustomerScreen(createCustomer: services.createCustomer!),
         ),
         NavigationItem(
-            title: 'Receivables', icon: Icons.account_balance_wallet_outlined),
+          title: 'Receivables',
+          icon: Icons.account_balance_wallet_outlined,
+          route: services.receivables == null
+              ? null
+              : (context) => ReceivablesScreen(
+                    receivables: services.receivables!,
+                  ),
+        ),
       ],
     ),
     NavigationGroup(

@@ -11,6 +11,7 @@ import '../application/record_payment.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
 import '../application/build_profit_and_loss.dart';
+import '../application/build_receivables.dart';
 import '../application/load_chart_of_accounts.dart';
 import '../application/build_reports.dart';
 import '../application/build_trial_balance.dart';
@@ -44,6 +45,7 @@ class AppServices {
     this.concludeYear,
     this.cashFlow,
     this.chartOfAccounts,
+    this.receivables,
     this.dashboardTrialBalance,
     this.profitAndLoss,
     this.balanceSheet,
@@ -127,6 +129,9 @@ class AppServices {
   /// The chart of accounts for the open year.
   final ChartOfAccountsLoader? chartOfAccounts;
 
+  /// Who owes what. Null when the books expose no invoices.
+  final ReceivablesLoader? receivables;
+
   /// The trial-balance totals the dashboard shows.
   ///
   /// A **narrow interface**, not the whole loader, so the dashboard depends on
@@ -185,6 +190,7 @@ class AppServices {
         concludeYear: concludeYear,
         cashFlow: session.cashFlow,
         chartOfAccounts: session.chartOfAccounts,
+        receivables: session.receivables,
         dashboardTrialBalance: BuildTrialBalanceTotals(session.trialBalance),
         profitAndLoss: session.profitAndLoss,
         balanceSheet: session.balanceSheet,
@@ -221,6 +227,7 @@ class AppServices {
         inventoryReport: inventoryReport,
         tax: tax,
         chartOfAccounts: chartOfAccounts,
+        receivables: receivables,
         dashboardTrialBalance: dashboardTrialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,

@@ -13,6 +13,7 @@ import '../../application/record_payment.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
 import '../../application/build_profit_and_loss.dart';
+import '../../application/build_receivables.dart';
 import '../../application/load_chart_of_accounts.dart';
 import '../../domain/accounting/account_repository.dart';
 import '../../application/build_reports.dart';
@@ -181,6 +182,15 @@ class FileBooksSession implements BooksSession {
   /// so this costs nothing and matches every other loader on this session.
   @override
   AccountRepository get accounts => DriftAccountRepository(_database);
+
+  @override
+  @override
+  ReceivablesLoader get receivables => BuildReceivables(
+        invoices: DriftInvoiceRepository(_database),
+        payments: DriftPaymentRepository(_database),
+        creditNotes: DriftCreditNoteRepository(_database),
+        customers: DriftCustomerRepository(_database),
+      );
 
   @override
   ChartOfAccountsLoader get chartOfAccounts =>
