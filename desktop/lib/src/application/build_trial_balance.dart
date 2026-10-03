@@ -1,6 +1,7 @@
 import '../domain/accounting/journal_repository.dart';
 import '../domain/fiscal/fiscal_year.dart';
 import '../domain/reporting/trial_balance.dart';
+import '../domain/shared/money.dart';
 import '../domain/shared/currency.dart';
 
 /// A trial balance together with the period it covers.
@@ -109,4 +110,41 @@ class BuildTrialBalance implements TrialBalanceLoader {
       to: to,
     );
   }
+}
+
+/// Narrows [TrialBalanceLoader] to the two totals the dashboard shows.
+///
+/// **Reads through TrialBalanceReport.trialBalance**, because the report is a
+/// wrapper carrying the period's dates alongside the figures, and the dashboard needs
+/// only the totals.
+///
+/// A **narrow interface on purpose**: the dashboard asks for two `Money` values
+/// and never sees a report it does not render. Declared here, beside the loader it
+/// narrows, rather than in the screen — a port belongs to the layer that implements
+/// it, and `docs/AI_RULES.md` forbids presentation reaching past a use case.
+abstract interface class TrialBalanceTotals {
+  /// Total debits posted in the period.
+  Future<Money> loadTotalDebits();
+
+  /// Total credits posted in the period.
+  ///
+  /// **Equal to the debits by construction**, because every entry balances. A
+  /// dashboard showing one and calling it "the ledger" is accurate; showing both
+  /// would be noise that invites a reader to wonder whether they differ.
+  Future<Money> loadTotalCredits();
+}
+
+/// [TrialBalanceTotals] over the whole report.
+class BuildTrialBalanceTotals implements TrialBalanceTotals {
+  const BuildTrialBalanceTotals(this._loader);
+
+  final TrialBalanceLoader _loader;
+
+  @override
+  Future<Money> loadTotalDebits() async =>
+      (await _loader.load()).trialBalance.totalDebits;
+
+  @override
+  Future<Money> loadTotalCredits() async =>
+      (await _loader.load()).trialBalance.totalCredits;
 }

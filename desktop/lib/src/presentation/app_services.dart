@@ -44,6 +44,7 @@ class AppServices {
     this.concludeYear,
     this.cashFlow,
     this.chartOfAccounts,
+    this.dashboardTrialBalance,
     this.profitAndLoss,
     this.balanceSheet,
     this.sales,
@@ -126,6 +127,12 @@ class AppServices {
   /// The chart of accounts for the open year.
   final ChartOfAccountsLoader? chartOfAccounts;
 
+  /// The trial-balance totals the dashboard shows.
+  ///
+  /// A **narrow interface**, not the whole loader, so the dashboard depends on
+  /// the two figures it renders rather than on a report it does not display.
+  final TrialBalanceTotals? dashboardTrialBalance;
+
   final ProfitAndLossLoader? profitAndLoss;
 
   /// The Balance Sheet.
@@ -178,6 +185,7 @@ class AppServices {
         concludeYear: concludeYear,
         cashFlow: session.cashFlow,
         chartOfAccounts: session.chartOfAccounts,
+        dashboardTrialBalance: BuildTrialBalanceTotals(session.trialBalance),
         profitAndLoss: session.profitAndLoss,
         balanceSheet: session.balanceSheet,
         sales: session.sales,
@@ -213,6 +221,7 @@ class AppServices {
         inventoryReport: inventoryReport,
         tax: tax,
         chartOfAccounts: chartOfAccounts,
+        dashboardTrialBalance: dashboardTrialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,
       );

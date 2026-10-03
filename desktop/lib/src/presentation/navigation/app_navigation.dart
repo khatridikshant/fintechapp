@@ -14,6 +14,7 @@ import '../screens/profit_and_loss_screen.dart';
 import '../screens/product_screen.dart';
 import '../screens/financial_reports_screen.dart';
 import '../screens/chart_of_accounts_screen.dart';
+import '../screens/dashboard_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
@@ -66,7 +67,23 @@ List<NavigationGroup> buildNavigation(
       title: 'Overview',
       sections: <NavigationItem>[
         NavigationItem(
-            title: 'Dashboard', icon: Icons.space_dashboard_outlined),
+          title: 'Dashboard',
+          icon: Icons.space_dashboard_outlined,
+          // **Every loader present, or no route.** A dashboard missing one figure
+          // would render a partial landing screen, and a partial landing screen is
+          // worse than none — it looks like the state of the business.
+          route: services.dashboardTrialBalance == null ||
+                  services.profitAndLoss == null ||
+                  services.balanceSheet == null
+              ? null
+              : (context) => DashboardScreen(
+                    trialBalance: services.dashboardTrialBalance!,
+                    profitAndLoss: services.profitAndLoss!,
+                    balanceSheet: services.balanceSheet!,
+                    fiscalYearLabel:
+                        services.session?.openYear.fiscalYear.label,
+                  ),
+        ),
       ],
     ),
     NavigationGroup(
