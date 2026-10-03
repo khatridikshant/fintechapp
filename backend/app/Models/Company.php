@@ -49,6 +49,23 @@ class Company extends Model
     }
 
     /**
+     * The licences held for this business.
+     *
+     * Normally one, but not constrained to one: a `licences` table rather than
+     * columns on `companies` is what lets a licence be suspended or revoked
+     * without deleting the history of what was granted.
+     */
+    public function licences(): HasMany
+    {
+        return $this->hasMany(Licence::class);
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

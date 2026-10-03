@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BackupRevisionController;
+use App\Http\Controllers\Api\LicenceAuthorisationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -81,4 +82,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // slugging it and having to unslug it, which would be a second way to be wrong.
     Route::post('/books/{book}/fiscal-years/conclude', [BackupRevisionController::class, 'concludeYear'])
         ->name('api.fiscal-years.conclude');
+
+    // The signed licence authorisation for a desktop installation.
+    //
+    // **Throttled separately and more tightly than the auth routes**, because this
+    // is a signing endpoint: it can be called repeatedly to harvest valid,
+    // long-lived, signed claims for the caller's own book. Six a minute matches the
+    // sign-in rate; a licence needs refreshing far less often than that, so the
+    // limit costs a real user nothing.
+    Route::get('/books/{book}/licence-authorisation', [LicenceAuthorisationController::class, 'show'])
+        ->middleware('throttle:6,1')
+        ->name('api.licence.authorisation');
 });
