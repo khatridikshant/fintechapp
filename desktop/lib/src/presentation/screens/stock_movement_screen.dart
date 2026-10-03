@@ -36,6 +36,22 @@ enum StockDirection {
 }
 
 /// The form for recording goods arriving or leaving.
+///
+/// ## Why the content is width-constrained
+///
+/// Without a maximum, the three fields stretched the full width of a desktop
+/// window — a 1,400-pixel input line is hard to scan, and the eye loses its place
+/// crossing it. Constraining the form and centring it keeps the labels, the inputs
+/// and the button in one readable column whatever the window size.
+///
+/// The widest the form is allowed to get.
+///
+/// Wide enough for a currency amount to sit comfortably, narrow enough that the
+/// eye does not have to travel across the window to check a label against its
+/// value. Roughly the width of the Business-details form.
+const double stockMovementFormMaxWidth = 720;
+
+/// The form for recording goods arriving or leaving.
 class StockMovementScreen extends StatefulWidget {
   const StockMovementScreen({super.key, required this.postMovement});
 
@@ -240,149 +256,165 @@ class _StockMovementScreenState extends State<StockMovementScreen> {
     final palette = context.palette;
     final textTheme = Theme.of(context).textTheme;
 
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: <Widget>[
-        Text('Record stock', style: textTheme.headlineSmall),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Stock arriving, or written off. The value is what the stock is worth, '
-          'not a price you type per unit.',
-          style: textTheme.bodySmall,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        if (_done != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: palette.canvas,
-                border: Border.all(color: palette.positive),
-                borderRadius: BorderRadius.circular(AppRadius.control),
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: stockMovementFormMaxWidth),
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          children: <Widget>[
+            Text('Record stock', style: textTheme.headlineSmall),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              // **Both directions.** This used to say "Stock arriving, or written
+              // off", which described half the form. Since the direction is taken
+              // from the chosen reason, the screen records goods leaving just as
+              // often as goods arriving, and telling a user who is recording a
+              // sale that they are receiving stock is simply wrong.
+              'Stock arriving or leaving, or written off. The value is what the '
+              'stock is worth, not a price you type per unit.',
+              style: textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (_done != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: palette.canvas,
+                    border: Border.all(color: palette.positive),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.check_circle_outline,
+                          size: 18, color: palette.positive),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(_done!, style: textTheme.bodyMedium),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: Row(
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.check_circle_outline,
-                      size: 18, color: palette.positive),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(_done!, style: textTheme.bodyMedium),
+                  TextFormField(
+                    key: const ValueKey<String>('movement-product-field'),
+                    controller: _product,
+                    enabled: !_busy,
+                    autocorrect: false,
+                    decoration: const InputDecoration(labelText: 'Product'),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    key: const ValueKey<String>('movement-quantity-field'),
+                    controller: _quantity,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity',
+                      helperText: 'Whole units',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextFormField(
+                    key: const ValueKey<String>('movement-value-field'),
+                    controller: _value,
+                    enabled: !_busy,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Total value',
+                      helperText: 'What this quantity is worth, in total.',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // **One label, not two.** There used to be a `Why` heading here with
+                  // the dropdown's own `Reason` label directly beneath it, so the user
+                  // read "Why" and "Reason" as two separate things. The field's own
+                  // label is the one that stays: it sits with the control it names and
+                  // it is what every other field on this screen does.
+                  //
+                  // A dropdown, not a switch: there are several reasons and only the
+                  // user knows which applies.
+                  DropdownButtonFormField<MovementReason>(
+                    key: const ValueKey<String>('movement-reason-field'),
+                    initialValue: _reason,
+                    decoration: const InputDecoration(labelText: 'Reason'),
+                    items: <DropdownMenuItem<MovementReason>>[
+                      for (final reason in MovementReason.values)
+                        DropdownMenuItem<MovementReason>(
+                          value: reason,
+                          child: Text(reason.label),
+                        ),
+                    ],
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _reason = value),
+                  ),
+
+                  // **Only for a reason whose direction is genuinely open.**
+                  //
+                  // Shown for an adjustment alone: a stock count can find a surplus or
+                  // a shortage, whereas "Sale" already means the goods left. Offering
+                  // this control for every reason would let the user contradict the
+                  // meaning of the word they just picked, and the resulting movement
+                  // would be well formed and wrong.
+                  if (_reason == MovementReason.adjustment) ...<Widget>[
+                    const SizedBox(height: AppSpacing.md),
+                    SegmentedButton<StockDirection>(
+                      key: const ValueKey<String>('movement-direction-field'),
+                      segments: const <ButtonSegment<StockDirection>>[
+                        ButtonSegment<StockDirection>(
+                          value: StockDirection.arriving,
+                          label: Text('Found more'),
+                        ),
+                        ButtonSegment<StockDirection>(
+                          value: StockDirection.leaving,
+                          label: Text('Found fewer'),
+                        ),
+                      ],
+                      selected: <StockDirection>{_direction},
+                      onSelectionChanged: _busy
+                          ? null
+                          : (Set<StockDirection> selected) =>
+                              setState(() => _direction = selected.first),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+
+                  FilledButton.icon(
+                    key: const ValueKey<String>('movement-post-button'),
+                    onPressed: _busy ? null : _post,
+                    icon: _busy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.inventory_outlined, size: 18),
+                    label: const Text('Record stock'),
                   ),
                 ],
               ),
             ),
-          ),
-        Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              TextFormField(
-                key: const ValueKey<String>('movement-product-field'),
-                controller: _product,
-                enabled: !_busy,
-                autocorrect: false,
-                decoration: const InputDecoration(labelText: 'Product'),
-              ),
+            if (_problem != null) ...<Widget>[
               const SizedBox(height: AppSpacing.md),
-              TextFormField(
-                key: const ValueKey<String>('movement-quantity-field'),
-                controller: _quantity,
-                enabled: !_busy,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Quantity',
-                  helperText: 'Whole units',
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextFormField(
-                key: const ValueKey<String>('movement-value-field'),
-                controller: _value,
-                enabled: !_busy,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Total value',
-                  helperText: 'What this quantity is worth, in total.',
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-
-              Text('Why', style: textTheme.labelSmall),
-              const SizedBox(height: AppSpacing.xs),
-              // A dropdown, not a switch: there are several reasons and only the
-              // user knows which applies.
-              DropdownButtonFormField<MovementReason>(
-                key: const ValueKey<String>('movement-reason-field'),
-                initialValue: _reason,
-                decoration: const InputDecoration(labelText: 'Reason'),
-                items: <DropdownMenuItem<MovementReason>>[
-                  for (final reason in MovementReason.values)
-                    DropdownMenuItem<MovementReason>(
-                      value: reason,
-                      child: Text(reason.label),
-                    ),
-                ],
-                onChanged:
-                    _busy ? null : (value) => setState(() => _reason = value),
-              ),
-
-              // **Only for a reason whose direction is genuinely open.**
-              //
-              // Shown for an adjustment alone: a stock count can find a surplus or
-              // a shortage, whereas "Sale" already means the goods left. Offering
-              // this control for every reason would let the user contradict the
-              // meaning of the word they just picked, and the resulting movement
-              // would be well formed and wrong.
-              if (_reason == MovementReason.adjustment) ...<Widget>[
-                const SizedBox(height: AppSpacing.md),
-                SegmentedButton<StockDirection>(
-                  key: const ValueKey<String>('movement-direction-field'),
-                  segments: const <ButtonSegment<StockDirection>>[
-                    ButtonSegment<StockDirection>(
-                      value: StockDirection.arriving,
-                      label: Text('Found more'),
-                    ),
-                    ButtonSegment<StockDirection>(
-                      value: StockDirection.leaving,
-                      label: Text('Found fewer'),
-                    ),
-                  ],
-                  selected: <StockDirection>{_direction},
-                  onSelectionChanged: _busy
-                      ? null
-                      : (Set<StockDirection> selected) =>
-                          setState(() => _direction = selected.first),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-
-              FilledButton.icon(
-                key: const ValueKey<String>('movement-post-button'),
-                onPressed: _busy ? null : _post,
-                icon: _busy
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.inventory_outlined, size: 18),
-                label: const Text('Record stock'),
+              Text(
+                _problem!,
+                style: textTheme.bodyMedium?.copyWith(color: palette.error),
               ),
             ],
-          ),
+          ],
         ),
-        if (_problem != null) ...<Widget>[
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            _problem!,
-            style: textTheme.bodyMedium?.copyWith(color: palette.error),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
