@@ -1,6 +1,7 @@
 import '../domain/fiscal/fiscal_year.dart';
 import '../domain/shared/book_backup_service.dart';
 import 'build_general_ledger.dart';
+import 'build_profit_and_loss.dart';
 import 'build_reports.dart';
 import 'build_trial_balance.dart';
 import 'create_customer.dart';
@@ -97,6 +98,17 @@ abstract interface class BooksSession {
 
   /// The VAT figures. **Input VAT is always zero**, because there are no purchase
   /// records yet, so this is not yet a complete return.
+  /// The Profit and Loss statement for the open year.
+  ///
+  /// **Read-only**, so it is safe on a concluded year.
+  ProfitAndLossLoader get profitAndLoss;
+
+  /// The Balance Sheet for the open year.
+  ///
+  /// **Read-only.** Its loader asserts the statement balances before returning,
+  /// so a year whose books do not reconcile reports a failure rather than a
+  /// statement whose sides disagree.
+  BalanceSheetLoader get balanceSheet;
   BuildTaxSummary get tax;
 
   /// Opens [fiscalYear], closing whatever was open, and builds its use cases.

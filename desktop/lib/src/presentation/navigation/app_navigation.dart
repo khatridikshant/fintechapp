@@ -10,6 +10,7 @@ import '../screens/journal_entry_screen.dart';
 import '../screens/stock_movement_screen.dart';
 import '../screens/invoice_screen.dart';
 import '../screens/payment_screen.dart';
+import '../screens/profit_and_loss_screen.dart';
 import '../screens/product_screen.dart';
 import '../screens/financial_reports_screen.dart';
 import '../screens/general_ledger_screen.dart';
@@ -189,8 +190,28 @@ List<NavigationGroup> buildNavigation(
     NavigationGroup(
       title: 'Reports',
       sections: <NavigationItem>[
-        NavigationItem(title: 'Profit & Loss', icon: Icons.show_chart_outlined),
-        NavigationItem(title: 'Balance Sheet', icon: Icons.assignment_outlined),
+        NavigationItem(
+          title: 'Profit & Loss',
+          icon: Icons.show_chart_outlined,
+          route: services.profitAndLoss == null
+              ? null
+              : (context) => ProfitAndLossScreen(
+                    profitAndLoss: services.profitAndLoss!,
+                    fiscalYearLabel:
+                        services.session?.openYear.fiscalYear.label,
+                  ),
+        ),
+        NavigationItem(
+          title: 'Balance Sheet',
+          icon: Icons.assignment_outlined,
+          route: services.balanceSheet == null
+              ? null
+              : (context) => BalanceSheetScreen(
+                    balanceSheet: services.balanceSheet!,
+                    fiscalYearLabel:
+                        services.session?.openYear.fiscalYear.label,
+                  ),
+        ),
         // The four reports below are built. They share one screen, and each entry
         // opens it on its own report, so the navigation reads the way `ui.txt`
         // describes while only one widget exists.

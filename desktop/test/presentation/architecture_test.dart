@@ -135,6 +135,13 @@ void main() {
         // type; loading and saving it goes through `BusinessDetails`.
         'domain/billing/business_profile.dart',
         'domain/accounting/account.dart',
+        // `ProfitAndLoss` and `BalanceSheet`: the two statements rendered by
+        // `profit_and_loss_screen.dart`. **Value types only** — the screen names them
+        // to read `netResult`, `totalAssets` and the line lists, and computes nothing.
+        // Same rule as the entries above: the figures come from `BuildProfitAndLoss`
+        // and `BuildBalanceSheet`, and the balance assertion lives in the use case.
+        'domain/reporting/profit_and_loss.dart',
+        'domain/reporting/balance_sheet.dart',
         'domain/reporting/general_ledger.dart',
         // `CashFlow`, `SalesSummary`, `InventorySummary`, `TaxSummary` and
         // `ReportTotal`: the four remaining reports, which the screen has to name in

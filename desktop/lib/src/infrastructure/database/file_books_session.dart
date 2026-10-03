@@ -12,6 +12,7 @@ import '../../application/post_journal_entry.dart';
 import '../../application/record_payment.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
+import '../../application/build_profit_and_loss.dart';
 import '../../application/build_reports.dart';
 import '../../application/build_trial_balance.dart';
 import '../../domain/accounting/chart_of_accounts.dart';
@@ -168,6 +169,23 @@ class FileBooksSession implements BooksSession {
         inventory: DriftInventoryRepository(_database),
       );
 
+  @override
+
+  /// Built fresh on each access, like every other loader here, so a report can
+  /// never be left holding a repository bound to a year since concluded.
+  @override
+  ProfitAndLossLoader get profitAndLoss => BuildProfitAndLoss(
+        fiscalYear: _openYear.fiscalYear,
+        journal: DriftJournalRepository(_database),
+        chart: const ChartOfAccounts().all,
+      );
+
+  @override
+  BalanceSheetLoader get balanceSheet => BuildBalanceSheet(
+        fiscalYear: _openYear.fiscalYear,
+        journal: DriftJournalRepository(_database),
+        chart: const ChartOfAccounts().all,
+      );
   @override
   BuildTaxSummary get tax => BuildTaxSummary(
         fiscalYear: _openYear.fiscalYear,

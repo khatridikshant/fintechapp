@@ -10,6 +10,7 @@ import '../application/create_product.dart';
 import '../application/record_payment.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
+import '../application/build_profit_and_loss.dart';
 import '../application/build_reports.dart';
 import '../application/build_trial_balance.dart';
 import '../domain/shared/book_backup_service.dart';
@@ -41,6 +42,8 @@ class AppServices {
     this.postEntry,
     this.concludeYear,
     this.cashFlow,
+    this.profitAndLoss,
+    this.balanceSheet,
     this.sales,
     this.inventoryReport,
     this.tax,
@@ -114,6 +117,18 @@ class AppServices {
   /// than as a screen. The shell decides how to present them; this layer only
   /// says what it is allowed to ask for.
   final BuildCashFlow? cashFlow;
+
+  /// The Profit and Loss statement.
+  ///
+  /// Null when the books expose no journal, which is what the navigation tests for.
+  final ProfitAndLossLoader? profitAndLoss;
+
+  /// The Balance Sheet.
+  ///
+  /// **Its loader asserts that the statement balances** before returning, so a
+  /// sheet that cannot be produced surfaces as a failure rather than as a
+  /// statement whose sides disagree.
+  final BalanceSheetLoader? balanceSheet;
   final BuildSalesSummary? sales;
   final BuildInventorySummary? inventoryReport;
 
@@ -157,6 +172,8 @@ class AppServices {
         // it is built in the composition root. See `main.dart`.
         concludeYear: concludeYear,
         cashFlow: session.cashFlow,
+        profitAndLoss: session.profitAndLoss,
+        balanceSheet: session.balanceSheet,
         sales: session.sales,
         inventoryReport: session.inventoryReport,
         tax: session.tax,
@@ -189,5 +206,7 @@ class AppServices {
         sales: sales,
         inventoryReport: inventoryReport,
         tax: tax,
+        profitAndLoss: profitAndLoss,
+        balanceSheet: balanceSheet,
       );
 }
