@@ -1,7 +1,9 @@
 import '../domain/fiscal/fiscal_year.dart';
 import '../domain/shared/book_backup_service.dart';
 import 'build_general_ledger.dart';
+import '../domain/accounting/account_repository.dart';
 import 'build_profit_and_loss.dart';
+import 'load_chart_of_accounts.dart';
 import 'build_reports.dart';
 import 'build_trial_balance.dart';
 import 'create_customer.dart';
@@ -101,6 +103,18 @@ abstract interface class BooksSession {
   /// The Profit and Loss statement for the open year.
   ///
   /// **Read-only**, so it is safe on a concluded year.
+  /// The accounts stored in the open year.
+  ///
+  /// **Read-only for display.** The chart is seeded when the year is created, and
+  /// `LoadChartOfAccounts` reads it so an account the business added appears
+  /// rather than being invisible while still being postable.
+  AccountRepository get accounts;
+
+  /// The chart of accounts, grouped for reading.
+  ///
+  /// Read-only, and built on the **stored** accounts so an account the business
+  /// added appears rather than being invisible while still being postable.
+  ChartOfAccountsLoader get chartOfAccounts;
   ProfitAndLossLoader get profitAndLoss;
 
   /// The Balance Sheet for the open year.

@@ -11,6 +11,7 @@ import '../application/record_payment.dart';
 import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
 import '../application/build_profit_and_loss.dart';
+import '../application/load_chart_of_accounts.dart';
 import '../application/build_reports.dart';
 import '../application/build_trial_balance.dart';
 import '../domain/shared/book_backup_service.dart';
@@ -42,6 +43,7 @@ class AppServices {
     this.postEntry,
     this.concludeYear,
     this.cashFlow,
+    this.chartOfAccounts,
     this.profitAndLoss,
     this.balanceSheet,
     this.sales,
@@ -121,6 +123,9 @@ class AppServices {
   /// The Profit and Loss statement.
   ///
   /// Null when the books expose no journal, which is what the navigation tests for.
+  /// The chart of accounts for the open year.
+  final ChartOfAccountsLoader? chartOfAccounts;
+
   final ProfitAndLossLoader? profitAndLoss;
 
   /// The Balance Sheet.
@@ -172,6 +177,7 @@ class AppServices {
         // it is built in the composition root. See `main.dart`.
         concludeYear: concludeYear,
         cashFlow: session.cashFlow,
+        chartOfAccounts: session.chartOfAccounts,
         profitAndLoss: session.profitAndLoss,
         balanceSheet: session.balanceSheet,
         sales: session.sales,
@@ -206,6 +212,7 @@ class AppServices {
         sales: sales,
         inventoryReport: inventoryReport,
         tax: tax,
+        chartOfAccounts: chartOfAccounts,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,
       );

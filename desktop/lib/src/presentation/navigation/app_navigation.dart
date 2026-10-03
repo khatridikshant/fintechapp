@@ -13,6 +13,7 @@ import '../screens/payment_screen.dart';
 import '../screens/profit_and_loss_screen.dart';
 import '../screens/product_screen.dart';
 import '../screens/financial_reports_screen.dart';
+import '../screens/chart_of_accounts_screen.dart';
 import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
@@ -79,7 +80,16 @@ List<NavigationGroup> buildNavigation(
               : (context) => JournalEntryScreen(postEntry: services.postEntry!),
         ),
         NavigationItem(
-            title: 'Chart of Accounts', icon: Icons.account_tree_outlined),
+          title: 'Chart of Accounts',
+          icon: Icons.account_tree_outlined,
+          route: services.chartOfAccounts == null
+              ? null
+              : (context) => ChartOfAccountsScreen(
+                    chartOfAccounts: services.chartOfAccounts!,
+                    fiscalYearLabel:
+                        services.session?.openYear.fiscalYear.label,
+                  ),
+        ),
         NavigationItem(
           title: 'General Ledger',
           icon: Icons.vertical_split_outlined,

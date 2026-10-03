@@ -13,6 +13,8 @@ import '../../application/record_payment.dart';
 import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
 import '../../application/build_profit_and_loss.dart';
+import '../../application/load_chart_of_accounts.dart';
+import '../../domain/accounting/account_repository.dart';
 import '../../application/build_reports.dart';
 import '../../application/build_trial_balance.dart';
 import '../../domain/accounting/chart_of_accounts.dart';
@@ -174,12 +176,24 @@ class FileBooksSession implements BooksSession {
   /// Built fresh on each access, like every other loader here, so a report can
   /// never be left holding a repository bound to a year since concluded.
   @override
+
+  /// **Freshly built on each access.** DriftAccountRepository is stateless,
+  /// so this costs nothing and matches every other loader on this session.
+  @override
+  AccountRepository get accounts => DriftAccountRepository(_database);
+
+  @override
+  ChartOfAccountsLoader get chartOfAccounts =>
+      LoadChartOfAccounts(accounts: DriftAccountRepository(_database));
+
+  @override
   ProfitAndLossLoader get profitAndLoss => BuildProfitAndLoss(
         fiscalYear: _openYear.fiscalYear,
         journal: DriftJournalRepository(_database),
         chart: const ChartOfAccounts().all,
       );
 
+  @override
   @override
   BalanceSheetLoader get balanceSheet => BuildBalanceSheet(
         fiscalYear: _openYear.fiscalYear,
