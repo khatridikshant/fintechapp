@@ -2237,6 +2237,50 @@ finished code.
 > dropping the current day because they compare instants against date-only bounds;
 > and `verify()` recomputing checksums at list time, which makes the uploader's
 > tamper guard unreachable.
+
+> **SCREEN INVENTORY, verified 2026-10-03. Read this before planning UI work.**
+>
+> Measured by matching every navigation title against the screen actually
+> constructed for it in `app_navigation.dart`. **An earlier, wrong version of this
+> list claimed Chart of Accounts, Payments and Licences were built. They were not** —
+> see the correction at the end.
+>
+> **Eight of twenty-four navigation entries do not open a real screen.**
+>
+> | Nav entry | State | What is actually missing |
+> | --- | --- | --- |
+> | **Dashboard** | **no screen** | No `DashboardScreen` exists, and the shell does not render one itself. The landing screen is a placeholder. |
+> | **Chart of Accounts** | **no screen** | No screen. The `Account` domain type and the chart exist; nothing renders the list of accounts, and **there is no way to see or edit the chart at all**. |
+> | **Receivables** | **no screen** | No screen. Customer balances are derivable from existing invoices and payments. |
+> | **Purchases** | **no screen and no domain** | No screen, **and no purchase invoice, supplier entity, or purchase posting path**. This is the same gap that makes **input VAT always zero**: there is nothing for the VAT return to read. |
+> | **Payments** | **no screen** | No screen. `PaymentScreen` exists and is wired to **Receipts**; the Payments entry itself has no route. |
+> | **Profit & Loss** | **no screen** | `ProfitAndLossReport` is built and tested. **Only the screen is missing.** |
+> | **Balance Sheet** | **no screen** | `BalanceSheet` is built, and `assertBalanced()` already guards it. **Only the screen is missing.** |
+> | **Licences** | **built but not wired** | `LicensesScreen` exists and is referenced **nowhere**. A finished screen that was never connected to navigation. |
+>
+> **Recommended order, by value per hour:**
+>
+> 1. **Licences** — one line of wiring. It is already built and already required:
+>    MIT and BSD-3 both require the copyright notice to be retained, so
+>    `AI_RULES.md` obliges the application to expose a reachable licences screen.
+>    **The obligation is currently unmet because the screen cannot be reached.**
+> 2. **Profit & Loss, then Balance Sheet** — report types already exist and are
+>    tested. Screens only, no domain work. Two dead entries closed for the price of
+>    two renderers.
+> 3. **Chart of Accounts** — the data exists and the gap is visible: a user cannot
+>    see which accounts their books use.
+> 4. **Receivables** — reads data that already exists.
+> 5. **Purchases** — last, and separately. It is a new domain aggregate rather than
+>    a screen, it deserves an ADR like the company model did, and **it is the only
+>    item on this list that changes what the VAT return can honestly claim**.
+> 6. **Dashboard, Payments** — lowest value. Neither is required for correctness.
+>
+> **A caution about measuring this.** A first pass used a lookahead heuristic over
+> the navigation source and reported Purchases, Suppliers and Payables as routed.
+> All three are not. The list above was rebuilt by matching nav titles against
+> constructed screens, and it is still **static analysis of one file** — worth five
+> minutes of clicking through the running application before anyone plans a week
+> around it.
 This is the next bounded task, ready to hand to an agent verbatim.
 
 > **Give a signed-in desktop the divergence table, and say plainly when two

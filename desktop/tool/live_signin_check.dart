@@ -28,6 +28,21 @@ import 'package:flutter_test/flutter_test.dart';
 /// The passphrase the check registers with. Long enough to satisfy the policy.
 const _password = 'a-long-enough-passphrase';
 
+/// A unique stamp, shared by the username, the email and the PAN.
+///
+/// Declared once: rebuilding it inline in each expression lets two of them
+/// disagree by a microsecond, which registers two companies on one PAN and looks
+/// exactly like a working uniqueness constraint.
+final int stamp = DateTime.now().microsecondsSinceEpoch;
+
+/// Nine digits from [seed], always exactly nine.
+///
+/// `pan` is `size:9` and unique. **Padding rather than slicing guarantees the
+/// length** -- an earlier version built eight digits and threw a `RangeError`,
+/// which looked like a server rejection and was not.
+String _panFrom(int seed) =>
+    (800000000 + (seed % 100000000)).toString().padLeft(9, '0');
+
 void main() {
   final serverUrl = _serverFromEnvironment();
 
@@ -57,8 +72,14 @@ void main() {
       },
       body: jsonBody(<String, Object?>{
         'name': 'Live Check',
-        'email': 'live-signin-${DateTime.now().microsecondsSinceEpoch}'
-            '@example.com',
+        'email': 'live-signin-$stamp@example.com',
+        // Required since ADR 011 (companies and usernames). Supplied here so this
+        // check exercises the **current** contract; omitting them once made it fail
+        // for a reason that had nothing to do with sign-in.
+        'username': 'live-signin-$stamp',
+        'company_name': 'Live Check Traders',
+        'company_pan': _panFrom(stamp),
+        'vat_registered': false,
         'password': _password,
         'password_confirmation': _password,
         'device_name': 'live-check',

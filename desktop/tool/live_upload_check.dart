@@ -28,6 +28,22 @@ import 'package:financeapp/src/infrastructure/sync/http_backup_uploader.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+/// A unique stamp for this run, shared by the username, email and PAN.
+///
+/// Declared once: rebuilding it inline in each expression lets two of them
+/// disagree by a microsecond, which registers two companies on one PAN and looks
+/// exactly like a working uniqueness constraint.
+final int stamp = DateTime.now().microsecondsSinceEpoch + 1;
+
+/// Nine digits from [seed], always exactly nine.
+///
+/// `pan` is `size:9` and unique, so this has to be nine characters and has to
+/// differ per run. **Padding rather than slicing is what guarantees the length:**
+/// an earlier version built eight digits and threw a `RangeError` from
+/// `'000'.substring(0, 8)`, which looked like a server rejection and was not.
+String _panFrom(int seed) =>
+    (800000000 + (seed % 100000000)).toString().padLeft(9, '0');
+
 void main() {
   final server = Platform.environment['FINANCEAPP_SERVER'];
 
@@ -58,10 +74,16 @@ void main() {
       },
       body: <List<int>>[
         utf8.encode(
-          jsonEncode(<String, String>{
+          jsonEncode(<String, Object?>{
+            // Required since ADR 011. See `live_signin_check.dart` for why these
+            // are supplied, and why the stamp is declared once rather than being
+            // rebuilt in each expression.
+            'username': 'live-upload-$stamp',
+            'company_name': 'Live Check Traders',
+            'company_pan': _panFrom(stamp),
+            'vat_registered': false,
             'name': 'Live Check',
-            'email':
-                'live-${DateTime.now().microsecondsSinceEpoch}@example.com',
+            'email': 'live-$stamp@example.com',
             'password': 'a-long-enough-passphrase',
             'password_confirmation': 'a-long-enough-passphrase',
             'device_name': 'live-check',
