@@ -12,6 +12,7 @@ import '../application/books_session.dart';
 import '../application/build_general_ledger.dart';
 import '../application/build_profit_and_loss.dart';
 import '../application/build_receivables.dart';
+import '../application/transfer_cash.dart';
 import '../application/load_chart_of_accounts.dart';
 import '../application/build_reports.dart';
 import '../application/build_trial_balance.dart';
@@ -46,6 +47,7 @@ class AppServices {
     this.cashFlow,
     this.chartOfAccounts,
     this.receivables,
+    this.transferCash,
     this.dashboardTrialBalance,
     this.profitAndLoss,
     this.balanceSheet,
@@ -132,6 +134,9 @@ class AppServices {
   /// Who owes what. Null when the books expose no invoices.
   final ReceivablesLoader? receivables;
 
+  /// Moving money between cash accounts. Null when there is no open journal.
+  final TransferCash? transferCash;
+
   /// The trial-balance totals the dashboard shows.
   ///
   /// A **narrow interface**, not the whole loader, so the dashboard depends on
@@ -191,6 +196,7 @@ class AppServices {
         cashFlow: session.cashFlow,
         chartOfAccounts: session.chartOfAccounts,
         receivables: session.receivables,
+        transferCash: session.transferCash,
         dashboardTrialBalance: BuildTrialBalanceTotals(session.trialBalance),
         profitAndLoss: session.profitAndLoss,
         balanceSheet: session.balanceSheet,
@@ -228,6 +234,7 @@ class AppServices {
         tax: tax,
         chartOfAccounts: chartOfAccounts,
         receivables: receivables,
+        transferCash: transferCash,
         dashboardTrialBalance: dashboardTrialBalance,
         profitAndLoss: profitAndLoss,
         balanceSheet: balanceSheet,

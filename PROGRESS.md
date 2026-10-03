@@ -1,6 +1,6 @@
 # Development Progress
 
-**Last updated:** 2026-09-29
+**Last updated:** 2026-10-03
 **Project:** financeapp
 **Current gate:** 3 — SQLite persistence and atomicity
 **Gate status:** Complete. Accounts and journal entries persist to SQLite, an
@@ -2257,47 +2257,31 @@ finished code.
 > treat it as a strong starting point rather than gospel, and click through the
 > running application before committing a week to it.
 >
-> ### Not built — **three** entries, down from eight
+> ### Not built — **two** entries, down from eight
 >
 > | Nav entry | What is missing |
 > | --- | --- |
-> | **Purchases** | No screen **and no domain** — no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**: there is nothing for the VAT return to read. **Worth an ADR** like the company model, and it is the only entry here that changes what the VAT return can honestly claim. |
-> | **Transfers** | No screen. |
-> | **Sync** | No screen. |
+> | **Purchases** | **Started: `docs/decisions/012-purchases-and-input-credit.md` exists.** No screen and no domain yet — no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**, and therefore the reason the VAT return is currently half a return. ADR 012 fixes the shape before any code: a supplier mirrors ADR 010's customer pattern (random `id`, separate `S-0001` code, **PAN a genuine unique key under a partial index**, **name explicitly not a key**), a missing supplier PAN is a **recorded cash-cost warning rather than a soft one** per `NEPALI_BILLING.md`, purchase documents get **their own type and sequence** under ADR 005 while numbering **stays gap-free** or CBMS certification becomes impossible, a zero-rated purchase **omits the VAT line rather than posting a zero**, and the rate stays on `NepalTaxRules` because the Finance Act changes it annually. |
+> | **Purchases** | No screen **and no domain** — no purchase invoice, no supplier entity, no posting path. This is the reason **input VAT is always zero**: there is nothing for the VAT return to read. **Worth an ADR** like the company model, and the only entry here that changes what the VAT return can honestly claim. |
+> | **Sync** | No screen. The divergence work described above is the prerequisite; a Sync screen with nothing to sync would be worse than none. |
 >
-> **Receivables** (2026-10-03) — `BuildReceivables` in
-> `application/build_receivables.dart`, rendered by `receivables_screen.dart`. Three
-> decisions in it worth recording, because each one could reasonably have been
-> got wrong in the direction of a plausible-looking number:
+> **Transfers** (2026-10-03) — `TransferCash` in `application/transfer_cash.dart`,
+> rendered by `transfer_screen.dart`. **The design point is a refusal.** The
+> Journal screen will post any balanced entry, including `Dr Office Rent / Cr Bank` —
+> mechanically valid, balances, and a completely different event from moving money
+> between two tills, but on a two-box form the two look identical. So `TransferCash`
+> enforces one rule structurally: **both sides must be a cash account.** A
+> "transfer" landing on an expense is a miscategorisation, and it must not be
+> recordable here and look like housekeeping. There are tests at both levels — the
+> domain refuses it, and **the dropdown does not offer it**, so someone who never
+> triggers a refusal still cannot make the mistake.
 >
-> - **It uses `InvoiceBalance`, the same helper the invoice screens use.** A second
->   implementation here would eventually disagree with the first, and the user would be
->   left deciding which is right.
-> - **VAT is inside the figure, and described as owed by the customer.** The customer
->   owes the whole invoice, tax included — but the tax is owed to the authority rather
->   than by the customer. Showing the invoice total is correct; calling it "money owed to
->   the business" would invite chasing the wrong money.
-> - **A credit balance is kept out of the receivable.** Where credit notes exceed an
->   invoice, the *customer* is owed the difference. Netted against the receivable it
->   would read as a debt the customer does not owe, so it is shown separately.
+> It posts through [postEntry] rather than writing a journal entry itself, so a
+> transfer is validated, balanced, range-checked and written in a transaction
+> **exactly as any other entry would be.** A transfer gets no special treatment
+> that could make it behave differently from the ledger it lands in.
 >
-> **Age, not overdue.** `Invoice` records no due date, so the screen says how old each
-> debt is rather than how late it is. "Overdue" would be a claim the data cannot
-> support, and there is a test asserting the word never appears.
->
-> **The failure state is the point of one test.** A receivables report that rendered as
-> "nothing owed" when it could not be read would be worse than no report at all: a user
-> would conclude the business is paid up and act on it. So the failure path is explicit,
-> and a test asserts the word "nothing" never appears when loading failed.
->
-> **Dashboard** (2026-10-03) — the landing screen, which until then was a placeholder.
-> It shows the result for the period, total assets, and the total posted to the
-> ledger, each read from a report that already exists and is already tested. **It
-> invents nothing**: there is a test asserting the screen names the figures it
-> deliberately does not show, because a number derived *only* for a summary is a
-> number nothing else validates and it will drift from the statement it came from
-> unnoticed. Each tile also loads independently, so a balance sheet that cannot be
-> produced does not blank the landing screen.
+> ### Built and wired
 >
 > ### Built and wired
 >
@@ -3475,7 +3459,690 @@ figure that was stored" — was **asserting the bug**. It tested the aggregate
 computation that had to go, and its comment stated the false property as though it
 were guaranteed. It is rewritten to assert the opposite: the return reports the
 figures it is handed.
-### 7.38 Reading the contract after breaking it
+### 7.38 App overview — complete codebase walkthrough
+
+**Read from:** every `.dart` file in `desktop/lib/src/`, read line by line.
+This section documents what the application does, what every file contains, and
+how the pieces fit together. It is the longest single piece of documentation in
+this repository and is the reference for any future agent working on any part of
+the codebase.
+
+---
+
+## What the application is
+
+`financeapp` is an **offline-first desktop business management application** for
+small Nepali businesses. It provides:
+
+- **Double-entry accounting** — every transaction balances; the journal is the
+  single source of truth; balances are derived, never stored.
+- **Invoicing** — sales invoices with Nepali VAT compliance (Rule 17 tax invoice
+  and Rule 17(Ka) abbreviated retail invoice), document numbering, credit notes.
+- **Payments** — recording payments against invoices, settling receivables.
+- **Inventory** — moving weighted average costing, negative stock blocked,
+  write-down to lower of cost and net realisable value, stock movements posted to
+  the ledger.
+- **Customers** — random internal ids, sequential business codes, PAN tracking.
+- **Financial reporting** — Trial Balance, General Ledger, Profit & Loss, Balance
+  Sheet, Cash Flow, Sales Summary, Inventory Summary, VAT Summary.
+- **Fiscal year management** — one SQLite database per fiscal year (Shrawan to
+  Ashadh), concluded years read-only, year-end closing with opening balances.
+- **Backup and restore** — verified local snapshots via `VACUUM INTO`, upload to
+  Laravel cloud backend.
+- **Cloud identity** — Laravel Sanctum tokens, protected OS credential storage.
+
+**The backend is a Laravel 13 API** providing identity, books metadata, backup
+storage, and (eventually) licensing and sync. It is never on the path of a
+normal business operation.
+
+**Technology stack:**
+- Desktop: Flutter 3.47.5 / Dart 3.13.4, BSD-3 licence
+- Local database: SQLite via drift 2.31.0, MIT
+- Backend: Laravel 13, PHP 8.4, MIT
+- Cloud metadata: PostgreSQL 17, PostgreSQL Licence
+- Token storage: `crossvault` (Windows Credential Manager, DPAPI-backed)
+
+---
+
+## Layer architecture
+
+```
+presentation  ->  application  ->  domain
+                                   ^
+                                   |
+                             infrastructure
+```
+
+Dependencies point inward only. The domain imports nothing from the other layers.
+The UI never touches the database directly.
+
+---
+
+## DOMAIN LAYER — Pure business rules
+
+The domain layer contains all business logic, entities, value objects, and
+interfaces. It imports nothing from any other layer.
+
+### `domain/shared/` — Cross-cutting primitives
+
+**`money.dart`** — The foundation of the entire financial system. `Money` stores
+amounts as **integer minor units (paisa)**, never as `double` or `num`. This
+eliminates binary floating-point rounding errors. Key members:
+
+- `Money.minor(int, currency)` — primary constructor from paisa
+- `Money.fromMajorUnits(num, currency)` — convert from rupees
+- `Money.tryParse(String, currency)` — parse user input like `"1,250,000.50"`
+- `add`, `subtract`, `negated`, `abs` — arithmetic, refuses currency mixing
+- `times(int)` — multiply by whole quantity, exactly
+- `timesFraction(numerator, denominator)` — fractional quantity, rounds half-up
+- `applyBasisPoints(int)` — percentages for tax/discount (2500 bp = 25%)
+- `allocate(int parts)` — split without losing/gaining paisa
+- `sum(Iterable<Money>, currency)` — sum a list
+- `format()` — display with thousands separators, two decimals, sign before symbol
+
+**`currency.dart`** — `bookCurrency = 'NPR'`. V1 is single-currency per book.
+
+**`unit_of_work.dart`** — `UnitOfWork` port. Makes a business operation atomic
+across multiple repositories. `run` executes work inside a single database
+transaction; nesting joins the outer transaction.
+
+**`sign_in.dart`** — `SignInStatus` (signedIn, rejected, invalidServer,
+unreachable), `SignInResult`, `SignInException`.
+
+**`auth_service.dart`** — `AuthActions` port: `signIn`, `signOut`. Sign-out
+never throws — local session cleared regardless of network state.
+
+**`credential_store.dart`** — `CredentialStore` port. Persists session between
+runs. Never holds the password. Returns null for missing/unreadable sessions.
+
+**`book_upload.dart`** — `BackendSession` (server address, token, book id —
+deliberately no password), `UploadStatus` enum, `UploadResult`, `UploadRecord`,
+`UploadException`.
+
+**`book_upload_service.dart`** — `UploadActions` port. `canUpload` derived from
+session usability. `upload` returns result rather than throwing for server
+answers. Local snapshot never modified.
+
+**`book_backup.dart`** — `BookBackup` (verified snapshot with SHA-256),
+`BackupVerification`, `BackupException`.
+
+**`book_backup_service.dart`** — `BackupActions` (narrow) and `BookBackupService`.
+`knownYears`, `takeBackup` (all years), `listBackups`, `verify`. Adds
+`latestBackup` and `restore`.
+
+**`book_year.dart`** — `BookYear` (fiscal year's books in the folder),
+`BackupFailure`, `BackupRun` (`isComplete` when no failures).
+
+**`backup_download.dart`** — `DownloadedBackup`, `DownloadRefusal` enum,
+`BackupDownloader` port.
+
+### `domain/accounting/` — Double-entry bookkeeping engine
+
+**`account_type.dart`** — `NormalBalance` enum (debit, credit) and `AccountType`
+enum (asset, liability, equity, income, expense). `normalBalance` getter:
+assets/expenses → debit; liabilities/equity/income → credit. `isBalanceSheet`:
+asset, liability, equity (carry forward). `isProfitAndLoss`: income, expense
+(closed at year-end).
+
+**`account.dart`** — `Account` with id (String, permanent identity), code
+(String, e.g. `1010`), name, type. **Accounts do NOT store balances** — balances
+are derived from posted journal lines by `Ledger`. Equality is by `id` only, so
+renaming cannot break existing journal references.
+
+**`journal_line.dart`** — `JournalLine`, constructible only via `.debit()` or
+`.credit()` with strictly positive amount. Enforces "never both and never neither"
+by construction. `opposite` getter returns the line on the other side.
+
+**`journal_entry.dart`** — `JournalEntry`, enforces balance invariant in
+constructor (total debits == total credits). Immutable once constructed.
+`reverse()` creates cancellation entry. Requires at least 2 lines. `currency`
+taken from first line.
+
+**`journal_repository.dart`** — `JournalRepository` port. `append` is atomic —
+entry and all lines written together or nothing.
+
+**`ledger.dart`** — `Ledger` read model. Balances derived from posted lines,
+never stored. `debitTotalOf`, `creditTotalOf`, `balanceOf` — balance expressed
+in account's natural direction.
+
+**`chart_of_accounts.dart`** — The **fixed, hand-written** chart of accounts for
+a small Nepali business. 19 accounts across all five types:
+
+- Assets (1xxx): Bank 1010, Cash 1020, Accounts Receivable 1030, Inventory 1040,
+  Office Equipment 1050
+- Liabilities (2xxx): Accounts Payable 2010, VAT Payable 2020, Loans Payable 2030
+- Equity (3xxx): Owner's Equity 3010, Drawings 3020, Retained Earnings 3030
+- Income (4xxx): Sales Revenue 4010, Other Income 4020
+- Expenses (5xxx): Office Rent 5010, COGS 5020, Salaries/Wages 5030, Utilities
+  5040, Office Supplies 5050, Bank Charges 5060, Inventory Adjustments 5070
+
+Ids are permanent literals; codes are human-facing labels that may be renumbered.
+`all` returns accounts ordered by code; `byCode`/`byId` lookup; `ofType` filters.
+
+**`year_end.dart`** — `ClosingEntry` (one account's transfer to retained
+earnings), `YearEndClosing` (complete closing plan built from signed balances),
+`YearEndBlocker` enum, `YearEndValidation` sealed class. `result` computes
+profit/loss from transfers, preventing P&L from disagreeing with the ledger.
+
+### `domain/reporting/` — Financial statements
+
+**`trial_balance.dart`** — `TrialBalanceRow`, `TrialBalance`. Derived, never
+stored. `isBalanced` states whether debits equal credits. `assertBalanced` throws
+for callers. `entriesWithin` shared filter for inclusive date ranges.
+
+**`general_ledger.dart`** — `GeneralLedgerLine`, `GeneralLedger`. Every posting
+to one account in order with running balance. `openingBalance` carries forward
+from before the reporting period.
+
+**`balance_sheet.dart`** — `BalanceSheetLine`, `BalanceSheet`. Takes `to` date
+(not `from`) — position at a point in time. `currentResult` folds income minus
+expense into equity so the sheet balances without a year-end closing entry.
+`assertBalanced` throws if assets != liabilities + equity.
+
+**`profit_and_loss.dart`** — `ProfitAndLossLine`, `ProfitAndLoss`. Income and
+expenses only. `profit`/`loss` are positive amounts. `isBreakEven`.
+
+**`financial_reports.dart`** — `CashFlow` (cash statement, not accrual, derived
+from bank/cash movements), `SalesSummary` (gross sales net of credits),
+`InventorySummary` (from movements), `TaxSummary` (output VAT on invoices
+issued, input VAT always zero — purchase side not built), `ReportTotal`.
+
+### `domain/fiscal/` — Nepali calendar and fiscal years
+
+**`bs_calendar_data.dart`** — In-tree Bikram Sambat month lengths for BS
+1969–2199. Originally from `bikram_sambat` package (MIT), brought in-tree so the
+fiscal calendar doesn't depend on one maintainer. BS 2200 excluded (372-day
+placeholder data). Each entry is 12 integers (days per month).
+
+**`bs_calendar.dart`** — `BsCalendar` converts between BS and Gregorian using
+cumulative day count from fixed anchor (1 Baishakh 2000 BS = 14 April 1943 AD
+UTC). Epoch is UTC on purpose — avoids DST issues. Binary search for year, linear
+walk for months. `earliestYear` = 1969, `latestYear` = 2199.
+
+**`fiscal_year.dart`** — `FiscalYear` — label and inclusive date range. Free of
+calendar logic; told its range by `NepaliFiscalCalendar`. Compares dates, not
+instants. `contains` is inclusive on both ends.
+
+**`nepali_fiscal_calendar.dart`** — Nepal's fiscal year: 1 Shrawan to last day
+of Ashadh of following BS year. `forBsYear(2082)` produces `FY 2082/83`.
+`containing(date)` — dates in Baishakh/Jestha/Ashadh belong to previous BS
+year's fiscal year. `fromLabel`/`labelForBsYear` round-trip. Only label
+persisted.
+
+### `domain/billing/` — Sales, customers, compliance
+
+**`customer.dart`** — Two identifiers: `id` (random, permanent, internal) and
+`code` (business reference like `C-0001`). Random ids prevent collisions if two
+installations sync. Name is NOT a key. `pan` validated through `NepaliPan`.
+`isVatRegistered` stated, never inferred.
+
+**`customer_code.dart`** — `CustomerCode` — business reference like `C-0001`.
+Zero-padded to 4 digits. Lifetime sequence, NOT per-fiscal-year.
+
+**`customer_code_sequence.dart`** — `CustomerCodeSequence` — allocates customer
+business references from a lifetime counter.
+
+**`customer_repository.dart`** — `save`, `saveAll`, `byId`, `all`.
+
+**`business_profile.dart`** — `BusinessProfile` — this business: name, PAN, VAT
+status, address, phone, email, bank details. `canIssueValidTaxInvoice` requires
+a PAN. VAT registration stated, never inferred.
+
+**`business_profile_repository.dart`** — Singleton interface — one business per
+account in V1. `load` returns null for fresh installations.
+
+**`invoice.dart`** — `Invoice` — every total **derived from lines**, never
+stored. VAT in basis points (1300 = 13%). `stampedWithSeller` returns new invoice
+with seller details. `subtotal`, `vat` (on combined subtotal, not per-line),
+`total` all derived.
+
+**`invoice_line.dart`** — Quantity >= 1, unitPrice > 0. `lineTotal` = unitPrice
+x quantity.
+
+**`invoice_balance.dart`** — `InvoiceBalance` — derived every time, never stored.
+`outstanding` = total - received - credited. Can go negative (overpaid/credited
+= refund due). `uncredited` bounds next credit note.
+
+**`invoice_compliance.dart`** — `InvoiceKind` (taxInvoice, abbreviatedRetailInvoice),
+`InvoiceComplianceIssue` enum. Advisory, not blocking.
+
+**`invoice_repository.dart`** — Plain insert, not upsert.
+
+**`issued_invoice.dart`** — `IssuedInvoice` — invoice + allocated number +
+journal entry id. Journal entry id derived from invoice id (`JE-INV-{id}`).
+
+**`credit_note.dart`** — Mirrors invoice shape. Ceiling is **uncredited** amount,
+not outstanding balance (paid invoice can still be credited, creating refund due).
+
+**`issued_credit_note.dart`** — `IssuedCreditNote` — credit note + number +
+journal entry id. Journal entry id = `JE-CRN-{id}`.
+
+**`document_number.dart`** — `DocumentNumber` — three independent facts: type
+prefix, fiscal year label, sequence position. Format: `INV-2082-83-1042`.
+
+**`document_number_sequence.dart`** — Per type and per fiscal year. Allocation
+inside unit of work. `peekNext` shows without consuming.
+
+**`document_type.dart`** — `DocumentType`: invoice (INV), creditNote (CRN),
+debitNote (DBN).
+
+**`payment.dart`** — Payment is financial record — never edited or deleted. Must
+be received into balance sheet account (Bank or Cash). Journal entry id derived
+from payment id (`JE-PAY-{id}`).
+
+**`payment_repository.dart`** — Plain insert, not upsert.
+
+**`nepali_pan.dart`** — `NepaliPan` — 9 digits, stored without separators.
+`grouped` produces `301-234-567` for printing. Null is normal. Malformed PAN
+rejected, not dropped.
+
+**`nepal_tax_rules.dart`** — `NepalTaxRules` — rate, abbreviated invoice
+ceiling (NPR 10,000), buyer PAN threshold (NPR 1,000,000), retention periods
+(VAT: 6 years, Income Tax: 5 years from expiry). **Not constants** — Finance Act
+changes them annually. Travels as data with version.
+
+**`hs_code.dart`** — `HsCode` — 4–8 digits. Required on goods invoices per 46th
+amendment.
+
+**`supplier.dart`** — Mirrors `Customer` with same identity decision.
+
+**`amount_in_words.dart`** — Writes amounts in words using Indian numbering
+system (lakh, crore). Only whole rupees in words; paisa appended as digits.
+
+### `domain/inventory/` — Stock and costing
+
+**`product.dart`** — `Product` — what the business sells. **No cost field** —
+running inventory value is authoritative. `stockTrackingEnabled` — services
+exempt from negative-stock rule.
+
+**`inventory_movement.dart`** — `MovementReason` enum: openingStock, purchase,
+sale, saleReturn, purchaseReturn, returnIn, returnOut, adjustment, writeDown,
+transfer. `InventoryMovement` — signed quantity and value, always pointing same
+way. Value-only movements allowed only for writeDown.
+
+**`product_stock.dart`** — `ProductStock` — quantity and value **derived by
+summing movements**, never stored. `costPerUnit` derived from value, rounded for
+display only. `apply` checks negative-stock rule against total of all movements
+(not date-based). `NegativeStockException`. `valueOfIssue` taken from running
+value, clamped so issuing whole holding leaves exactly zero.
+
+**`inventory_repository.dart`** — `applyMovement` refuses if it would take
+product below zero, inside one transaction.
+
+### `domain/sync/` — Multi-device sync
+
+**`divergence.dart`** — `Divergence` enum: none, localOnly, serverOnly,
+bothChanged. `needsAttention`: only serverOnly and bothChanged. `isDangerous`:
+bothChanged only. `SyncComparison` classified from checksums alone.
+
+---
+
+## APPLICATION LAYER — Use cases, commands, queries
+
+The application layer orchestrates transactions. Every business operation goes
+through a use case here.
+
+**`books_session.dart`** — `OpenYear`, `BooksSession` interface. Every write use
+case belongs to one year's books.
+
+**`account_session.dart`** — `AccountSession` — the one place that knows a user
+is signed in. Coordinates `AuthActions` and `CredentialStore`.
+
+**`business_details.dart`** — `BusinessDetails` — load/save business profile
+through validating domain constructor.
+
+**`load_chart_of_accounts.dart`** — `LoadChartOfAccounts` — reads stored
+accounts (not just built-in chart), so user-added accounts appear.
+
+**`post_journal_entry.dart`** — `PostJournalEntry` — date validated before
+anything written. Spec section 27: transaction dated outside active fiscal year
+is rejected.
+
+**`issue_invoice.dart`** — `IssueInvoice` — whole operation in one unit of work.
+Serial allocated only after date validated. Double entry: Dr Receivable / Cr
+Sales Revenue / Cr VAT Payable. Zero-rated invoice omits VAT line entirely.
+
+**`issue_credit_note.dart`** — `IssueCreditNote` — ceiling is **uncredited**
+amount, not outstanding balance. Double entry: Dr Sales Revenue / Dr VAT Payable
+/ Cr Receivable.
+
+**`record_payment.dart`** — `RecordPayment` — must not exceed outstanding
+balance. Double entry: Dr Bank/Cash / Cr Receivable.
+
+**`post_inventory_movement.dart`** — `PostInventoryMovement` — ties stock
+movement to accounting entry. Movement and entry commit together or not at all.
+`accountsFor` maps reason+direction to accounts:
+
+| reason | direction | debit | credit |
+|--------|-----------|-------|--------|
+| openingStock | receipt | 1040 Inventory | 3010 Owner's Equity |
+| purchase | receipt | 1040 Inventory | 2010 Accounts Payable |
+| sale | issue | 5020 COGS | 1040 Inventory |
+| writeDown | issue | 5070 Inventory Adjustments | 1040 Inventory |
+
+**`write_down_inventory.dart`** — `WriteDownInventory` — carries value to net
+realisable value. Quantity does not change. Goes through movement ledger as
+value-only change.
+
+**`create_customer.dart`** — `CreateCustomer` — random id (`{stamp}-{noise}`),
+business reference allocated inside unit of work.
+
+**`create_product.dart`** — `CreateProduct` — random id (`prd-{stamp}-{noise}`).
+No product code. Sale price rounded to whole paisa.
+
+**`transfer_cash.dart`** — `TransferCash` — both sides must be cash accounts.
+Posted through ordinary engine — transfer gets no special treatment.
+
+**`build_trial_balance.dart`** — `BuildTrialBalance` — builds from journal
+entries. `TrialBalanceReport`, `TrialBalanceTotals`.
+
+**`build_general_ledger.dart`** — `BuildGeneralLedger` — builds ledger for one
+account over date range. `GeneralLedgerReport`, `GeneralLedgerLoader`.
+
+**`build_profit_and_loss.dart`** — `BuildProfitAndLoss`, `BuildBalanceSheet`.
+Period defaults to fiscal year. `BuildBalanceSheet` calls `assertBalanced` before
+returning.
+
+**`build_receivables.dart`** — `BuildReceivables` — who owes what, per invoice,
+after credit notes. VAT excluded from receivable.
+
+**`build_reports.dart`** — `BuildCashFlow`, `BuildSalesSummary`,
+`BuildInventorySummary`, `BuildTaxSummary`.
+
+**`conclude_fiscal_year.dart`** — `ConcludeFiscalYear` — the ordering is the
+whole feature: validate -> post closing entries -> **archive** -> *only then*
+create next year. Closing entries rolled back if archive fails. `_nextYear`
+derived from calendar.
+
+**`restore_backup.dart`** — `RestoreBackup` — staged outside books folder,
+verified twice, then ordinary backup service's restore takes over.
+
+---
+
+## INFRASTRUCTURE LAYER — Database, backup, sync, HTTP
+
+### `infrastructure/database/` — SQLite via drift
+
+**`connection.dart`** — `openApplicationDatabase` — opens fiscal year's SQLite
+file via `path_provider`. Calls `configureNativeSqlite` first.
+
+**`sqlite_native.dart`** — SQLite wiring for plain Dart VM. On Windows uses
+`winsqlite3.dll`. `enforceForeignKeys` — applied per-connection. `forceReadOnly`
+— `PRAGMA query_only` per connection. Openers for file, memory, business
+databases.
+
+**`app_database.dart`** — `AppDatabase` — one fiscal year's book. Schema version
+13. Tables: accounts, journal_entries, journal_lines, document_sequences,
+customers, suppliers, supplier_details, invoices, invoice_lines, payments,
+credit_notes, credit_note_lines, products, inventory_movements,
+customer_details, invoice_sellers, customer_code_sequences.
+
+**`business_database.dart`** — `BusinessDatabase` — business-level data in
+`business.db`. NOT in a fiscal year's database. Singleton table with key
+`primary`.
+
+**`tables.dart`** — All drift table definitions. Foreign keys declared
+explicitly. JournalLines CHECK: `(debit > 0 AND credit = 0) OR (credit > 0 AND
+debit = 0)`. InventoryMovements CHECK: quantity and value point same way;
+value-only allowed only for writeDown. No REAL columns for money — all INTEGER.
+
+**`mappers.dart`** — `accountFromRow`/`accountToCompanion`,
+`customerFromRow`/`customerToCompanion`.
+
+**`drift_unit_of_work.dart`** — `DriftUnitOfWork` — drift's `transaction`
+provides nesting semantics.
+
+**`drift_account_repository.dart`** — `saveAll` uses batch insert-on-conflict.
+`all` ordered by code.
+
+**`drift_journal_repository.dart`** — `append` — entry header + all lines in one
+transaction. `_rebuild` loads all accounts to resolve account ids.
+
+**`drift_invoice_repository.dart`** — Needs `NepaliFiscalCalendar` to rebuild
+`DocumentNumber` from stored fiscal year label. Seller snapshot stored
+separately (v11). `_rebuild` re-derives totals via domain constructor.
+
+**`drift_credit_note_repository.dart`** — Same pattern as invoice repository.
+
+**`drift_payment_repository.dart`** — Plain insert, not upsert.
+
+**`drift_customer_repository.dart`** — Customers and customer_details in
+separate tables (ADR 010). Left outer join — customer with no detail row must not
+be silently dropped.
+
+**`drift_customer_code_sequence.dart`** — `DriftCustomerCodeSequence` —
+lifetime counter. Row created on first use.
+
+**`drift_document_number_sequence.dart`** — Per type and fiscal year.
+Read-then-write inside transaction. `peekNext` does not write.
+
+**`drift_inventory_repository.dart`** — `applyMovement` — out-of-stock check
+and write in one transaction. `_stockWithin` computes stock position from all
+movements.
+
+**`drift_business_profile_repository.dart`** — Single row with key `primary`.
+`insertOnConflictUpdate`.
+
+**`file_books_session.dart`** — `FileBooksSession` — one SQLite file per fiscal
+year. `openOn` creates year file if doesn't exist, seeds chart. `_discover`
+finds `accounting-FY-*.db` files. Concluded years opened read-only. Business
+database opened once and kept. `business.db` deliberately NOT named
+`accounting-FY-*.db`.
+
+**`local_fiscal_year_transition.dart`** — `LocalFiscalYearTransition` — creates
+next year's database, seeds chart, posts opening balances as one entry.
+
+### `infrastructure/backup/` — File-based backup and archive
+
+**`file_book_backup_service.dart`** — `FileBookBackupService`. Covers every
+fiscal year's books. Snapshots via `VACUUM INTO`. Every snapshot verified:
+checksum + SQLite `PRAGMA integrity_check` via raw connection. Concluded years
+opened read-only for backup. Business database backed up alongside years.
+`restore` — verifies first, takes emergency copy of current before replacing.
+`_freeFileFor` guarantees uniqueness. Never overwrites.
+
+**`backup_service_fiscal_year_archive.dart`** — `BackupServiceFiscalYearArchive`
+— archives by taking backup + uploading snapshot.
+
+**`http_fiscal_year_concluder.dart`** — `HttpFiscalYearConcluder` — tells
+server year concluded. Fiscal year label in request body.
+
+### `infrastructure/auth/` — Authentication and credentials
+
+**`http_auth_client.dart`** — `HttpAuthClient` — signs in to `/api/auth/login`,
+out to `/api/auth/logout`. Every outcome returned as `SignInResult`.
+
+**`secure_credential_store.dart`** — `SecureCredentialStore` — uses `crossvault`
+(Windows Credential Manager / macOS Keychain). One JSON object, not four keys.
+Password never written.
+
+### `infrastructure/http/` — HTTP transport
+
+**`http_transport.dart`** — `TransportResponse`, `HttpTransport` interface,
+`IoHttpTransport` — one `HttpClient` for whole transport. 30s timeout. Binary
+responses never decoded as text.
+
+### `infrastructure/download/` — Restore from server
+
+**`http_backup_downloader.dart`** — `HttpBackupDownloader` — fetches snapshot
+from `/api/books/{bookId}/backup-revisions/{revision}/download`. SHA-256 of
+received bytes compared with `X-Backup-Checksum` header.
+
+### `infrastructure/sync/` — Upload to server
+
+**`http_backup_uploader.dart`** — `HttpBackupUploader` — sends verified snapshot
+as multipart/form-data. Local snapshot never modified. Checksum and size
+recomputed at upload time. `_nextRevisionFor` looks up current highest revision
+for this fiscal year. Upload log file — append-only JSON. Checksum computed in
+separate isolate.
+
+---
+
+## PRESENTATION LAYER — Flutter UI
+
+**`finance_app.dart`** — `FinanceApp` — `MaterialApp` root. `AppServices`
+injected so widget tests supply stubs.
+
+**`finance_app_shell.dart`** — `FinanceAppShell` — left navigation rail (232px)
++ content area. Shell is **free of data access** — does not import `domain/` or
+`infrastructure/`. `refreshAccount` — rebuilds services after sign-in.
+`selectYear` — switches open fiscal year.
+
+**`app_services.dart`** — `AppServices` — what presentation layer is allowed to
+reach. `forSession` rebuilds all loaders from new session. `forAccount` re-reads
+after sign-in/out.
+
+**`theme/app_theme.dart`** — `AppPalette` (`ThemeExtension`), `AppSpacing`,
+`AppRadius`, `AppTheme`. Light palette: warm white canvas (`#F4F3F0`), blue
+accent (`#1F6FB2`). Dark palette: dark canvas (`#1A1A19`), lighter accent
+(`#5AA9E6`). Type scale: page title 32, major section 24, section heading 18,
+body 14, secondary 12-13.
+
+**`navigation/app_navigation.dart`** — `NavigationGroup`/`NavigationItem` —
+eight groups: Overview, Accounting, Sales, Purchases, Inventory, Payments,
+Reports, System.
+
+### Screens
+
+**`dashboard_screen.dart`** — Landing screen. Shows Result for period, Total
+assets, Posted to ledger.
+
+**`invoice_screen.dart`** — Invoice form. Collects customer reference, line
+items. Draft id = `draft-{microseconds}`.
+
+**`customer_screen.dart`** — Customer list and creation.
+
+**`product_screen.dart`** — Product catalogue.
+
+**`payment_screen.dart`** — Record payment against invoice.
+
+**`credit_note_screen.dart`** — Issue credit note.
+
+**`stock_movement_screen.dart`** — Post inventory movement.
+
+**`journal_entry_screen.dart`** — Manual journal entry form.
+
+**`transfer_screen.dart`** — Cash transfer between Bank and Cash.
+
+**`trial_balance_screen.dart`** — Trial balance, taps drill to general ledger.
+
+**`general_ledger_screen.dart`** — Account ledger with running balance.
+
+**`profit_and_loss_screen.dart`** — P&L statement.
+
+**`balance_sheet_screen.dart`** — Balance sheet.
+
+**`financial_reports_screen.dart`** — Shared screen for Cash Flow, Sales,
+Inventory, Tax reports.
+
+**`receivables_screen.dart`** — Who owes what.
+
+**`chart_of_accounts_screen.dart`** — Chart of accounts grouped by type.
+
+**`backup_screen.dart`** — Take, verify, restore, upload backups.
+
+**`conclude_fiscal_year_screen.dart`** — Close fiscal year flow.
+
+**`settings_screen.dart`** — Sign in/out, business details.
+
+**`licenses_screen.dart`** — MIT/BSD-3 dependency licences.
+
+**`placeholder_screen.dart`** — "Not built yet" for unimplemented sections.
+
+---
+
+## Key architectural patterns
+
+1. **Domain owns all business rules** — repositories, sequences, and services are
+   domain interfaces; infrastructure only implements them.
+
+2. **Nothing is stored that can be derived** — balances, totals, report figures,
+   invoice balances all computed from authoritative sources (journal, movements,
+   payments).
+
+3. **Unit of work makes multi-repository operations atomic** — issuing an invoice
+   creates the invoice, lines, receivable, revenue journal, and COGS journal
+   together or not at all.
+
+4. **Immutable financial records** — posted entries, issued invoices, payments,
+   and credit notes never edited or deleted. Corrections use reversals, credit
+   notes, or compensating movements.
+
+5. **Ids are permanent; codes/names are attributes** — renaming an account or
+   recoding a customer does not break historical references. Random ids prevent
+   collisions across installations.
+
+6. **Validation at construction** — `ArgumentError` thrown by domain constructors
+   means invalid objects cannot exist.
+
+7. **Fiscal year boundaries from calendar, not clock** — `NepaliFiscalCalendar`
+   is the single source of truth for year boundaries.
+
+8. **One database per fiscal year** (ADR 002) — enables read-only concluded
+   years, simpler backup, clearer archival.
+
+9. **Backup is verified before accepted** — checksum + SQLite integrity check.
+
+10. **Offline-first** — all normal operations work without network. Only
+    authentication, sync, backup upload, and fiscal-year conclusion require
+    network.
+
+---
+
+## Database schema summary
+
+Current schema version: **13** (v13). Tables:
+
+- `accounts` — chart of accounts (19 seeded accounts)
+- `journal_entries` — entry headers
+- `journal_lines` — debit/credit lines, foreign keys to entries and accounts
+- `document_sequences` — per-type, per-fiscal-year serial counters
+- `customers` — customer id, name, pan
+- `customer_details` — customer code, VAT status, business name (v10)
+- `invoices` — invoice header, customer, journal entry, VAT rate
+- `invoice_lines` — invoice line items
+- `payments` — payment against invoice
+- `credit_notes` — credit note header
+- `credit_note_lines` — credit note lines
+- `products` — product catalogue (no cost field)
+- `inventory_movements` — stock movements, signed quantity+value
+- `suppliers` — supplier records (ADR 012)
+- `supplier_details` — supplier code, VAT status (v10)
+- `invoice_sellers` — seller snapshot at time of invoice (v11)
+- `customer_code_sequences` — lifetime customer code counter (v12)
+
+All monetary columns are **INTEGER minor units (paisa)**. Foreign keys enforced
+by SQLite (`PRAGMA foreign_keys = ON`). CHECK constraints on journal_lines and
+inventory_movements provide second-line defence.
+
+---
+
+## Current state summary
+
+**Gates complete:** 1-7 (complete offline workflow).
+
+**Gate 8:** Fiscal-year conclusion logic done and tested. Screen, archive, and
+server-backed prune built. The conclusion operation itself does not exist yet.
+
+**Gate 9:** Upload complete (verified, proven against live PostgreSQL). Restore
+missing — no download endpoint, no restore-from-server path.
+
+**Gate 10:** Not started.
+
+**Test suite:** ~843 Dart tests, all passing. 35 Laravel tests, all passing.
+`flutter analyze` clean. `flutter build windows --debug` succeeds with no
+optional Visual Studio components.
+
+**Key gaps remaining:**
+- Restore from cloud (download endpoint + desktop path)
+- Purchases and input VAT (no purchase invoice, no supplier entity)
+- Sync/divergence detection (logic done, screen and use case not built)
+- Licensing system (backend-signed authorisation)
+- Debit notes
+- Refunds
+- Locations and transfers
+- Retention enforcement
+### 7.39 Reading the contract after breaking it
 
 The instruction for the four critical fixes was: *"fix this without breaking
 existing logic, and before fixing read all md files."*

@@ -20,6 +20,7 @@ import '../screens/general_ledger_screen.dart';
 import '../screens/licenses_screen.dart';
 import '../screens/placeholder_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/transfer_screen.dart';
 import '../screens/trial_balance_screen.dart';
 
 /// A group of related screens, as `ui.txt` section 13 lays out the navigation.
@@ -219,7 +220,17 @@ List<NavigationGroup> buildNavigation(
                   PaymentScreen(recordPayment: services.recordPayment!),
         ),
         NavigationItem(title: 'Payments', icon: Icons.paid_outlined),
-        NavigationItem(title: 'Transfers', icon: Icons.compare_arrows_outlined),
+        NavigationItem(
+          title: 'Transfers',
+          icon: Icons.compare_arrows_outlined,
+          route: services.transferCash == null
+              ? null
+              : (context) => TransferScreen(
+                    transferCash: services.transferCash!,
+                    fiscalYearLabel:
+                        services.session?.openYear.fiscalYear.label,
+                  ),
+        ),
       ],
     ),
     NavigationGroup(

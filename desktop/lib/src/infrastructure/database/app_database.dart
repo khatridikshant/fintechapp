@@ -13,7 +13,7 @@ part 'app_database.g.dart';
 /// than one place has to know it: the database declares it to drift, and the
 /// backup upload declares it to the server. Two copies of the number would drift
 /// apart, and the server uses it to decide how to read the snapshot.
-const int currentSchemaVersion = 12;
+const int currentSchemaVersion = 16;
 
 /// The local SQLite database for one fiscal year.
 ///
@@ -26,6 +26,9 @@ const int currentSchemaVersion = 12;
     JournalLines,
     DocumentSequences,
     Customers,
+    // ADR 012: suppliers, the other side of a purchase.
+    Suppliers,
+    SupplierDetails,
     Invoices,
     InvoiceLines,
     Payments,
@@ -33,6 +36,11 @@ const int currentSchemaVersion = 12;
     CreditNoteLines,
     Products,
     InventoryMovements,
+    ProductCategories,
+    ProductCategoryAssignments,
+    Purchases,
+    PurchaseLines,
+    SupplierPayments,
     CustomerDetails,
     InvoiceSellers,
     CustomerCodeSequences,
@@ -54,6 +62,13 @@ class AppDatabase extends _$AppDatabase {
   ///   7  products, inventory_movements
   ///   8  inventory_movements.journal_entry_id
   ///   9  inventory_movements allows a value-only write-down
+  ///   10 customer_details
+  ///   11 invoice_sellers
+  ///   12 customer_code_sequences
+  ///   13 suppliers, supplier_details
+  ///   14 product_categories, product_category_assignments
+  ///   15 purchases, purchase_lines
+  ///   16 supplier_payments
   @override
   int get schemaVersion => currentSchemaVersion;
 
@@ -167,6 +182,47 @@ class AppDatabase extends _$AppDatabase {
             // A new table, so nothing existing is touched and every earlier
             // migration test stays valid.
             await m.createTable(customerCodeSequences);
+          }
+          if (from < 13) {
+            // Suppliers, and their display and tax details. See ADR 012.
+            //
+            // **New tables only**, so nothing existing is touched and every earlier
+            // migration test stays valid.
+            await m.createTable(suppliers);
+            await m.createTable(supplierDetails);
+          }
+          if (from < 14) {
+            // Product categories, and the assignment of a product to one.
+            //
+            // **New tables only.** A `category_id` column on `products` was
+            // rejected for the reason ADR 010 records: `createTable` writes the
+            // current definition, so a v1-to-v16 database would create `products`
+            // already carrying the column while a v7-to-v16 one would not, and
+            // every older schema snapshot would disagree about the shape of the
+            // same table. A table absent from every earlier snapshot keeps
+            // `products` frozen at its v7 shape and leaves all existing migration
+            // tests valid.
+            //
+            // Order matters: the assignment references both, so both must exist
+            // first.
+            await m.createTable(productCategories);
+            await m.createTable(productCategoryAssignments);
+          }
+          if (from < 15) {
+            // Purchases and their lines. See ADR 012.
+            //
+            // **New tables only**, for the same reason as above. Purchases
+            // reference suppliers (v13) and journal entries (v1); lines reference
+            // purchases and products (v7). All three exist by this point.
+            await m.createTable(purchases);
+            await m.createTable(purchaseLines);
+          }
+          if (from < 16) {
+            // Payments made to suppliers, settling part or all of a purchase.
+            //
+            // A new table, so nothing existing is touched. References `purchases`
+            // (v15) and `accounts` (v1), both of which exist by now.
+            await m.createTable(supplierPayments);
           }
         },
         beforeOpen: (OpeningDetails details) async {

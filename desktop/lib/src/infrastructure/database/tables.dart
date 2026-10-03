@@ -144,6 +144,84 @@ class Customers extends Table {
       ];
 }
 
+/// A supplier. The other side of a purchase.
+///
+/// **A separate table from [Customers], deliberately.** The two sides mean
+/// different things: a customer owes this business money and appears in
+/// receivables, while a supplier is owed by this business money and appears in
+/// payables. A purchase bill is also **evidence of input credit**, which a sales
+/// invoice never is. Sharing one table would put a discriminator on every sales
+/// query just to keep that apart. See ADR 012.
+///
+/// The generated data class name is overridden so drift does not produce a
+/// `Supplier`, which would collide with the domain type of the same name — the
+/// same collision `Accounts`, `JournalEntries`, and `JournalLines` already guard
+/// against at the top of this file.
+@DataClassName('SupplierRow')
+class Suppliers extends Table {
+  /// **Random and permanent.** Never reused, never derived from anything a
+  /// person can type -- because purchases reference a supplier by this, and an
+  /// id that changed would repoint historical payables at a different business.
+  TextColumn get id => text()();
+
+  /// **Not a key.** Nepali names repeat and are mutable; a unique index here
+  /// would reject legitimate suppliers or turn a spelling correction into a
+  /// lost record. Duplicate detection comes from the PAN and the code instead.
+  TextColumn get name => text()();
+
+  /// The Permanent Account Number, nine digits.
+  ///
+  /// **Unique across suppliers where present**, and genuinely so: two businesses
+  /// cannot share a PAN, so this index cannot produce a false collision -- which
+  /// is the property a name cannot offer. Many suppliers are individuals with no
+  /// PAN at all, hence the partial index.
+  ///
+  /// `NEPALI_BILLING.md` records that a purchase bill lacking the vendor's PAN
+  /// may be **disallowed as input credit** in an audit, so this is a cash-cost
+  /// field rather than a formality.
+  TextColumn get panNumber => text().nullable()();
+
+  TextColumn get phone => text().nullable()();
+
+  TextColumn get address => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  /// The database refuses a supplier with no name, for the same reason customers
+  /// are: the domain already guarantees it, so the check fires only if something
+  /// writes without going through the domain.
+  @override
+  List<String> get customConstraints => [
+        'CHECK (trim(name) <> \'\')',
+      ];
+}
+
+/// Display and tax details of a supplier, kept apart from the identity.
+///
+/// **Separate for the same reason [CustomerDetails] exists** (`ADR 010`): the
+/// business reference and the registered name are things a person changes, while
+/// the id is the thing every purchase references.
+class SupplierDetails extends Table {
+  /// The supplier this describes. One row per supplier at most.
+  TextColumn get supplierId =>
+      text().references(Suppliers, #id, onDelete: KeyAction.cascade)();
+
+  /// The business reference, such as `S-0001`. **Not the identity.**
+  TextColumn get code => text().nullable()();
+
+  /// Whether VAT registration is active. **Stated, never inferred** -- the
+  /// thresholds are disputed between sources and no threshold is implemented.
+  BoolColumn get isVatRegistered =>
+      boolean().withDefault(const Constant(false))();
+
+  /// The registered business name, where the supplier trades under one.
+  TextColumn get businessName => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {supplierId};
+}
+
 /// Identity and tax details that do not belong on `customers` itself.
 ///
 /// **Why a separate table rather than more columns on `customers`.** Adding
@@ -480,6 +558,210 @@ class Products extends Table {
   List<String> get customConstraints => [
         'CHECK (sale_price_minor_units >= 0)',
         "CHECK (trim(name) <> '')",
+        "CHECK (trim(id) <> '')",
+      ];
+}
+
+/// Categories a product belongs to.
+///
+/// **A new table, so nothing existing is touched** and every earlier migration
+/// test stays valid — the same reasoning as `customer_details` and
+/// `supplier_details`. `products` exists by v7, so the foreign key's target always
+/// exists by the time this is created.
+@DataClassName('ProductCategoryRow')
+class ProductCategories extends Table {
+  TextColumn get id => text()();
+
+  /// **Not a key.** Names repeat and are mutable, so a unique index here would
+  /// reject two legitimate categories or turn a spelling correction into a lost
+  /// record. See ADR 013.
+  TextColumn get name => text()();
+
+  /// The business reference, such as `ELEC-01`. **Unique**, because two categories
+  /// sharing one quotable reference would be genuinely ambiguous.
+  TextColumn get code => text()();
+
+  /// The parent category's id, or `null` for a top-level category.
+  ///
+  /// **Nullable and never empty**: V1 reports one level of nesting, and a parent
+  /// that exists but is not reachable would group a product under a category that
+  /// a stock report cannot name. A dangling parent is refused by the domain
+  /// (`ProductCategory.assertWithinV1Depth`) before it reaches this column.
+  TextColumn get parentId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {code},
+      ];
+
+  @override
+  List<String> get customConstraints => [
+        "CHECK (trim(name) <> '')",
+        "CHECK (trim(code) <> '')",
+        // A category cannot be its own parent. The domain refuses it too, so this
+        // fires only if something writes without going through the domain.
+        "CHECK (parent_id IS NULL OR parent_id <> id)",
+      ];
+}
+
+/// The category a product belongs to, if any.
+///
+/// ## Why this is a table and not two columns on `products`
+///
+/// This is the exact trap `ADR 010` records having already been hit on
+/// `customers`: `createTable` writes a table's **current** definition, so a
+/// database migrating from v1 to v16 would create `products` already carrying a
+/// `category_id`, while a database that already had `products` from v7 would not
+/// — and every v7-through-v15 migration snapshot would then disagree about the
+/// shape of the same table.
+///
+/// A table that did not exist before v14 is simply absent from every earlier
+/// snapshot, so `products` stays frozen at its v7 shape and all existing migration
+/// tests stay valid. **One product per row**, so the primary key is the product.
+@DataClassName('ProductCategoryAssignmentRow')
+class ProductCategoryAssignments extends Table {
+  TextColumn get productId => text().references(Products, #id)();
+
+  TextColumn get categoryId => text().references(ProductCategories, #id)();
+
+  @override
+  Set<Column> get primaryKey => {productId};
+}
+
+/// Purchases: what the business bought, from whom.
+///
+/// ## Why a purchase is stored, not just posted
+///
+/// `2010 Accounts Payable` was credited by hand before this existed, which left a
+/// liability with no document behind it — nothing to age, nothing to settle
+/// against, and no source for the input VAT claim that makes a VAT return
+/// possible at all. See ADR 012.
+///
+/// ## The totals are a denormalisation for listing and printing
+///
+/// Derived from the lines in the domain, with **recomputation staying
+/// authoritative**; a test asserts the stored values equal the recomputed ones.
+@DataClassName('PurchaseRow')
+class Purchases extends Table {
+  TextColumn get id => text()();
+
+  /// The printed document number, from the purchase's own `PUR` sequence. Unique,
+  /// because reissuing one is prohibited.
+  TextColumn get number => text().unique()();
+
+  IntColumn get sequence => integer()();
+
+  TextColumn get fiscalYearLabel => text()();
+
+  TextColumn get supplierId => text()();
+
+  DateTimeColumn get issueDate => dateTime()();
+
+  TextColumn get currency => text()();
+
+  /// The rate applied to lines that do not carry their own, in basis points.
+  IntColumn get vatRateBasisPoints => integer()();
+
+  /// All amounts are **INTEGER minor units**, never REAL.
+  IntColumn get subtotalMinorUnits => integer()();
+
+  IntColumn get vatMinorUnits => integer()();
+
+  IntColumn get totalMinorUnits => integer()();
+
+  /// The journal entry that records the purchase.
+  TextColumn get journalEntryId => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+        'FOREIGN KEY (supplier_id) REFERENCES suppliers(id)',
+        'FOREIGN KEY (journal_entry_id) REFERENCES journal_entries(id)',
+        'CHECK (sequence >= 1)',
+        'CHECK (vat_rate_basis_points >= 0)',
+        'CHECK (subtotal_minor_units >= 0)',
+        'CHECK (vat_minor_units >= 0)',
+        'CHECK (total_minor_units >= 0)',
+        "CHECK (trim(id) <> '')",
+      ];
+}
+
+/// The lines of a purchase, so the bill can be reprinted and audited.
+///
+/// [productId] is **nullable**: a purchase can be of freight, a service, or a
+/// consumable that is not tracked stock, and refusing a null here would make those
+/// unrecordable.
+@DataClassName('PurchaseLineRow')
+class PurchaseLines extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get purchaseId => text()();
+
+  IntColumn get lineNumber => integer()();
+
+  TextColumn get description => text()();
+
+  IntColumn get quantity => integer()();
+
+  /// Excluding VAT: this is also the value that enters inventory, because goods
+  /// carry at cost and a recoverable tax is not part of cost.
+  IntColumn get unitPriceMinorUnits => integer()();
+
+  TextColumn get currency => text()();
+
+  /// The rate for **this line**, which may differ from the purchase's own rate on a
+  /// bill mixing standard-rated and zero-rated goods.
+  IntColumn get vatRateBasisPoints => integer()();
+
+  /// The product received, or `null` for a line that moves no stock.
+  TextColumn get productId => text().nullable()();
+
+  @override
+  List<String> get customConstraints => [
+        'FOREIGN KEY (purchase_id) REFERENCES purchases(id)',
+        'FOREIGN KEY (product_id) REFERENCES products(id)',
+        'CHECK (line_number >= 1)',
+        'CHECK (quantity >= 1)',
+        'CHECK (unit_price_minor_units > 0)',
+        'CHECK (vat_rate_basis_points >= 0)',
+        "CHECK (trim(description) <> '')",
+      ];
+}
+
+/// Payments made to suppliers, each settling part or all of a purchase bill.
+///
+/// The outstanding balance of a purchase is **never stored**. It is derived from
+/// the bill total and these rows, so it cannot drift from the payments that
+/// produced it.
+@DataClassName('SupplierPaymentRow')
+class SupplierPayments extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get purchaseId => text()();
+
+  DateTimeColumn get date => dateTime()();
+
+  /// Amount in minor units. **Integer, never REAL.**
+  IntColumn get amountMinorUnits => integer()();
+
+  TextColumn get currency => text()();
+
+  /// The account the money left, for example Bank or Cash.
+  TextColumn get accountId => text()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+        'FOREIGN KEY (purchase_id) REFERENCES purchases(id)',
+        'FOREIGN KEY (account_id) REFERENCES accounts(id)',
+        'CHECK (amount_minor_units > 0)',
         "CHECK (trim(id) <> '')",
       ];
 }

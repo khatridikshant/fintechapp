@@ -9,7 +9,23 @@
 enum DocumentType {
   invoice(prefix: 'INV', label: 'Invoice'),
   creditNote(prefix: 'CRN', label: 'Credit Note'),
-  debitNote(prefix: 'DBN', label: 'Debit Note');
+  debitNote(prefix: 'DBN', label: 'Debit Note'),
+
+  /// A purchase bill. **Its own sequence**, per ADR 005 and ADR 012.
+  ///
+  /// A purchase must never share a counter with a sale. Mixing them would make
+  /// both numbering streams unauditable, and the purchase side carries the input
+  /// VAT claim, so its numbers are evidence rather than convenience.
+  purchase(prefix: 'PUR', label: 'Purchase'),
+
+  /// A purchase return — goods sent back to a supplier.
+  ///
+  /// **A separate type, not a negative purchase.** A return is a different
+  /// document with a different VAT consequence: it reduces input VAT rather than
+  /// output VAT. Giving it its own sequence keeps a return identifiable in an
+  /// audit and keeps the purchase sequence gap-free, which is the property CBMS
+  /// certification actually checks (`NEPALI_BILLING.md`).
+  purchaseReturn(prefix: 'PUN', label: 'Purchase Return');
 
   const DocumentType({required this.prefix, required this.label});
 

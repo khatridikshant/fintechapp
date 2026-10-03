@@ -110,6 +110,7 @@ it is a normal dependency decision, not a pre-approved one.
 | `fl_chart` | MIT | Restrained charts | No — approved for later |
 | `go_router` | BSD-3 | Navigation | No — approved for later |
 | `crossvault` | MIT | OS-protected token storage | **Yes** — sign-in token |
+| `cryptography` | Apache-2.0 | Ed25519 signature verification of the licence authorisation | **Yes** — licence only, ADR 014 |
 
 **Two predecessors were tried and rejected on evidence**, recorded in
 `PROGRESS.md` 4.32:
@@ -135,6 +136,23 @@ lines *before* adopting it. **And open the federated sub-package**, not just the
 umbrella — `webauthn_secure_storage`'s umbrella looked clean while its
 `_windows` package carried the ATL and WinRT. This cost an evening here; see
 `PROGRESS.md` sections 7.24 and 7.25.
+
+**`cryptography` (Apache-2.0) — adopted for licence verification, ADR 014.** Its
+native surface was read before adoption, as the rule above requires, and the result
+is the safe one: **cryptography 2.9.0 contains no native sources at all** — no
+`.c`/`.cpp`/`.hpp`/`.swift`/`.java`, no `CMakeLists.txt`, no platform folders, and no
+`DynamicLibrary.open`. Its one `dart:ffi` import is in
+`argon2_impl_default.dart`, which this application never touches; the Ed25519 path
+imports only `dart:typed_data`. Pure Dart, so no optional Visual Studio component.
+
+**Do not add `cryptography_flutter`.** It delegates to platform APIs and would
+introduce a native dependency for performance this application does not need: it
+verifies one small signature at sign-in, not bulk data.
+
+**Note the licence, because it was got wrong once already.** Both `cryptography` and
+the alternative `ed25519_edwards` are **Apache-2.0**; an earlier draft of ADR 014
+called `cryptography` BSD-3, which was false. Do not reason about a dependency's
+licence from memory — read the package page. That is `PROGRESS.md` 7.23.
 
 **The Bikram Sambat calendar is deliberately NOT a package.** Its data is kept
 in-tree in `lib/src/domain/fiscal/bs_calendar_data.dart`, because a single

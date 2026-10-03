@@ -12,6 +12,7 @@ class Product {
     required this.name,
     required this.salePrice,
     required this.stockTrackingEnabled,
+    this.categoryId,
   });
 
   factory Product({
@@ -19,6 +20,7 @@ class Product {
     required String name,
     required Money salePrice,
     bool stockTrackingEnabled = true,
+    String? categoryId,
   }) {
     if (id.trim().isEmpty) {
       throw ArgumentError('A product needs an id.');
@@ -37,6 +39,7 @@ class Product {
       name: name.trim(),
       salePrice: salePrice,
       stockTrackingEnabled: stockTrackingEnabled,
+      categoryId: _blankToNull(categoryId),
     );
   }
 
@@ -54,6 +57,37 @@ class Product {
   /// the negative-stock rule because it never has stock to go negative.
   final bool stockTrackingEnabled;
 
+  /// The category this product belongs to, or `null`.
+  ///
+  /// **Optional, and a product with none is an ordinary product** — see ADR 013.
+  /// Making it mandatory would block every book created before categories existed
+  /// and would require inventing a placeholder category for historical stock,
+  /// which is a fabrication.
+  final String? categoryId;
+
+  /// Whether this product sits in a category.
+  bool get hasCategory => categoryId != null;
+
+  /// A copy with different details. [id] cannot change.
+  ///
+  /// [clearCategory] exists because `null` otherwise cannot be distinguished from
+  /// "not supplied", so a category could be set but never removed.
+  Product copyWith({
+    String? name,
+    Money? salePrice,
+    bool? stockTrackingEnabled,
+    String? categoryId,
+    bool clearCategory = false,
+  }) {
+    return Product(
+      id: id,
+      name: name ?? this.name,
+      salePrice: salePrice ?? this.salePrice,
+      stockTrackingEnabled: stockTrackingEnabled ?? this.stockTrackingEnabled,
+      categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
+    );
+  }
+
   @override
   bool operator ==(Object other) => other is Product && other.id == id;
 
@@ -62,4 +96,13 @@ class Product {
 
   @override
   String toString() => 'Product($id, $name)';
+
+  /// Blank means absent, so `''` and `null` cannot both spell "no category". A
+  /// blank stored as `''` would match no category yet not be null, so a "products
+  /// without a category" query would quietly miss it.
+  static String? _blankToNull(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
 }

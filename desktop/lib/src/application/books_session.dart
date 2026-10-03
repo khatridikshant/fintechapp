@@ -4,6 +4,7 @@ import 'build_general_ledger.dart';
 import '../domain/accounting/account_repository.dart';
 import 'build_profit_and_loss.dart';
 import 'build_receivables.dart';
+import 'transfer_cash.dart';
 import 'load_chart_of_accounts.dart';
 import 'build_reports.dart';
 import 'build_trial_balance.dart';
@@ -123,6 +124,13 @@ abstract interface class BooksSession {
   /// exist, so nothing here can drift from the invoice screens -- it uses the
   /// same InvoiceBalance.
   ReceivablesLoader get receivables;
+
+  /// Moving money between the business's own cash accounts.
+  ///
+  /// **A narrowing of [postEntry], not a second posting path.** It posts through
+  /// the ordinary journal engine, so a transfer is validated, balanced and written
+  /// exactly as any other entry would be.
+  TransferCash get transferCash;
   ProfitAndLossLoader get profitAndLoss;
 
   /// The Balance Sheet for the open year.

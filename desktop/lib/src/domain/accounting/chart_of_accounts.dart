@@ -63,6 +63,29 @@ class ChartOfAccounts {
     type: AccountType.asset,
   );
 
+  /// VAT the business **paid** on purchases and may recover.
+  ///
+  /// ## Why this is an asset and not a reduction of the purchase
+  ///
+  /// This is the mirror of [vatPayable], and the two are the reason a VAT return
+  /// exists: output VAT minus input VAT is what is owed to (or reclaimable from)
+  /// the authority.
+  ///
+  /// It is an **asset** because the business has already paid it and holds a
+  /// claim on it. The consequence that matters is on the purchase side: goods
+  /// enter `1040 Inventory` at the **net** figure, and the VAT lands here. Putting
+  /// the gross into inventory would carry a recoverable tax as part of the cost of
+  /// goods, and it would silently become an expense the day that stock was sold.
+  ///
+  /// **Added in ADR 012.** A new account rather than a change to an existing one,
+  /// so no historical posting is repointed.
+  static const Account inputVatRecoverable = Account(
+    id: 'acct-input-vat',
+    code: '1150',
+    name: 'Input VAT Recoverable',
+    type: AccountType.asset,
+  );
+
   // --- Liabilities (2xxx) ---
 
   /// Money the business owes to suppliers.
@@ -205,6 +228,7 @@ class ChartOfAccounts {
         receivable,
         inventory,
         officeEquipment,
+        inputVatRecoverable,
         payable,
         vatPayable,
         loansPayable,

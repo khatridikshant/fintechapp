@@ -14,6 +14,7 @@ import '../../application/books_session.dart';
 import '../../application/build_general_ledger.dart';
 import '../../application/build_profit_and_loss.dart';
 import '../../application/build_receivables.dart';
+import '../../application/transfer_cash.dart';
 import '../../application/load_chart_of_accounts.dart';
 import '../../domain/accounting/account_repository.dart';
 import '../../application/build_reports.dart';
@@ -184,6 +185,13 @@ class FileBooksSession implements BooksSession {
   AccountRepository get accounts => DriftAccountRepository(_database);
 
   @override
+  @override
+  @override
+  TransferCash get transferCash => TransferCash(
+        fiscalYear: _openYear.fiscalYear,
+        postEntry: postEntry,
+      );
+
   @override
   ReceivablesLoader get receivables => BuildReceivables(
         invoices: DriftInvoiceRepository(_database),
