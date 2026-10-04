@@ -35,6 +35,7 @@ class Supplier {
     this.phone,
     this.address,
     this.businessName,
+    this.isActive = true,
   });
 
   factory Supplier({
@@ -46,6 +47,7 @@ class Supplier {
     String? phone,
     String? address,
     String? businessName,
+    bool isActive = true,
   }) {
     return Supplier._(
       id: _requireText(id, 'A supplier needs an id.'),
@@ -56,6 +58,7 @@ class Supplier {
       phone: _blankToNull(phone),
       address: _blankToNull(address),
       businessName: _blankToNull(businessName),
+      isActive: isActive,
     );
   }
 
@@ -103,6 +106,47 @@ class Supplier {
   /// user rather than something to act on.
   bool get canSupportInputCredit => pan != null;
 
+  /// Whether this supplier is one the business still buys from.
+  ///
+  /// ## Why this is "inactive" and not "deleted"
+  ///
+  /// **A purchase bill references this supplier, so deleting the supplier would
+  /// change a stored document.** An inactive supplier stays on the books, its bills
+  /// stay readable, and its PAN stays as the evidence those bills needed -- which is
+  /// why [canSupportInputCredit] deliberately ignores this flag.
+  ///
+  /// ## What inactive does and does not stop
+  ///
+  /// It stops a **new** purchase being recorded against the supplier
+  /// ([canBeBilledOnNewPurchase]). It does not stop a payment against a bill that is
+  /// already open, because refusing to let someone pay a debt they owe would leave
+  /// the payable unpayable.
+  final bool isActive;
+
+  /// Whether a new purchase may bill this supplier.
+  bool get canBeBilledOnNewPurchase => isActive;
+
+  /// This supplier, shut to new purchases but kept for its history.
+  ///
+  /// **Returns a copy rather than mutating**, because a supplier that is referenced
+  /// by a posted purchase must not be able to change underneath it.
+  Supplier deactivate() => _copyWith(isActive: false);
+
+  /// This supplier, open to new purchases again.
+  Supplier reactivate() => _copyWith(isActive: true);
+
+  Supplier _copyWith({bool? isActive}) => Supplier(
+        id: id,
+        name: name,
+        code: code,
+        pan: pan?.toString(),
+        isVatRegistered: isVatRegistered,
+        phone: phone,
+        address: address,
+        businessName: businessName,
+        isActive: isActive ?? this.isActive,
+      );
+
   /// A copy with different details. [id] cannot change -- see the class docblock.
   Supplier copyWith({
     String? code,
@@ -112,6 +156,7 @@ class Supplier {
     String? phone,
     String? address,
     String? businessName,
+    bool? isActive,
   }) {
     return Supplier(
       id: id,
@@ -125,6 +170,11 @@ class Supplier {
       phone: phone ?? this.phone,
       address: address ?? this.address,
       businessName: businessName ?? this.businessName,
+      // **Carried through**, so `copyWith()` on a supplier that was shut stays shut.
+      // Dropping it would mean editing an inactive supplier's phone number
+      // silently reopened it, which is the kind of side effect nobody expects from
+      // a field that was not part of the call.
+      isActive: isActive ?? this.isActive,
     );
   }
 

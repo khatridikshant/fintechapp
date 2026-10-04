@@ -45,6 +45,26 @@ class AccountGroup {
         AccountType.expense => 'Expenses',
       };
 
+  /// Which side increases the accounts in this group, in the short form a book
+  /// keeper uses: `Dr` or `Cr`.
+  ///
+  /// **A group property, not an account one, because every account in a group
+  /// shares a type and therefore a normal side.** The alternative -- a screen
+  /// reading [AccountType.normalBalance] for each row -- would make the *wording*
+  /// a property of the domain enum, which is exactly what [title] refuses to do,
+  /// and it would ask every account the same question to produce one answer.
+  String get normalSideLabel =>
+      type.normalBalance == NormalBalance.debit ? 'Dr' : 'Cr';
+
+  /// Which statement these accounts appear on.
+  ///
+  /// Reads [AccountType.isBalanceSheet] rather than switching on the type again,
+  /// so the chart and the two statements cannot disagree about where an account
+  /// belongs -- that question is answered in one place, the domain, and this is
+  /// only its wording.
+  String get statementLabel =>
+      type.isBalanceSheet ? 'Balance sheet' : 'Profit and loss';
+
   @override
   String toString() =>
       'AccountGroup(${type.name}, ${accounts.length} accounts)';

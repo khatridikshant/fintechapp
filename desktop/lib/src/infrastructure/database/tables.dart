@@ -185,6 +185,20 @@ class Suppliers extends Table {
 
   TextColumn get address => text().nullable()();
 
+  /// Whether this supplier is one the business still buys from.
+  ///
+  /// ## Why a flag and not a delete
+  ///
+  /// **A purchase bill references this supplier**, so removing the row would change
+  /// a stored document and leave the payable unpayable. Deactivating keeps the
+  /// record, its bills, and the PAN that evidences them, while stopping new
+  /// purchases being recorded against it.
+  ///
+  /// Defaults to `true` so every row written before this column existed reads as an
+  /// **active** supplier. That is the safe direction: treating an unknown supplier
+  /// as shut would make an existing business unable to record any purchase at all.
+  IntColumn get isActive => integer().withDefault(const Constant(1))();
+
   @override
   Set<Column> get primaryKey => {id};
 
@@ -629,6 +643,38 @@ class ProductCategoryAssignments extends Table {
 
   @override
   Set<Column> get primaryKey => {productId};
+}
+
+/// The suppliers a product can be bought from: reference data, not a rule.
+///
+/// ## Why this is a join table and not a list on `products`
+///
+/// Because the relation is **many-to-many** -- a product may be bought from several
+/// suppliers, and a supplier may supply several products. A `supplier_ids` column on
+/// `products` would have to be a delimited string or a JSON blob, and both make the
+/// second fact -- "which products does this supplier provide?" -- a full table scan
+/// with string parsing in it.
+///
+/// ## Why the pair is the primary key
+///
+/// So the same pair cannot be saved twice. That is what lets
+/// `saveDeclaredSuppliers` replace a product's whole set by deleting and reinserting,
+/// without ever holding a duplicate that a later query would return twice.
+///
+/// ## What it does **not** mean
+///
+/// **It is not a constraint on who may be billed.** A purchase from a supplier
+/// missing from this table is recorded and reported, never refused: the bill is the
+/// authority on who actually supplied the goods, and refusing it would mean
+/// refusing to record goods that genuinely arrived. See `ProductSupplier`.
+@DataClassName('ProductSupplierRow')
+class ProductSuppliers extends Table {
+  TextColumn get productId => text().references(Products, #id)();
+
+  TextColumn get supplierId => text().references(Suppliers, #id)();
+
+  @override
+  Set<Column> get primaryKey => {productId, supplierId};
 }
 
 /// Purchases: what the business bought, from whom.

@@ -17,6 +17,7 @@ import 'package:financeapp/src/domain/inventory/inventory_repository.dart';
 import 'package:financeapp/src/domain/inventory/product.dart';
 import 'package:financeapp/src/domain/inventory/product_category.dart';
 import 'package:financeapp/src/domain/inventory/product_stock.dart';
+import 'package:financeapp/src/domain/inventory/product_supplier.dart';
 import 'package:financeapp/src/domain/reporting/financial_reports.dart';
 import 'package:financeapp/src/domain/shared/money.dart';
 import 'package:financeapp/src/infrastructure/database/app_database.dart';
@@ -152,6 +153,20 @@ class _MovementsWithoutCatalogue implements InventoryRepository {
   @override
   Future<List<ProductCategory>> allCategories() async =>
       const <ProductCategory>[];
+
+  @override
+  Future<void> saveDeclaredSuppliers(
+    String productId,
+    List<ProductSupplier> suppliers,
+  ) async {}
+
+  @override
+  Future<List<ProductSupplier>> declaredSuppliersFor(String productId) async =>
+      const <ProductSupplier>[];
+
+  @override
+  Future<List<ProductSupplier>> allDeclaredSuppliers() async =>
+      const <ProductSupplier>[];
 
   @override
   Future<Product?> productById(String id) async => null;

@@ -32,6 +32,7 @@ import 'package:financeapp/src/infrastructure/database/drift_payment_repository.
 import 'package:financeapp/src/infrastructure/database/drift_purchase_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_supplier_repository.dart';
 import 'package:financeapp/src/infrastructure/database/drift_unit_of_work.dart';
+import 'package:financeapp/src/infrastructure/database/sqlite_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../generated/schema.dart';
@@ -1136,6 +1137,7 @@ void main() {
       expect(await db.select(db.purchases).get(), isEmpty);
       expect(await db.select(db.purchaseLines).get(), isEmpty);
       expect(await db.select(db.supplierPayments).get(), isEmpty);
+      expect(await db.select(db.productSuppliers).get(), isEmpty);
 
       await db.close();
     });
@@ -1160,7 +1162,8 @@ void main() {
         Supplier(id: 'sup-1', name: 'Kamala Traders', pan: '601234567'),
       );
       await DriftInventoryRepository(db).saveProduct(
-        Product(id: 'p-1', name: 'Chair', salePrice: Money.minor(200000, 'NPR')),
+        Product(
+            id: 'p-1', name: 'Chair', salePrice: Money.minor(200000, 'NPR')),
       );
 
       final outcome = await IssuePurchase(
@@ -1190,6 +1193,42 @@ void main() {
       expect(outcome, isA<PurchaseIssued>());
 
       await db.close();
+    });
+
+    test('a supplier written without is_active reads as active', () async {
+      // **The direction of the default is the whole point of this test.**
+      //
+      // `is_active` was added at v17, so a row written before that step has no value
+      // for it -- either because the column was just added by the migration, or
+      // because the writer did not mention it. The column defaults to **1**, so such a
+      // supplier reads as active and keeps working.
+      //
+      // The opposite default would fail silently and catastrophically: the supplier
+      // would exist, its name would appear, every lookup would succeed -- and no new
+      // purchase could be recorded against it, with nothing on screen to say why.
+      // A schema change must never be able to stop a business trading.
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+
+      // **Raw SQL with no `is_active`**, because that is exactly the shape of the row
+      // this default exists to cover. Going through the repository would always write
+      // the flag explicitly and would therefore prove nothing.
+      await db.customStatement(
+        "INSERT INTO suppliers (id, name) "
+        "VALUES ('sup-old', 'Kamala Traders')",
+      );
+
+      final row = await (db.select(db.suppliers)
+            ..where((t) => t.id.equals('sup-old')))
+          .getSingle();
+      expect(row.isActive, 1,
+          reason: 'a supplier with no is_active must default to active');
+
+      // And the repository agrees, so the domain reads it as usable.
+      final suppliers = DriftSupplierRepository(db);
+      expect((await suppliers.byId('sup-old'))?.isActive, isTrue);
+      expect(
+          (await suppliers.byId('sup-old'))?.canBeBilledOnNewPurchase, isTrue);
     });
   });
 }

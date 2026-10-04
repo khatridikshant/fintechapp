@@ -1542,8 +1542,17 @@ class $SuppliersTable extends Suppliers
   late final GeneratedColumn<String> address = GeneratedColumn<String>(
       'address', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isActiveMeta =
+      const VerificationMeta('isActive');
   @override
-  List<GeneratedColumn> get $columns => [id, name, panNumber, phone, address];
+  late final GeneratedColumn<int> isActive = GeneratedColumn<int>(
+      'is_active', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, name, panNumber, phone, address, isActive];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1577,6 +1586,10 @@ class $SuppliersTable extends Suppliers
       context.handle(_addressMeta,
           address.isAcceptableOrUnknown(data['address']!, _addressMeta));
     }
+    if (data.containsKey('is_active')) {
+      context.handle(_isActiveMeta,
+          isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
+    }
     return context;
   }
 
@@ -1596,6 +1609,8 @@ class $SuppliersTable extends Suppliers
           .read(DriftSqlType.string, data['${effectivePrefix}phone']),
       address: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}address']),
+      isActive: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}is_active'])!,
     );
   }
 
@@ -1629,12 +1644,27 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
   final String? panNumber;
   final String? phone;
   final String? address;
+
+  /// Whether this supplier is one the business still buys from.
+  ///
+  /// ## Why a flag and not a delete
+  ///
+  /// **A purchase bill references this supplier**, so removing the row would change
+  /// a stored document and leave the payable unpayable. Deactivating keeps the
+  /// record, its bills, and the PAN that evidences them, while stopping new
+  /// purchases being recorded against it.
+  ///
+  /// Defaults to `true` so every row written before this column existed reads as an
+  /// **active** supplier. That is the safe direction: treating an unknown supplier
+  /// as shut would make an existing business unable to record any purchase at all.
+  final int isActive;
   const SupplierRow(
       {required this.id,
       required this.name,
       this.panNumber,
       this.phone,
-      this.address});
+      this.address,
+      required this.isActive});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1649,6 +1679,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
     if (!nullToAbsent || address != null) {
       map['address'] = Variable<String>(address);
     }
+    map['is_active'] = Variable<int>(isActive);
     return map;
   }
 
@@ -1664,6 +1695,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       address: address == null && nullToAbsent
           ? const Value.absent()
           : Value(address),
+      isActive: Value(isActive),
     );
   }
 
@@ -1676,6 +1708,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       panNumber: serializer.fromJson<String?>(json['panNumber']),
       phone: serializer.fromJson<String?>(json['phone']),
       address: serializer.fromJson<String?>(json['address']),
+      isActive: serializer.fromJson<int>(json['isActive']),
     );
   }
   @override
@@ -1687,6 +1720,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       'panNumber': serializer.toJson<String?>(panNumber),
       'phone': serializer.toJson<String?>(phone),
       'address': serializer.toJson<String?>(address),
+      'isActive': serializer.toJson<int>(isActive),
     };
   }
 
@@ -1695,13 +1729,15 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           String? name,
           Value<String?> panNumber = const Value.absent(),
           Value<String?> phone = const Value.absent(),
-          Value<String?> address = const Value.absent()}) =>
+          Value<String?> address = const Value.absent(),
+          int? isActive}) =>
       SupplierRow(
         id: id ?? this.id,
         name: name ?? this.name,
         panNumber: panNumber.present ? panNumber.value : this.panNumber,
         phone: phone.present ? phone.value : this.phone,
         address: address.present ? address.value : this.address,
+        isActive: isActive ?? this.isActive,
       );
   SupplierRow copyWithCompanion(SuppliersCompanion data) {
     return SupplierRow(
@@ -1710,6 +1746,7 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
       panNumber: data.panNumber.present ? data.panNumber.value : this.panNumber,
       phone: data.phone.present ? data.phone.value : this.phone,
       address: data.address.present ? data.address.value : this.address,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
     );
   }
 
@@ -1720,13 +1757,15 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           ..write('name: $name, ')
           ..write('panNumber: $panNumber, ')
           ..write('phone: $phone, ')
-          ..write('address: $address')
+          ..write('address: $address, ')
+          ..write('isActive: $isActive')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, panNumber, phone, address);
+  int get hashCode =>
+      Object.hash(id, name, panNumber, phone, address, isActive);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1735,7 +1774,8 @@ class SupplierRow extends DataClass implements Insertable<SupplierRow> {
           other.name == this.name &&
           other.panNumber == this.panNumber &&
           other.phone == this.phone &&
-          other.address == this.address);
+          other.address == this.address &&
+          other.isActive == this.isActive);
 }
 
 class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
@@ -1744,6 +1784,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
   final Value<String?> panNumber;
   final Value<String?> phone;
   final Value<String?> address;
+  final Value<int> isActive;
   final Value<int> rowid;
   const SuppliersCompanion({
     this.id = const Value.absent(),
@@ -1751,6 +1792,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.panNumber = const Value.absent(),
     this.phone = const Value.absent(),
     this.address = const Value.absent(),
+    this.isActive = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SuppliersCompanion.insert({
@@ -1759,6 +1801,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     this.panNumber = const Value.absent(),
     this.phone = const Value.absent(),
     this.address = const Value.absent(),
+    this.isActive = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         name = Value(name);
@@ -1768,6 +1811,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     Expression<String>? panNumber,
     Expression<String>? phone,
     Expression<String>? address,
+    Expression<int>? isActive,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1776,6 +1820,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       if (panNumber != null) 'pan_number': panNumber,
       if (phone != null) 'phone': phone,
       if (address != null) 'address': address,
+      if (isActive != null) 'is_active': isActive,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1786,6 +1831,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       Value<String?>? panNumber,
       Value<String?>? phone,
       Value<String?>? address,
+      Value<int>? isActive,
       Value<int>? rowid}) {
     return SuppliersCompanion(
       id: id ?? this.id,
@@ -1793,6 +1839,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
       panNumber: panNumber ?? this.panNumber,
       phone: phone ?? this.phone,
       address: address ?? this.address,
+      isActive: isActive ?? this.isActive,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1815,6 +1862,9 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
     if (address.present) {
       map['address'] = Variable<String>(address.value);
     }
+    if (isActive.present) {
+      map['is_active'] = Variable<int>(isActive.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1829,6 +1879,7 @@ class SuppliersCompanion extends UpdateCompanion<SupplierRow> {
           ..write('panNumber: $panNumber, ')
           ..write('phone: $phone, ')
           ..write('address: $address, ')
+          ..write('isActive: $isActive, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5819,6 +5870,205 @@ class ProductCategoryAssignmentsCompanion
   }
 }
 
+class $ProductSuppliersTable extends ProductSuppliers
+    with TableInfo<$ProductSuppliersTable, ProductSupplierRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProductSuppliersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _productIdMeta =
+      const VerificationMeta('productId');
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+      'product_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _supplierIdMeta =
+      const VerificationMeta('supplierId');
+  @override
+  late final GeneratedColumn<String> supplierId = GeneratedColumn<String>(
+      'supplier_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [productId, supplierId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'product_suppliers';
+  @override
+  VerificationContext validateIntegrity(Insertable<ProductSupplierRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('product_id')) {
+      context.handle(_productIdMeta,
+          productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta));
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('supplier_id')) {
+      context.handle(
+          _supplierIdMeta,
+          supplierId.isAcceptableOrUnknown(
+              data['supplier_id']!, _supplierIdMeta));
+    } else if (isInserting) {
+      context.missing(_supplierIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {productId, supplierId};
+  @override
+  ProductSupplierRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProductSupplierRow(
+      productId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}product_id'])!,
+      supplierId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}supplier_id'])!,
+    );
+  }
+
+  @override
+  $ProductSuppliersTable createAlias(String alias) {
+    return $ProductSuppliersTable(attachedDatabase, alias);
+  }
+}
+
+class ProductSupplierRow extends DataClass
+    implements Insertable<ProductSupplierRow> {
+  final String productId;
+  final String supplierId;
+  const ProductSupplierRow({required this.productId, required this.supplierId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['product_id'] = Variable<String>(productId);
+    map['supplier_id'] = Variable<String>(supplierId);
+    return map;
+  }
+
+  ProductSuppliersCompanion toCompanion(bool nullToAbsent) {
+    return ProductSuppliersCompanion(
+      productId: Value(productId),
+      supplierId: Value(supplierId),
+    );
+  }
+
+  factory ProductSupplierRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProductSupplierRow(
+      productId: serializer.fromJson<String>(json['productId']),
+      supplierId: serializer.fromJson<String>(json['supplierId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'productId': serializer.toJson<String>(productId),
+      'supplierId': serializer.toJson<String>(supplierId),
+    };
+  }
+
+  ProductSupplierRow copyWith({String? productId, String? supplierId}) =>
+      ProductSupplierRow(
+        productId: productId ?? this.productId,
+        supplierId: supplierId ?? this.supplierId,
+      );
+  ProductSupplierRow copyWithCompanion(ProductSuppliersCompanion data) {
+    return ProductSupplierRow(
+      productId: data.productId.present ? data.productId.value : this.productId,
+      supplierId:
+          data.supplierId.present ? data.supplierId.value : this.supplierId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductSupplierRow(')
+          ..write('productId: $productId, ')
+          ..write('supplierId: $supplierId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(productId, supplierId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProductSupplierRow &&
+          other.productId == this.productId &&
+          other.supplierId == this.supplierId);
+}
+
+class ProductSuppliersCompanion extends UpdateCompanion<ProductSupplierRow> {
+  final Value<String> productId;
+  final Value<String> supplierId;
+  final Value<int> rowid;
+  const ProductSuppliersCompanion({
+    this.productId = const Value.absent(),
+    this.supplierId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProductSuppliersCompanion.insert({
+    required String productId,
+    required String supplierId,
+    this.rowid = const Value.absent(),
+  })  : productId = Value(productId),
+        supplierId = Value(supplierId);
+  static Insertable<ProductSupplierRow> custom({
+    Expression<String>? productId,
+    Expression<String>? supplierId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (productId != null) 'product_id': productId,
+      if (supplierId != null) 'supplier_id': supplierId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProductSuppliersCompanion copyWith(
+      {Value<String>? productId,
+      Value<String>? supplierId,
+      Value<int>? rowid}) {
+    return ProductSuppliersCompanion(
+      productId: productId ?? this.productId,
+      supplierId: supplierId ?? this.supplierId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (supplierId.present) {
+      map['supplier_id'] = Variable<String>(supplierId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductSuppliersCompanion(')
+          ..write('productId: $productId, ')
+          ..write('supplierId: $supplierId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PurchasesTable extends Purchases
     with TableInfo<$PurchasesTable, PurchaseRow> {
   @override
@@ -8065,6 +8315,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ProductCategoriesTable(this);
   late final $ProductCategoryAssignmentsTable productCategoryAssignments =
       $ProductCategoryAssignmentsTable(this);
+  late final $ProductSuppliersTable productSuppliers =
+      $ProductSuppliersTable(this);
   late final $PurchasesTable purchases = $PurchasesTable(this);
   late final $PurchaseLinesTable purchaseLines = $PurchaseLinesTable(this);
   late final $SupplierPaymentsTable supplierPayments =
@@ -8095,6 +8347,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         inventoryMovements,
         productCategories,
         productCategoryAssignments,
+        productSuppliers,
         purchases,
         purchaseLines,
         supplierPayments,
@@ -8940,6 +9193,7 @@ typedef $$SuppliersTableCreateCompanionBuilder = SuppliersCompanion Function({
   Value<String?> panNumber,
   Value<String?> phone,
   Value<String?> address,
+  Value<int> isActive,
   Value<int> rowid,
 });
 typedef $$SuppliersTableUpdateCompanionBuilder = SuppliersCompanion Function({
@@ -8948,6 +9202,7 @@ typedef $$SuppliersTableUpdateCompanionBuilder = SuppliersCompanion Function({
   Value<String?> panNumber,
   Value<String?> phone,
   Value<String?> address,
+  Value<int> isActive,
   Value<int> rowid,
 });
 
@@ -8974,6 +9229,9 @@ class $$SuppliersTableFilterComposer
 
   ColumnFilters<String> get address => $composableBuilder(
       column: $table.address, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnFilters(column));
 }
 
 class $$SuppliersTableOrderingComposer
@@ -8999,6 +9257,9 @@ class $$SuppliersTableOrderingComposer
 
   ColumnOrderings<String> get address => $composableBuilder(
       column: $table.address, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get isActive => $composableBuilder(
+      column: $table.isActive, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SuppliersTableAnnotationComposer
@@ -9024,6 +9285,9 @@ class $$SuppliersTableAnnotationComposer
 
   GeneratedColumn<String> get address =>
       $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<int> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
 }
 
 class $$SuppliersTableTableManager extends RootTableManager<
@@ -9054,6 +9318,7 @@ class $$SuppliersTableTableManager extends RootTableManager<
             Value<String?> panNumber = const Value.absent(),
             Value<String?> phone = const Value.absent(),
             Value<String?> address = const Value.absent(),
+            Value<int> isActive = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SuppliersCompanion(
@@ -9062,6 +9327,7 @@ class $$SuppliersTableTableManager extends RootTableManager<
             panNumber: panNumber,
             phone: phone,
             address: address,
+            isActive: isActive,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -9070,6 +9336,7 @@ class $$SuppliersTableTableManager extends RootTableManager<
             Value<String?> panNumber = const Value.absent(),
             Value<String?> phone = const Value.absent(),
             Value<String?> address = const Value.absent(),
+            Value<int> isActive = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SuppliersCompanion.insert(
@@ -9078,6 +9345,7 @@ class $$SuppliersTableTableManager extends RootTableManager<
             panNumber: panNumber,
             phone: phone,
             address: address,
+            isActive: isActive,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -11103,6 +11371,135 @@ typedef $$ProductCategoryAssignmentsTableProcessedTableManager
         ),
         ProductCategoryAssignmentRow,
         PrefetchHooks Function()>;
+typedef $$ProductSuppliersTableCreateCompanionBuilder
+    = ProductSuppliersCompanion Function({
+  required String productId,
+  required String supplierId,
+  Value<int> rowid,
+});
+typedef $$ProductSuppliersTableUpdateCompanionBuilder
+    = ProductSuppliersCompanion Function({
+  Value<String> productId,
+  Value<String> supplierId,
+  Value<int> rowid,
+});
+
+class $$ProductSuppliersTableFilterComposer
+    extends Composer<_$AppDatabase, $ProductSuppliersTable> {
+  $$ProductSuppliersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get productId => $composableBuilder(
+      column: $table.productId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get supplierId => $composableBuilder(
+      column: $table.supplierId, builder: (column) => ColumnFilters(column));
+}
+
+class $$ProductSuppliersTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProductSuppliersTable> {
+  $$ProductSuppliersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get productId => $composableBuilder(
+      column: $table.productId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get supplierId => $composableBuilder(
+      column: $table.supplierId, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ProductSuppliersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProductSuppliersTable> {
+  $$ProductSuppliersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get supplierId => $composableBuilder(
+      column: $table.supplierId, builder: (column) => column);
+}
+
+class $$ProductSuppliersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ProductSuppliersTable,
+    ProductSupplierRow,
+    $$ProductSuppliersTableFilterComposer,
+    $$ProductSuppliersTableOrderingComposer,
+    $$ProductSuppliersTableAnnotationComposer,
+    $$ProductSuppliersTableCreateCompanionBuilder,
+    $$ProductSuppliersTableUpdateCompanionBuilder,
+    (
+      ProductSupplierRow,
+      BaseReferences<_$AppDatabase, $ProductSuppliersTable, ProductSupplierRow>
+    ),
+    ProductSupplierRow,
+    PrefetchHooks Function()> {
+  $$ProductSuppliersTableTableManager(
+      _$AppDatabase db, $ProductSuppliersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProductSuppliersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProductSuppliersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProductSuppliersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> productId = const Value.absent(),
+            Value<String> supplierId = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProductSuppliersCompanion(
+            productId: productId,
+            supplierId: supplierId,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String productId,
+            required String supplierId,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProductSuppliersCompanion.insert(
+            productId: productId,
+            supplierId: supplierId,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ProductSuppliersTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ProductSuppliersTable,
+    ProductSupplierRow,
+    $$ProductSuppliersTableFilterComposer,
+    $$ProductSuppliersTableOrderingComposer,
+    $$ProductSuppliersTableAnnotationComposer,
+    $$ProductSuppliersTableCreateCompanionBuilder,
+    $$ProductSuppliersTableUpdateCompanionBuilder,
+    (
+      ProductSupplierRow,
+      BaseReferences<_$AppDatabase, $ProductSuppliersTable, ProductSupplierRow>
+    ),
+    ProductSupplierRow,
+    PrefetchHooks Function()>;
 typedef $$PurchasesTableCreateCompanionBuilder = PurchasesCompanion Function({
   required String id,
   required String number,
@@ -12286,6 +12683,8 @@ class $AppDatabaseManager {
       get productCategoryAssignments =>
           $$ProductCategoryAssignmentsTableTableManager(
               _db, _db.productCategoryAssignments);
+  $$ProductSuppliersTableTableManager get productSuppliers =>
+      $$ProductSuppliersTableTableManager(_db, _db.productSuppliers);
   $$PurchasesTableTableManager get purchases =>
       $$PurchasesTableTableManager(_db, _db.purchases);
   $$PurchaseLinesTableTableManager get purchaseLines =>

@@ -2,6 +2,7 @@ import 'inventory_movement.dart';
 import 'product.dart';
 import 'product_category.dart';
 import 'product_stock.dart';
+import 'product_supplier.dart';
 
 /// Port for storing products and their stock movements.
 ///
@@ -28,6 +29,28 @@ abstract interface class InventoryRepository {
 
   /// Every category, for the reports that group stock by them.
   Future<List<ProductCategory>> allCategories();
+
+  /// Replaces a product's declared suppliers with exactly [suppliers].
+  ///
+  /// **Replaces rather than adds**, so the stored set is always what the caller
+  /// last declared and cannot accumulate stale entries. Passing an empty list clears
+  /// it, which is how a product goes back to having none.
+  ///
+  /// The product and every supplier must already exist; they are foreign keys, so a
+  /// link naming something absent is a defect rather than a value to skip.
+  Future<void> saveDeclaredSuppliers(
+    String productId,
+    List<ProductSupplier> suppliers,
+  );
+
+  /// The suppliers declared for one product.
+  ///
+  /// **Empty when none are declared**, which is an ordinary state — exactly as a
+  /// product with no category is, for the same reason.
+  Future<List<ProductSupplier>> declaredSuppliersFor(String productId);
+
+  /// Every declared product-supplier link, for the reports that group by both.
+  Future<List<ProductSupplier>> allDeclaredSuppliers();
 
   /// Records a movement, refusing it if it would take the product below zero.
   ///

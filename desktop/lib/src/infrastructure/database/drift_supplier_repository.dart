@@ -97,8 +97,7 @@ class DriftSupplierRepository implements SupplierRepository {
         .get();
 
     if (rows.isEmpty) return const [];
-    return allOrdered()
-        .then((all) {
+    return allOrdered().then((all) {
       final ids = rows.map((r) => r.id).toSet();
       return all.where((s) => ids.contains(s.id)).toList();
     });
@@ -123,6 +122,12 @@ class DriftSupplierRepository implements SupplierRepository {
       // PAN rather than assuming none is needed.
       isVatRegistered: details?.isVatRegistered ?? false,
       businessName: details?.businessName,
+      // **On the identity table, not the details table.** "Are we still buying
+      // from them" is a fact about the supplier itself, not about how their name is
+      // displayed, so it belongs beside `name`. `isActive` is read straight from the
+      // row rather than defaulted here: the column already defaults to 1, and a
+      // second default in this method would quietly paper over a bad row.
+      isActive: supplier.isActive == 1,
     );
   }
 
@@ -135,6 +140,9 @@ class DriftSupplierRepository implements SupplierRepository {
         panNumber: Value(supplier.pan?.toString()),
         phone: Value(supplier.phone),
         address: Value(supplier.address),
+        // **Always written explicitly**, even when true, so a supplier saved through
+        // the domain is never dependent on the column default having been applied.
+        isActive: Value(supplier.isActive ? 1 : 0),
       );
 
   SupplierDetailsCompanion _detailsCompanion(Supplier supplier) =>

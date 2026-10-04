@@ -21,6 +21,7 @@ import 'package:financeapp/src/infrastructure/database/drift_supplier_repository
 import 'package:financeapp/src/infrastructure/database/drift_unit_of_work.dart';
 import 'package:financeapp/src/infrastructure/database/sqlite_native.dart';
 import 'package:financeapp/src/domain/inventory/product.dart';
+import 'package:financeapp/src/domain/inventory/product_supplier.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const chart = ChartOfAccounts();
@@ -119,9 +120,8 @@ void main() {
     });
 
     test(
-      'posts Dr Inventory / Dr Input VAT / Cr Payable at the hand-computed '
-      'amounts',
-      () async {
+        'posts Dr Inventory / Dr Input VAT / Cr Payable at the hand-computed '
+        'amounts', () async {
       // **The assertion that matters.** By account id *and* by side, so a swapped
       // debit and credit cannot pass: the entry would still balance, and a purchase
       // recorded as a disposal of stock is exactly the class of error that leaves
@@ -187,7 +187,8 @@ void main() {
       expect(nextInvoice.value, 'INV-2082-83-0003');
     });
 
-    test('the bill is stored with its number, its lines, and its entry', () async {
+    test('the bill is stored with its number, its lines, and its entry',
+        () async {
       await issue(build());
 
       final stored = (await purchases.byId('P-1'))!;
@@ -201,7 +202,8 @@ void main() {
       );
     });
 
-    test('the stock the bill delivered is recorded, at the net figure', () async {
+    test('the stock the bill delivered is recorded, at the net figure',
+        () async {
       // Purchasing stock must do two things atomically. Without the movement, 1040
       // and the physical stock diverge Ã¢â‚¬â€ the defect 4.17 recorded as a Gate 6
       // blocker.
@@ -234,7 +236,7 @@ void main() {
 
       final stock = await inventory.stockOf(
         Product(
-    id: 'p-1',
+          id: 'p-1',
           name: 'Chair',
           salePrice: Money.minor(200000, 'NPR'),
         ),
@@ -278,8 +280,7 @@ void main() {
       // **Compares dates, not instants.** A purchase posted at 15:45 on the final
       // day is inside the year. Comparing timestamps would reject it, and that is
       // the single easiest mistake to make in this area.
-      final outcome =
-          await issue(build(when: DateTime(2026, 7, 16, 15, 45)));
+      final outcome = await issue(build(when: DateTime(2026, 7, 16, 15, 45)));
       expect(outcome, isA<PurchaseIssued>());
     });
 
@@ -331,7 +332,8 @@ void main() {
       expect(issued.number.value, 'PUR-2082-83-0001');
     });
 
-    test('a refused purchase writes no entry, no bill, and no movement', () async {
+    test('a refused purchase writes no entry, no bill, and no movement',
+        () async {
       await issue(build(id: 'P-1', when: DateTime(2026, 9, 1)));
 
       expect(await journal.all(), isEmpty);
@@ -359,7 +361,9 @@ void main() {
         isNull,
       );
       expect(
-        lineFor(issued.journalEntry, ChartOfAccounts.payable.id)!.amount.minorUnits,
+        lineFor(issued.journalEntry, ChartOfAccounts.payable.id)!
+            .amount
+            .minorUnits,
         1000000,
         reason: 'with no VAT the payable is the net figure',
       );
@@ -416,7 +420,9 @@ void main() {
         lineFor(
           issued.journalEntry,
           ChartOfAccounts.inputVatRecoverable.id,
-        )!.amount.minorUnits,
+        )!
+            .amount
+            .minorUnits,
         13000,
       );
     });
@@ -487,7 +493,8 @@ void main() {
       );
     });
 
-    test('the balance starts at the full total and is derived, not stored', () async {
+    test('the balance starts at the full total and is derived, not stored',
+        () async {
       await issue(build());
       final stored = (await purchases.byId('P-1'))!;
 
@@ -536,6 +543,133 @@ void main() {
         await payments.forPurchase('P-1'),
       );
       expect(balance.isSettled, isTrue);
+    });
+  });
+
+  group('A supplier that has been shut', () {
+    test('a new purchase from them is refused, and nothing is written',
+        () async {
+      await suppliers.save(
+        Supplier(id: 'sup-1', name: 'Kamala Traders', pan: '601234567')
+            .deactivate(),
+      );
+
+      final outcome = await issue(build());
+
+      expect(outcome, isA<PurchaseRejected>());
+      expect(
+        (outcome as PurchaseRejected).reason,
+        IssuePurchaseRejectionReason.supplierNotActive,
+      );
+      // **Nothing written, so nothing to undo.** A refused purchase that had already
+      // consumed a document number would leave a gap in the sequence, which is a
+      // visible hole in an audit trail.
+      expect(await purchases.byId('P-1'), isNull);
+    });
+
+    test('the refusal names the supplier, so the operator can act', () async {
+      await suppliers.save(
+        Supplier(id: 'sup-1', name: 'Kamala Traders').deactivate(),
+      );
+
+      final outcome = await issue(build()) as PurchaseRejected;
+
+      expect(outcome.message, contains('Kamala Traders'));
+    });
+
+    test('a payment against an old bill is still allowed', () async {
+      // **Deactivating stops new bills, not settling old ones.** Refusing to let a
+      // business pay a debt it owes would leave the payable unpayable and the
+      // liability stranded, which is a worse outcome than the one deactivation
+      // prevents.
+      await suppliers.save(Supplier(id: 'sup-1', name: 'Kamala Traders'));
+      await issue(build());
+      await suppliers
+          .save(Supplier(id: 'sup-1', name: 'Kamala Traders').deactivate());
+
+      final paymentsNow = await payments.forPurchase('P-1');
+      expect(paymentsNow, isEmpty);
+
+      // The bill is still open, so there is still something to pay.
+      final stored = (await purchases.byId('P-1'))!;
+      final balance = PurchaseBalance.of(stored.purchase, paymentsNow);
+      expect(balance.outstanding.minorUnits, 1130000);
+    });
+  });
+
+  group('A purchase from a supplier the product does not name', () {
+    setUp(() async {
+      await suppliers.save(
+        Supplier(id: 'sup-1', name: 'Kamala Traders', pan: '601234567'),
+      );
+      // `p-1` is declared to come from `sup-2`.
+      await suppliers.save(Supplier(id: 'sup-2', name: 'Bhera Stores'));
+      await inventory.saveDeclaredSuppliers('p-1', [
+        ProductSupplier(productId: 'p-1', supplierId: 'sup-2'),
+      ]);
+    });
+
+    test('is recorded, and reported rather than refused', () async {
+      // **The goods really arrived, so the bill is recorded.** Refusing it would
+      // leave the business holding stock it does not record and a payable it cannot
+      // see -- the same defect that refusing a purchase over a missing PAN would
+      // cause, and `IssuePurchase` already documents why it warns instead.
+      final outcome = await issue(build()) as PurchaseIssued;
+
+      expect(outcome, isA<PurchaseIssued>());
+      expect(await purchases.byId('P-1'), isNotNull);
+      expect(
+        outcome.undeclaredSupplierWarnings,
+        isNotEmpty,
+        reason:
+            'buying from an undeclared supplier is worth telling someone about',
+      );
+    });
+
+    test('warns only about the product that did not name the supplier',
+        () async {
+      // `p-2` declares nothing, so buying it from anyone is ordinary.
+      await inventory.saveProduct(
+        Product(id: 'p-2', name: 'Desk', salePrice: Money.minor(400000, 'NPR')),
+      );
+
+      final outcome = await issue(build(
+        lines: [
+          PurchaseLine(
+            description: 'Chair',
+            quantity: 1,
+            unitPrice: Money.minor(100000, 'NPR'),
+            productId: 'p-1',
+          ),
+          PurchaseLine(
+            description: 'Desk',
+            quantity: 1,
+            unitPrice: Money.minor(200000, 'NPR'),
+            productId: 'p-2',
+          ),
+        ],
+      )) as PurchaseIssued;
+
+      expect(outcome.undeclaredSupplierWarnings, hasLength(1));
+      expect(outcome.undeclaredSupplierWarnings.single, contains('Chair'));
+    });
+
+    test('says nothing when the supplier is one the product names', () async {
+      final outcome = await issue(build(supplierId: 'sup-2')) as PurchaseIssued;
+
+      expect(outcome.undeclaredSupplierWarnings, isEmpty);
+    });
+
+    test('says nothing for a product that declares no supplier at all',
+        () async {
+      // **No declaration is not a mismatch.** A product with an empty list is an
+      // ordinary product, exactly as one with no category is; warning about it would
+      // mean every uncategorised product produced a warning forever.
+      await inventory.saveDeclaredSuppliers('p-1', []);
+
+      final outcome = await issue(build()) as PurchaseIssued;
+
+      expect(outcome.undeclaredSupplierWarnings, isEmpty);
     });
   });
 }

@@ -34,6 +34,7 @@ final class PurchaseIssued extends IssuePurchaseOutcome {
     required this.supplier,
     required this.stockPositions,
     this.inputCreditWarning,
+    this.undeclaredSupplierWarnings = const <String>[],
   });
 
   final Purchase purchase;
@@ -74,6 +75,27 @@ final class PurchaseIssued extends IssuePurchaseOutcome {
   /// Whether the bill's VAT can be expected to survive an audit.
   bool get supplierCanSupportInputCredit => inputCreditWarning == null;
 
+  /// Products on this bill whose **declared** suppliers do not include the one
+  /// being billed.
+  ///
+  /// ## Why this warns rather than refuses
+  ///
+  /// A product's declared supplier list is **catalogue reference data**, and the
+  /// purchase bill is the **authority** on who actually supplied the goods. Buying
+  /// the same product from a second supplier at a different price is ordinary
+  /// trading, so refusing it would mean refusing to record goods that genuinely
+  /// arrived -- leaving the business with stock it does not record and a payable it
+  /// cannot see.
+  ///
+  /// This is the same reasoning as [inputCreditWarning], and deliberately the same
+  /// shape: a risk worth seeing, posted rather than blocked.
+  ///
+  /// **Empty is the ordinary case**, including for a product that declares no
+  /// suppliers at all. A product with an empty list is an ordinary product, exactly
+  /// as one with no category is (ADR 013), so warning about it would produce a
+  /// warning on nearly every bill forever.
+  final List<String> undeclaredSupplierWarnings;
+
   /// The stock position for one product, or `null` when the bill did not deliver it.
   ProductStock? stockFor(String productId) => stockPositions[productId];
 }
@@ -84,11 +106,21 @@ final class PurchaseRejected extends IssuePurchaseOutcome {
     required this.purchase,
     required this.reason,
     required this.fiscalYear,
+    this.supplier,
   });
 
   final Purchase purchase;
   final IssuePurchaseRejectionReason reason;
   final FiscalYear fiscalYear;
+
+  /// The supplier, when the refusal is **about** the supplier rather than about its
+  /// absence.
+  ///
+  /// **Null for [IssuePurchaseRejectionReason.unknownSupplier]**, because there is no
+  /// supplier to name. Carrying it so the message can say *who* is shut turns the
+  /// refusal into something the operator can act on, rather than a rule stated at
+  /// them.
+  final Supplier? supplier;
 
   String get message => switch (reason) {
         IssuePurchaseRejectionReason.outsideFiscalYear =>
@@ -97,6 +129,10 @@ final class PurchaseRejected extends IssuePurchaseOutcome {
         IssuePurchaseRejectionReason.unknownSupplier =>
           'There is no supplier with id "${purchase.supplierId}". Stock '
               'received from nobody cannot be recorded as stock on hand.',
+        IssuePurchaseRejectionReason.supplierNotActive =>
+          '${supplier?.name ?? 'This supplier'} is marked as no longer used, so a '
+              'new bill cannot be recorded against them. If they should be usable '
+              'again, reactivate them first.',
         IssuePurchaseRejectionReason.unknownProduct =>
           'This purchase names a product that does not exist, so the goods '
               'received cannot be added to stock. Create the product first.',
@@ -109,6 +145,18 @@ enum IssuePurchaseRejectionReason {
 
   /// The supplier the purchase bills does not exist.
   unknownSupplier,
+
+  /// The supplier exists but has been **deactivated**.
+  ///
+  /// **A separate reason from [unknownSupplier], not folded into it.** The remedies
+  /// are opposite -- create the supplier, versus reactivate one that already exists
+  /// -- and "no supplier by that id" would send the operator to create a duplicate
+  /// of a business they already have on file.
+  ///
+  /// **Only new purchases are refused.** A payment settling an existing bill is not,
+  /// because refusing to let a business pay a debt it owes would leave the payable
+  /// stranded.
+  supplierNotActive,
 
   /// A stock line names a product that does not exist.
   ///
@@ -217,6 +265,18 @@ class IssuePurchase {
         );
       }
 
+      // **Refused before a serial is allocated**, so a shut supplier costs no
+      // document number and leaves no gap in the sequence. Only *new* bills are
+      // refused -- settling an old one is not this use case's business.
+      if (!supplier.canBeBilledOnNewPurchase) {
+        return PurchaseRejected(
+          purchase: purchase,
+          reason: IssuePurchaseRejectionReason.supplierNotActive,
+          fiscalYear: fiscalYear,
+          supplier: supplier,
+        );
+      }
+
       // Every stock line must name a product that exists, and this is checked here
       // rather than letting `applyMovement` fail later: the refusal message is far
       // better, and no serial has been consumed yet at that point either way.
@@ -265,6 +325,11 @@ class IssuePurchase {
         issued: issued,
         supplier: supplier,
         stockPositions: Map.unmodifiable(stockPositions),
+        undeclaredSupplierWarnings: await _undeclaredSupplierWarnings(
+          purchase,
+          supplier,
+          products,
+        ),
         inputCreditWarning: supplier.canSupportInputCredit
             ? null
             : 'This bill is from a supplier with no PAN, so the '
@@ -273,6 +338,48 @@ class IssuePurchase {
                 'recorded, because the goods really were received.',
       );
     });
+  }
+
+  /// A warning for each product whose declared suppliers do not include this one.
+  ///
+  /// ## Nothing is refused
+  ///
+  /// The bill is the authority on who supplied the goods, so it is posted whatever
+  /// the catalogue says. See [PurchaseIssued.undeclaredSupplierWarnings].
+  ///
+  /// ## Only products that **declare** anything can warn
+  ///
+  /// A product with no declared suppliers is ordinary, so it never produces a
+  /// warning. **Warning on an empty list would mean nearly every bill carries a
+  /// warning forever**, and a warning that always fires is a warning nobody reads.
+  ///
+  /// Reads through [InventoryRepository.declaredSuppliersFor] rather than holding a
+  /// list on the product, so there is only one copy of the fact.
+  Future<List<String>> _undeclaredSupplierWarnings(
+    Purchase purchase,
+    Supplier supplier,
+    Map<String, Product> products,
+  ) async {
+    final store = inventory;
+    if (store == null) return const [];
+
+    final warnings = <String>[];
+    for (final line in purchase.stockLines) {
+      final productId = line.productId;
+      if (productId == null) continue;
+
+      final declared = await store.declaredSuppliersFor(productId);
+      if (declared.isEmpty) continue;
+      if (declared.any((link) => link.names(supplier.id))) continue;
+
+      final name = products[productId]?.name ?? productId;
+      warnings.add(
+        'This bill bought "$name" from ${supplier.name}, who is not one of the '
+        'suppliers declared for it. The purchase has been recorded, because the '
+        'goods were received.',
+      );
+    }
+    return warnings;
   }
 
   /// The products named by the stock lines, or `null` if any is unknown.

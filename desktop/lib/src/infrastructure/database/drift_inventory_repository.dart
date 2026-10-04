@@ -5,6 +5,7 @@ import '../../domain/inventory/inventory_repository.dart';
 import '../../domain/inventory/product.dart';
 import '../../domain/inventory/product_category.dart';
 import '../../domain/inventory/product_stock.dart';
+import '../../domain/inventory/product_supplier.dart';
 import '../../domain/shared/money.dart';
 import 'app_database.dart';
 
@@ -78,6 +79,64 @@ class DriftInventoryRepository implements InventoryRepository {
         .get();
     return rows.map(_toDomainCategory).toList();
   }
+
+  @override
+  Future<void> saveDeclaredSuppliers(
+    String productId,
+    List<ProductSupplier> suppliers,
+  ) async {
+    // **Delete then insert, in one transaction**, exactly as `_saveCategoryAssignment`
+    // does. Replace-rather-than-append means a supplier the user removed cannot
+    // survive in the table and reappear in a later report, which is the failure mode
+    // of an "add" method nobody ever calls a second time.
+    await _db.transaction(() async {
+      await (_db.delete(_db.productSuppliers)
+            ..where((t) => t.productId.equals(productId)))
+          .go();
+
+      for (final link in suppliers) {
+        // The product must be the one the caller named, and the ids are trimmed by
+        // the value type, so a mismatch here is a caller's bug rather than a value.
+        if (link.productId != productId) {
+          throw ArgumentError.value(
+            link,
+            'suppliers',
+            'A link for product "${link.productId}" cannot be saved against '
+                '"$productId".',
+          );
+        }
+        await _db
+            .into(_db.productSuppliers)
+            .insert(ProductSuppliersCompanion.insert(
+              productId: link.productId,
+              supplierId: link.supplierId,
+            ));
+      }
+    });
+  }
+
+  @override
+  Future<List<ProductSupplier>> declaredSuppliersFor(String productId) async {
+    final rows = await (_db.select(_db.productSuppliers)
+          ..where((t) => t.productId.equals(productId))
+          ..orderBy([(t) => OrderingTerm(expression: t.supplierId)]))
+        .get();
+    return rows.map(_toProductSupplier).toList();
+  }
+
+  @override
+  Future<List<ProductSupplier>> allDeclaredSuppliers() async {
+    final rows = await (_db.select(_db.productSuppliers)
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.productId),
+            (t) => OrderingTerm(expression: t.supplierId),
+          ]))
+        .get();
+    return rows.map(_toProductSupplier).toList();
+  }
+
+  static ProductSupplier _toProductSupplier(ProductSupplierRow row) =>
+      ProductSupplier(productId: row.productId, supplierId: row.supplierId);
 
   ProductCategory _toDomainCategory(ProductCategoryRow row) => ProductCategory(
         id: row.id,

@@ -13,7 +13,7 @@ part 'app_database.g.dart';
 /// than one place has to know it: the database declares it to drift, and the
 /// backup upload declares it to the server. Two copies of the number would drift
 /// apart, and the server uses it to decide how to read the snapshot.
-const int currentSchemaVersion = 16;
+const int currentSchemaVersion = 17;
 
 /// The local SQLite database for one fiscal year.
 ///
@@ -38,6 +38,9 @@ const int currentSchemaVersion = 16;
     InventoryMovements,
     ProductCategories,
     ProductCategoryAssignments,
+    // The suppliers a product can be bought from: reference data for reports, not
+    // a rule about who may be billed.
+    ProductSuppliers,
     Purchases,
     PurchaseLines,
     SupplierPayments,
@@ -69,6 +72,7 @@ class AppDatabase extends _$AppDatabase {
   ///   14 product_categories, product_category_assignments
   ///   15 purchases, purchase_lines
   ///   16 supplier_payments
+  ///   17 product_suppliers, suppliers.is_active
   @override
   int get schemaVersion => currentSchemaVersion;
 
@@ -223,6 +227,36 @@ class AppDatabase extends _$AppDatabase {
             // A new table, so nothing existing is touched. References `purchases`
             // (v15) and `accounts` (v1), both of which exist by now.
             await m.createTable(supplierPayments);
+          }
+          if (from < 17) {
+            // Which suppliers a product can be bought from, and whether a supplier
+            // is still one the business buys from.
+            //
+            // **A new table, so nothing existing is touched.** It references
+            // `products` (v7) and `suppliers` (v13), both of which exist by now.
+            await m.createTable(productSuppliers);
+          }
+          if (from >= 13 && from < 17) {
+            // `is_active` **is** an `addColumn`, unlike a foreign key.
+            //
+            // The reason ADR 010 gives for keeping `category_id` off `products` --
+            // that `createTable` writes the current shape -- does **not** apply to a
+            // plain column with a default, but the same `createTable` behaviour
+            // still dictates *when this step may run*. A database created fresh at
+            // `from < 13` runs `createTable(suppliers)` above, which writes the
+            // **current** definition and therefore already carries `is_active`;
+            // adding it again raises `duplicate column name` and the whole upgrade
+            // fails. So the step is bounded **below** at 13 as well as above at 17.
+            //
+            // The equivalent guard for `inventory_movements.journal_entry_id` is the
+            // `else if` at v7/v8, because that column needed a table rebuild; a plain
+            // `addColumn` needs a range instead.
+            //
+            // **The default is 1, so every supplier written before this step reads
+            // as active.** The opposite default would be a silent disaster: it would
+            // make an existing business unable to record a single purchase, with no
+            // error anywhere to explain why.
+            await m.addColumn(suppliers, suppliers.isActive);
           }
         },
         beforeOpen: (OpeningDetails details) async {

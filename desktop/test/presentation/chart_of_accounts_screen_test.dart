@@ -75,7 +75,25 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('$count accounts'), findsOneWidget);
+    // **The figure and its label are separate widgets**, which is the newspaper
+    // summary `ui.txt` section 5 asks for: a large number with a small supporting
+    // label beneath it. So the assertion is that both halves are present, not that
+    // they are one string — the count is what matters, not how it is typeset.
+    // Asserted through the figures block so a per-group count cannot satisfy it.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('chart-summary')),
+        matching: find.text('$count'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('chart-summary')),
+        matching: find.text('ACCOUNTS'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('an account the business added appears', (tester) async {
