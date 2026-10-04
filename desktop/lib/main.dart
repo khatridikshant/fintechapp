@@ -288,7 +288,7 @@ final Uri serverBaseUrl = Uri.parse(
 /// no network call between "I have a licence" and "this licence is genuine"; see
 /// ADR 014.
 const String licencePublicKey =
-    'hNJ0abFa9Z/kTmL8bfQCCFAwG5hUFgp37/oxG3TAKB0=';
+    'x0lfJIfexfpW+M8tHllWpNV1tDMVAcJEy8/m4j1rY78=';
 
 /// A stable id for this installation, in **UUID form**.
 ///

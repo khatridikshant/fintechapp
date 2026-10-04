@@ -66,6 +66,7 @@ class AppServices {
     this.sales,
     this.inventoryReport,
     this.tax,
+    this.categoryReport,
   });
 
   /// The Trial Balance report. Null until the application assembles it.
@@ -252,6 +253,7 @@ class AppServices {
         sales: sales,
         inventoryReport: inventoryReport,
         tax: tax,
+        categoryReport: categoryReport,
         recheckLicence: recheckLicence ?? this.recheckLicence,
         signInForLicence: signInForLicence ?? this.signInForLicence,
         signOutForLicence: signOutForLicence ?? this.signOutForLicence,
@@ -273,6 +275,9 @@ class AppServices {
   final BalanceSheetLoader? balanceSheet;
   final BuildSalesSummary? sales;
   final BuildInventorySummary? inventoryReport;
+
+  /// The stock held, grouped by product category.
+  final BuildCategoryReport? categoryReport;
 
   /// The VAT figures. **A complete return**, since ADR 012 added the purchase side;
   /// input VAT is real, and the part from suppliers with no PAN is reported
@@ -328,6 +333,7 @@ class AppServices {
         sales: session.sales,
         inventoryReport: session.inventoryReport,
         tax: session.tax,
+        categoryReport: session.categoryReport,
       );
 
   /// The same services, re-read after signing in or out.
@@ -357,6 +363,7 @@ class AppServices {
         sales: sales,
         inventoryReport: inventoryReport,
         tax: tax,
+        categoryReport: categoryReport,
         chartOfAccounts: chartOfAccounts,
         receivables: receivables,
         transferCash: transferCash,

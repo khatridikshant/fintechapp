@@ -1,9 +1,16 @@
 import 'dart:io';
 
+import 'package:financeapp/src/application/account_session.dart';
+import 'package:financeapp/src/domain/shared/auth_service.dart';
+import 'package:financeapp/src/domain/shared/book_upload.dart';
+import 'package:financeapp/src/domain/shared/credential_store.dart';
+import 'package:financeapp/src/domain/shared/licence_access.dart';
+import 'package:financeapp/src/domain/shared/sign_in.dart';
 import 'package:financeapp/src/presentation/app_services.dart';
 import 'package:financeapp/src/presentation/finance_app.dart';
 import 'package:financeapp/src/presentation/finance_app_shell.dart';
 import 'package:financeapp/src/presentation/navigation/app_navigation.dart';
+import 'package:financeapp/src/presentation/screens/licence_required_screen.dart';
 import 'package:financeapp/src/presentation/screens/licenses_screen.dart';
 import 'package:financeapp/src/presentation/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -232,6 +239,131 @@ void main() {
       );
     });
   });
+  group('The licence gate', () {
+    testWidgets('a successful sign-in reveals the books', (tester) async {
+      // The verdict the gate returns, flipped by the sign-in the way a
+      // real sign-in stores the authorisation and the next check reads
+      // it back.
+      LicenceAccess access = Locked(
+        reason: LicenceInvalidReason.notInstalled,
+        message: 'Sign in to activate this copy of the application.',
+      );
+      final services = AppServices().withLicenceGate(
+        recheck: () async => access,
+        signIn: ({required String email, required String password}) async {
+          access = Allowed(
+            licenceId: 'licence-1',
+            expiresAt: null,
+            nextValidationAt: null,
+            offlineGraceEndsAt: null,
+            withinOfflineGracePeriod: true,
+          );
+        },
+      );
+
+      await pumpShell(tester, services: services);
+      await tester.pumpAndSettle();
+
+      // Locked: the sign-in screen is shown, not the books.
+      expect(find.byType(LicenceRequiredScreen), findsOneWidget);
+
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'owner@example.com',
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(1),
+        'password',
+      );
+      await tester.tap(find.text('Sign in'));
+      await tester.pumpAndSettle();
+
+      // The books are revealed: the sign-in screen is gone and the
+      // navigation is back. A sign-in that stored the licence but left
+      // the shell locked would fail here — the screen would still be
+      // showing, with no message and no error.
+      expect(find.byType(LicenceRequiredScreen), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('navigation-area')),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('Signing out', () {
+    testWidgets(
+        'forgets the stored licence, so the application cannot be used without '
+        'signing in again', (tester) async {
+      // The stored licence, standing in for what LicenceStore holds on disk.
+      var licenceStored = false;
+
+      final account = AccountSession(
+        auth: _AcceptingAuth(),
+        store: _MemoryCredentialStore(),
+        uploadBuilder: (_) => throw UnimplementedError('no uploads here'),
+      );
+
+      const allowed = Allowed(
+        licenceId: 'licence-1',
+        expiresAt: null,
+        nextValidationAt: null,
+        offlineGraceEndsAt: null,
+        withinOfflineGracePeriod: true,
+      );
+      const locked = Locked(
+        reason: LicenceInvalidReason.notInstalled,
+        message: 'Sign in to activate this copy of the application.',
+      );
+
+      final services = AppServices(account: account).withLicenceGate(
+        recheck: () async => licenceStored ? allowed : locked,
+        signIn: ({required String email, required String password}) async {
+          await account.signIn(
+            serverBaseUrl: Uri.parse('http://127.0.0.1:8000'),
+            email: email,
+            password: password,
+          );
+          licenceStored = true;
+        },
+        signOut: () async {
+          // Mirrors the real signOutForLicence: the licence goes with the token.
+          licenceStored = false;
+          await account.signOut();
+        },
+      );
+
+      await pumpShell(tester, services: services);
+
+      // Locked, so sign in through the gate to reach the books.
+      expect(find.byType(LicenceRequiredScreen), findsOneWidget);
+      await tester.enterText(
+          find.byType(TextFormField).at(0), 'owner@example.com');
+      await tester.enterText(find.byType(TextFormField).at(1), 'password');
+      await tester.tap(find.text('Sign in'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LicenceRequiredScreen), findsNothing);
+
+      // Settings offers Sign out, because the account is signed in.
+      await tester.tap(navItem('Settings'));
+      await tester.pumpAndSettle();
+      const signOutButton = ValueKey<String>('sign-out-button');
+      expect(find.byKey(signOutButton), findsOneWidget);
+      await tester.tap(find.byKey(signOutButton));
+      // Signing out now rebuilds twice: the services, then the licence verdict.
+      await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
+
+      // **The licence must be forgotten, not just the token.** A stored licence
+      // that outlives a sign-out is an application anyone can open without ever
+      // signing in again, which is the whole thing the gate exists to prevent.
+      expect(licenceStored, isFalse,
+          reason: 'signing out must forget the stored licence, not only the '
+              'token');
+      expect(find.byType(LicenceRequiredScreen), findsOneWidget,
+          reason: 'after signing out the application must be locked again');
+    });
+  });
+
   group('Layer discipline', () {
     // The real layer-boundary guards live in `architecture_test.dart`, which
     // reads the source files. This only records the expectation here so the two
@@ -241,4 +373,42 @@ void main() {
           isTrue);
     });
   });
+}
+
+/// Signs in successfully, so the account reads as signed in without a server.
+class _AcceptingAuth implements AuthActions {
+  @override
+  Future<SignInResult> signIn({
+    required Uri serverBaseUrl,
+    required String email,
+    required String password,
+    String? deviceName,
+  }) async =>
+      SignInResult(
+        status: SignInStatus.signedIn,
+        message: 'Signed in.',
+        session: BackendSession(
+          serverBaseUrl: serverBaseUrl,
+          token: 'token-for-tests',
+          bookId: '23',
+          accountLabel: email,
+        ),
+      );
+
+  @override
+  Future<void> signOut(BackendSession session) async {}
+}
+
+/// An in-memory stand-in for the OS credential store.
+class _MemoryCredentialStore implements CredentialStore {
+  BackendSession? _session;
+
+  @override
+  Future<BackendSession?> read() async => _session;
+
+  @override
+  Future<void> write(BackendSession session) async => _session = session;
+
+  @override
+  Future<void> clear() async => _session = null;
 }

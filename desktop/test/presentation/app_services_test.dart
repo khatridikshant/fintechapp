@@ -44,6 +44,7 @@ void main() {
       cashFlow: session.cashFlow,
       sales: session.sales,
       inventoryReport: session.inventoryReport,
+      categoryReport: session.categoryReport,
       tax: session.tax,
     );
 
@@ -63,6 +64,7 @@ void main() {
     expect(after.cashFlow, isNotNull, reason: 'cash flow');
     expect(after.sales, isNotNull, reason: 'sales');
     expect(after.inventoryReport, isNotNull, reason: 'inventory');
+    expect(after.categoryReport, isNotNull, reason: 'category report');
     expect(after.tax, isNotNull, reason: 'VAT');
   });
 
@@ -81,6 +83,7 @@ void main() {
       cashFlow: session.cashFlow,
       sales: session.sales,
       inventoryReport: session.inventoryReport,
+      categoryReport: session.categoryReport,
       tax: session.tax,
     );
 
@@ -97,6 +100,7 @@ void main() {
     expect(after.cashFlow, isNotNull, reason: 'cash flow');
     expect(after.sales, isNotNull, reason: 'sales');
     expect(after.inventoryReport, isNotNull, reason: 'inventory');
+    expect(after.categoryReport, isNotNull, reason: 'category report');
     expect(after.tax, isNotNull, reason: 'VAT');
   });
 
@@ -113,6 +117,7 @@ void main() {
     expect(session.cashFlow.fiscalYear.label, fiscalYear.label);
     expect(session.sales.fiscalYear.label, fiscalYear.label);
     expect(session.inventoryReport.fiscalYear.label, fiscalYear.label);
+    expect(session.categoryReport.fiscalYear.label, fiscalYear.label);
     expect(session.tax.fiscalYear.label, fiscalYear.label);
   });
 }

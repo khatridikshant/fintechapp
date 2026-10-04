@@ -1,5 +1,6 @@
 import 'inventory_movement.dart';
 import 'product.dart';
+import 'product_category.dart';
 import 'product_stock.dart';
 
 /// Port for storing products and their stock movements.
@@ -14,6 +15,19 @@ abstract interface class InventoryRepository {
   Future<Product?> productById(String id);
 
   Future<List<Product>> allProducts();
+
+  /// Saves a category.
+  ///
+  /// Categories are reference data for the reports that group by them
+  /// (ADR 013): they have no account and post nothing. The
+  /// implementation refuses a tree V1 cannot report — a category whose
+  /// parent does not exist, or that sits more than one level down —
+  /// before anything is written, so such a category never reaches the
+  /// book.
+  Future<void> saveCategory(ProductCategory category);
+
+  /// Every category, for the reports that group stock by them.
+  Future<List<ProductCategory>> allCategories();
 
   /// Records a movement, refusing it if it would take the product below zero.
   ///

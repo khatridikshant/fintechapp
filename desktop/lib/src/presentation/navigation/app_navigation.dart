@@ -277,6 +277,11 @@ List<NavigationGroup> buildNavigation(
           route: _reportsRoute(services, FinancialReport.inventory),
         ),
         NavigationItem(
+          title: 'Category Reports',
+          icon: Icons.category_outlined,
+          route: _reportsRoute(services, FinancialReport.byCategory),
+        ),
+        NavigationItem(
           title: 'Tax Reports',
           icon: Icons.receipt_outlined,
           route: _reportsRoute(services, FinancialReport.tax),
@@ -294,6 +299,13 @@ List<NavigationGroup> buildNavigation(
               : (context) => SettingsScreen(
                     account: services.account,
                     onAccountChanged: onAccountChanged ?? () async {},
+                    // **Through the gate when there is one.** Falling back to
+                    // `account.signOut()` alone would clear the token and leave
+                    // the stored licence, so the application would stay unlocked
+                    // after a sign-out. A build with no gate has no licence to
+                    // forget, so the bare sign-out is correct there.
+                    onSignOut: services.signOutForLicence ??
+                        (services.account?.signOut ?? () async {}),
                     businessDetails: services.businessDetails,
                     onBusinessSaved: (profile) async {
                       await services.businessDetails?.save(profile);
@@ -350,6 +362,7 @@ WidgetBuilder? _reportsRoute(AppServices services, FinancialReport report) {
   if (services.cashFlow == null ||
       services.sales == null ||
       services.inventoryReport == null ||
+      services.categoryReport == null ||
       services.tax == null) {
     return null;
   }
@@ -357,6 +370,7 @@ WidgetBuilder? _reportsRoute(AppServices services, FinancialReport report) {
         cashFlow: services.cashFlow!,
         sales: services.sales!,
         inventory: services.inventoryReport!,
+        categoryReport: services.categoryReport!,
         tax: services.tax!,
         fiscalYearLabel: services.session?.openYear.fiscalYear.label,
         initialReport: report,

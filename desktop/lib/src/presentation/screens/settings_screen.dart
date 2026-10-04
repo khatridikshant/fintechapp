@@ -15,6 +15,7 @@ class SettingsScreen extends StatelessWidget {
     super.key,
     required this.account,
     required this.onAccountChanged,
+    required this.onSignOut,
     required this.businessDetails,
     required this.onBusinessSaved,
   });
@@ -27,6 +28,11 @@ class SettingsScreen extends StatelessWidget {
   /// Signing in changes which token a backup is sent with, so the whole bundle
   /// has to be re-read rather than one service patched.
   final Future<void> Function() onAccountChanged;
+
+  /// Signs out through the licence gate, forgetting the stored licence as well as
+  /// the token. See [AccountPanel.onSignOut] for why this is not simply
+  /// `account.signOut()`.
+  final Future<void> Function() onSignOut;
 
   /// Where this business's details are saved. Null disables the panel, which is a
   /// test rather than a normal state.
@@ -50,7 +56,11 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: AppSpacing.xl),
         Divider(height: 1, thickness: 1, color: palette.divider),
         const SizedBox(height: AppSpacing.xl),
-        AccountPanel(account: account),
+        AccountPanel(
+          account: account,
+          onSignOut: onSignOut,
+          onAccountChanged: onAccountChanged,
+        ),
         const SizedBox(height: AppSpacing.xl),
         Divider(height: 1, thickness: 1, color: palette.divider),
         const SizedBox(height: AppSpacing.lg),
@@ -369,11 +379,29 @@ class _BusinessDetailsPanelState extends State<BusinessDetailsPanel> {
 /// token only. Storing the password would add a liability a token does not have:
 /// a token can be revoked, a password cannot be recovered.
 class AccountPanel extends StatefulWidget {
-  const AccountPanel({super.key, required this.account});
+  const AccountPanel({
+    super.key,
+    required this.account,
+    required this.onSignOut,
+    required this.onAccountChanged,
+  });
 
   /// Null when the application has no account support, which is a test and a
   /// developer configuration rather than a normal state.
   final AccountSession? account;
+
+  /// Signs out **through the licence gate**, so the stored licence is forgotten
+  /// along with the token.
+  ///
+  /// Supplied rather than calling [AccountSession.signOut] here, because that
+  /// clears only the token: a stored licence would survive, the gate would keep
+  /// permitting operation, and the application would open again without anyone
+  /// signing in -- which is the one thing the gate exists to prevent.
+  final Future<void> Function() onSignOut;
+
+  /// Called after signing in or out, so the shell re-reads the licence verdict
+  /// and rebuilds the services that hold the token.
+  final Future<void> Function() onAccountChanged;
 
   @override
   State<AccountPanel> createState() => _AccountPanelState();
@@ -429,10 +457,17 @@ class _AccountPanelState extends State<AccountPanel> {
     );
     if (!mounted) return;
 
-    // The password is dropped whether the attempt worked or not. There is no
+// The password is dropped whether the attempt worked or not. There is no
     // reason to hold it a moment longer, and keeping it would make it visible to
     // anything that later reads the widget tree.
     _password.clear();
+
+    if (result.isSuccess) {
+      // A new token means a new uploader, and the licence the gate stores, so
+      // the shell re-reads both rather than keeping the ones it had.
+      await widget.onAccountChanged();
+      if (!mounted) return;
+    }
 
     setState(() {
       _busy = false;
@@ -447,7 +482,12 @@ class _AccountPanelState extends State<AccountPanel> {
       _message = null;
     });
 
-    await widget.account?.signOut();
+    // Through the gate, so the stored licence goes with the token.
+    await widget.onSignOut();
+    if (!mounted) return;
+    // Re-reads the verdict, which is now locked, so the application returns to
+    // the sign-in screen rather than sitting on Settings as if still usable.
+    await widget.onAccountChanged();
     if (!mounted) return;
 
     setState(() {

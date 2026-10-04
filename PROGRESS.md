@@ -2124,6 +2124,24 @@ block every existing book and require inventing a placeholder for historical sto
 which is a fabrication. V1 reports one level of nesting and **refuses** a deeper
 tree rather than storing something it cannot report.
 
+**The link is persisted through the assignments table, not a column**
+(`ProductCategoryAssignments`), so `saveProduct` writes the row and
+`allProducts`/`productById` read it back into `Product.categoryId`. A product
+that leaves a category ends up with no row, not a stale one. **The stock report
+grouped by category is built** (`BuildCategoryReport`, a fifth tab on the shared
+reports screen, "Category Reports" in the navigation): it rolls each product's
+stock up to its top-level category, reports products with no category under
+"Uncategorized", and **refuses** a tree whose parent is missing or that is more
+than one level deep Ã¢â‚¬â€ both when a category is saved and when the report is
+built, so a bad tree never reaches the book and a corrupt one is caught rather
+than flattened. `saveCategory` refuses a too-deep category at write time; the
+report re-checks, because a row written without going through the domain is
+exactly the corruption it exists to catch. The report's total is asserted to
+equal the inventory report's, because both read the same movement history.
+**No category screen yet** Ã¢â‚¬â€ there is still no way for a user to create a
+category, so the report groups whatever categories exist (none, on a fresh
+book) but a user cannot add one.
+
 ### 4.46 The link from a sale to stock
 
 `InvoiceLine.productId` is optional. When present, issuing the invoice issues that
@@ -2334,8 +2352,11 @@ Everything else. Specifically, none of the following exist:
   `DocumentType.purchaseReturn` exists, but nothing issues one. A purchase is still
   corrected only by manual journal entry.
 - **Product categories.** **Built 2026-10-03.** `ProductCategory` with an optional
-  link from a product, and a category drop-down. See 4.45 and ADR 013. **No screen
-  yet**, and no report grouped by category.
+  link from a product, and a category drop-down. See 4.45 and ADR 013. **The
+  stock report grouped by category is built 2026-10-04** (`BuildCategoryReport`,
+  a fifth reports tab), and the link is now persisted through the assignments
+  table. **No category screen yet** Ã¢â‚¬â€ a user still cannot create a category,
+  so the report groups whatever categories exist (none, on a fresh book).
 - **The link from a sale to stock.** **Built 2026-10-03.** `InvoiceLine.productId`
   is optional, and issuing an invoice issues that stock and posts cost of sales at
   the running-average cost in the same unit of work. See 4.46.
@@ -2467,8 +2488,13 @@ finished code.
 >    `payables`, `createSupplier`); `ui.txt` already lists all three as navigation
 >    entries. This is the remaining step that turns a working purchase ledger into
 >    a business anyone can trade on.
-> 2. **A category screen and a stock report grouped by category.** ADR 013's whole
->    reason for existing is the grouped report, and there is neither yet.
+> 2. **A category screen.** The stock report grouped by category is
+>    **built** (`BuildCategoryReport`, a fifth reports tab), and the
+>    link is persisted. What remains is the screen that lets a user
+>    **create** a category and assign one to a product Ã¢â‚¬â€ without it
+>    the report groups whatever categories exist, which on a fresh book
+>    is none. ADR 013's whole reason for existing is the grouped report,
+>    and that half is now closed.
 > 3. **Wire the licence check into the shell.** `LicenceVerifier` works and is
 >    tested, but nothing calls it at start-up, so an unlicensed installation is
 >    **not currently locked**. Until that is done the licensing work is capability
@@ -4590,6 +4616,124 @@ one whose failure mode is *understating* rather than overstating, and say so in 
 comment. That is a judgement, not a derivation, and the next reader needs to see
 that it was made deliberately.
 
+### 7.46 A feature can be a third built, and the file that says so is not wrong
+
+The category report looked like a bounded report task and was not. Reading
+the code before writing any found the feature **~30% built**: the
+`ProductCategory` domain type and the `ProductCategories` /
+`ProductCategoryAssignments` tables existed (schema v14), but the
+`InventoryRepository` **port had no category methods**, `DriftInventoryRepository`
+**ignored `Product.categoryId`** (its `_toCompanion`/`_toDomain` never touched
+the assignments table), and there was **no use case and no screen**. The only
+`category` reference in `presentation/` was a comment. So "the category
+report" was really "build the category persistence layer, then the report".
+**Read the port and the repository implementation before estimating a report
+task** — a report is only as bounded as the data access it depends on.
+
+Two mechanics worth recording alongside it:
+
+- **Adding a method to a port breaks the fakes that implement it
+  explicitly.** `_MovementsWithoutCatalogue` (build_reports_test.dart)
+  overrides every `InventoryRepository` method, so a new port method is a
+  compile error there. But `_NoStock` and `_UnusedInventory` route
+  unimplemented calls through `noSuchMethod`, so they survive a port change
+  untouched. When a port grows, grep for `implements <Port>` and check
+  which fakes lack `noSuchMethod`.
+- **The golden PNGs are gitignored**, so a UI change produces **no
+  committed diff** for them. They are local visual aids, regenerated with
+  `flutter test --update-goldens`; the pixel comparison itself is opt-in
+  (`GOLDENS=1`), so a changed layout does not fail the default suite.
+
+### 7.47 `mb_substr` on a binary seed makes `financeapp:licence-keypair` emit a bad key
+
+The keypair command extracts the 32-byte Ed25519 seed with
+`mb_substr($seed, 0, LicenceSigner::SEED_BYTES)`. `mb_substr` counts
+**characters, not bytes**, so when the random secret key's first 32
+characters include a multi-byte UTF-8 sequence it returns **33 bytes**
+(or more); `base64_encode` of that is a 44-character string with no
+`=` padding. `LicenceSigner` then refuses it ("must be 32 bytes … got
+33 bytes") and every authorisation request 500s. The fix is `substr`
+(byte-based). **The command has no test** — the licence tests inject a
+keypair directly, so the command's own printed output was never checked;
+a test that runs the command and asserts the printed private key decodes
+to exactly `SODIUM_CRYPTO_SIGN_SEEDBYTES` would have caught it. **OPEN:
+not fixed here** — recorded as a separate bounded task (failing test
+first, then the one-line `mb_substr` → `substr` change).
+
+**Running the app locally needs three licence facts, none of which a
+fresh checkout sets up.** (1) The licensing migration
+(`2026_10_03_070000_create_licensing_tables`) must be applied — it was
+present but **pending** on the dev database until `php artisan migrate`.
+(2) The company needs a `licences` row; a **perpetual** one (`expires_at`
+and `revalidate_after_days` both null) is what the desktop's
+`isPerpetual` path expects, and `Licence::factory()->perpetual()` makes
+one. (3) A keypair must exist: the private key in `backend/.env` as
+`FINANCEAPP_LICENCE_PRIVATE_KEY`, and the **matching** public key
+compiled into `desktop/lib/main.dart` `licencePublicKey` — the desktop
+verifies with the compiled-in key, not the one in the response, so the
+two must be the same pair. The desktop defaults to `http://127.0.0.1:8000`
+(main.dart), so `php artisan serve` on that port is the backend it signs
+in against.
+
+**Sample sign-in account:** `owner@example.com` / `password` (Sample
+Company, PAN 123456789, book "Primary"). The register endpoint enforces
+a 12-character password minimum, so this account was created directly
+rather than through registration.
+
+### 7.48 A sign-in that succeeds but stays locked looks like "nothing happens"
+
+The licence-gated sign-in stored the authorisation but the shell
+never re-read the verdict: `onSignIn` was passed straight through to
+`LicenceRequiredScreen`, while `onSignOut` was wrapped in
+`refreshLicence()`. So a **successful** sign-in left the app on the
+sign-in screen with no message and no error — reported as "it does
+not log in and says nothing". The `refreshLicence` doc comment
+already said it was "called after a successful sign-in"; the wiring
+just never did it. The fix is one wrapper (`await refreshLicence()`
+after the sign-in, mirroring sign-out) plus a widget test that signs
+in and asserts the navigation returns. **Symptom to remember: a
+silent, message-less failure right after an action that should change
+the screen usually means a state refresh was missed — the action
+succeeded and nobody re-read the result**, not that the action failed.
+
+### 7.49 Signing out left the licence behind, so the books opened without anyone signing in
+
+Reported as *"the app allows me to use it without logging in — serious issue
+here"*, and as *"when sign out then it should log out and back to log in page."*
+**`LicenceGate` was correct the whole time.** Both defects were in the wiring
+*into* and *out of* it, which is why every test of the gate itself passed while
+the application was wide open:
+
+- **Settings signed out past the gate.** `AccountPanel._signOut` called
+  `AccountSession.signOut()`, which clears the token and nothing else. The signed
+  licence file survived, `recheckLicence` went on returning `Allowed`, and the
+  application opened again having never been signed in — the gate's exact
+  purpose, defeated by a caller that bypassed it. Sign-out now goes through
+  `AppServices.signOutForLicence`, the thing that actually clears the licence,
+  and the navigation supplies it instead of letting the panel reach for the token.
+- **`refreshAccount` re-read the services but not the verdict.** So even a correct
+  clear was never observed: `_access` still said `Allowed` and the shell never
+  rebuilt. `onAccountChanged` now also runs `refreshLicence`, which is what makes
+  "sign out returns to the login page" actually true rather than merely clearing
+  some bytes.
+
+`SettingsScreen` was also carrying an `onAccountChanged` it **never used** — it
+passed the panel no callback at all, so a sign-in from Settings never refreshed
+the shell either. Both panels receive it now, and the rebuild happens on sign-in
+and sign-out alike.
+
+**The lesson, and it is the same shape as 7.48 one defect earlier: a gate tested
+only through its own `evaluate()` proves nothing about whether anyone is calling
+it on the paths that matter.** Both of these were invisible to `LicenceGate`'s
+tests, because each was a gap in a caller. The tests that catch them drive the
+real shell through a real sign-in and a real sign-out and assert on **the screen
+and on what the licence store still holds**, not on the gate's return value.
+
+One fixture had to change with it: `settings_screen_test.dart` built its account
+with `uploadBuilder: (session) => throw UnimplementedError()`, which was safe
+only because signing in never re-read `AccountSession.upload`. It does now. A
+stub that refuses instead of throwing keeps that test asserting what it is about.
+
 ## 8. Commands
 
 Run from the repository root unless stated otherwise.
@@ -4689,6 +4833,7 @@ build output; deleting them breaks the migration tests.
 
 | Date | Change |
 | --- | --- |
+| 2026-10-04 | **The stock report grouped by category** (`BuildCategoryReport`), the half of ADR 013 that gives it its reason to exist, built end to end. The category feature had been ~30% built (domain type and schema tables only), so this added the missing layers: `saveCategory`/`allCategories` on the `InventoryRepository` port and their drift implementation, and `Product.categoryId` now **persisted through the assignments table** (`saveProduct` writes the row, `allProducts`/`productById` read it back). The report rolls each product's stock up to its **top-level** category, reports products with no category under "Uncategorized" (a product with no category is ordinary, ADR 013), and **refuses** a tree whose parent is missing or that is more than one level deep — both when a category is saved and when the report is built, so a bad tree never reaches the book and a corrupt one is caught rather than flattened. A fifth tab, "By Category", on the shared reports screen, and a "Category Reports" navigation entry. The report's total is asserted to equal the inventory report's, because both read the same movement history. Hand-computed: Electronics 7,200 (keyboard 4,200 + smartphone 3,000, the latter a child category rolled up), Spices 1,000, Uncategorized 500, total 8,700. **Still no category screen** — a user cannot yet create a category, so the report groups whatever categories exist (none, on a fresh book). Suite 1164, analyze clean. |
 | 2026-10-03 | **Closed the three gaps a read-only audit found: purchases, product categories, and licensing.** The audit's judgement was that the application was ~80% of a tradeable MVP but blocked from launch by a purchase side that did not exist, a VAT return with no input credit, and no licensing at all. **Purchases** (`Purchase`, `PurchaseLine`, `IssuedPurchase`, `SupplierPayment`, `PurchaseBalance`, `IssuePurchase`, `RecordSupplierPayment`, `BuildPayables`, `CreateSupplier`, schema v14-v16) put a document behind `2010 Accounts Payable` and make input VAT real. Three decisions are accounting rather than code: inventory is debited with the **net** figure so a recoverable tax never becomes cost of goods sold; input VAT is an **asset** in a new account `1150`; and a purchase line may carry **its own** VAT rate, because one supplier can invoice standard-rated alongside zero-rated goods â€” which a sales invoice deliberately cannot express. A missing PAN **warns rather than refuses**, because refusing would leave the goods unrecorded. **Input VAT** in the VAT return is split into claimable and at-risk: the VAT a supplier without a PAN charged was genuinely paid and is a real asset, but it is not a safe claim, so counting it would produce a return demanding credit the authority can refuse. A missing supplier store defaults everything to at-risk, never to claimable. **Product categories** with an optional link from a product, stored in a separate table because `createTable` writes the current shape (7.43). **Sale-to-stock**: an invoice line may now name a product, and issuing the invoice issues that stock and posts COGS at the derived running-average cost â€” so `ProductStock.valueOfIssue` finally has production callers, closing the gap 7.39 identified as still open. **Licensing**, both halves: backend `licences`/`subscriptions`/`registered_desktop_installations` with an Ed25519 signer using the libsodium that ships with PHP, a signed authorisation endpoint and a keypair command; desktop `infrastructure/licensing/` verifying with `cryptography` and **no network**. Adopted `cryptography` on the owner's decision after its native surface was read as `AI_RULES.md` requires: no native sources at all, no `DynamicLibrary.open`, and the only `dart:ffi` import is in Argon2, which this application never touches â€” pure Dart, so no optional Visual Studio component, the trap that cost two evenings in 4.32 and 7.24. **Two claims I made while choosing it were wrong and are corrected in ADR 014 and `AI_RULES.md`**: I recommended it over `ed25519_edwards` on a licence claim that was false (both are Apache-2.0), and I wrote the two package licences from memory â€” the exact failure 7.23 records, in the same class of crypto fact. **The most valuable test written was a signature produced by the real PHP signer**, not by the Dart package: it caught that the verifier base64-decoded the claims while the server signs them as plain text, which would have made every licence fail on every machine while every Dart-side test passed (7.40). Three more interop bugs followed from writing the signing code against the actual PHP API rather than from memory: `sodium_crypto_sign_seed_keypair` returns 96 bytes not 64, `verify_detached` takes the signature **first**, and `updateOrCreate` does overwrite the attributes it is given (7.42). Two migration lessons: drift snapshots for v13-v16 were generated, found to be **byte-identical to v16**, and deleted rather than committed, because a migration test validating against a fictional fixture reports green while proving nothing; migration coverage now runs a real v9 database to v16, which revealed that steps v10-v13 had **no migration test at all** (7.43). And **my own hand-written test arithmetic was wrong** â€” 13% of 800,000 is 104,000, not the 120,000 I asserted; the code was right and writing the figures out is what caught it. Suite 1110 Dart tests (was 843) and 78 Laravel (was 35), analyze clean, Pint clean, Windows build green with the new dependency. **Not done, and said so plainly in section 5: the Purchases, Suppliers and Payables screens; a category screen or grouped report; and wiring the licence check into the shell, so an unlicensed installation is not actually locked yet.** |
 | 2026-10-03 | **The owner asked why the login page existed if login was not required. It was a fair question, and the specification agrees with the owner rather than with the code.** Line 2058 says the desktop *"shall obtain a cryptographically signed license authorization **that allows the application to operate**",* and line 2060 says *"**after** successful authentication and license verification, the desktop application shall be capable of operating normally without an active internet connection."* So the sequence is **one online sign-in, then offline operation** — a network call neither per launch nor optional. **I had misread "offline-first" as meaning sign-in was optional, and nothing in the build contradicted me: no gate existed, so every test passed and every launch opened the books.** Now `LicenceGate` decides from the stored authorisation alone and `FinanceAppShell` refuses to **construct the navigation** while locked — the widget tests assert `Trial Balance`, `Sales`, `Stock` and `Purchases` are **absent from the tree**, because a dialog over the books locks nothing. While the verdict is still loading the shell shows a spinner, because a brief flash of a populated shell is what a gate exists to prevent. **The two deadlines stay separate:** expiry locks absolutely, while a passed next-validation date only starts a **seven-day offline grace period**, so a shop whose line drops out for a morning can still trade. A first version put that refusal in the **verifier**, which is the bug the requirement exists to prevent, and it moved to the gate — the layer that owns the policy. Sign-in now **fetches and verifies the licence before anything is stored**, because a token alone is not a licence, and a failure signs the token back out rather than leaving a session that appears signed in while locked. The locked screen says on every path that the accounting records are safe, because someone whose business will not open assumes the worst and a user deleting files is the real damage. `architecture_test.dart` caught the verdict types being placed in `infrastructure/`, correctly: a screen importing a verifier has imported a signature checker. They moved to `domain/shared/licence_access.dart`, mirroring every repository here, and the whitelist entry was added deliberately — which is what that test is for. One deliberate bypass: a build with no licence service is unlocked, and its sign-in path **throws** rather than opening the books. 25 new tests. 1135 Dart tests, 78 Laravel, analyze clean, Pint clean, Windows build green. |
 | 2026-09-29 | Read all three specifications. Chose Flutter over the TBD desktop framework; recorded as ADR 008. Scaffolded Laravel `backend/` and Flutter `desktop/`. Created the layered directory structure. Implemented the `Money` value object with 20 tests, fixing two bugs the tests caught. Wrote `docs/AI_RULES.md`, `docs/ARCHITECTURE.md`, and ADRs 001-008. Created this file. |

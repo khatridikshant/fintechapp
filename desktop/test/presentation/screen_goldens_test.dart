@@ -220,6 +220,10 @@ void main() {
             fiscalYear: fiscalYear,
             inventory: DriftInventoryRepository(db),
           ),
+          categoryReport: BuildCategoryReport(
+            fiscalYear: fiscalYear,
+            inventory: DriftInventoryRepository(db),
+          ),
           tax: BuildTaxSummary(
             fiscalYear: fiscalYear,
             invoices: DriftInvoiceRepository(db),
@@ -256,6 +260,10 @@ void main() {
             creditNotes: DriftCreditNoteRepository(db),
           ),
           inventory: BuildInventorySummary(
+            fiscalYear: fiscalYear,
+            inventory: DriftInventoryRepository(db),
+          ),
+          categoryReport: BuildCategoryReport(
             fiscalYear: fiscalYear,
             inventory: DriftInventoryRepository(db),
           ),

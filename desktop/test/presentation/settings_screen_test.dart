@@ -1,5 +1,7 @@
 import 'package:financeapp/src/application/account_session.dart';
+import 'package:financeapp/src/domain/shared/book_backup.dart';
 import 'package:financeapp/src/domain/shared/book_upload.dart';
+import 'package:financeapp/src/domain/shared/book_upload_service.dart';
 import 'package:financeapp/src/domain/shared/credential_store.dart';
 import 'package:financeapp/src/domain/shared/sign_in.dart';
 import 'package:financeapp/src/presentation/app_services.dart';
@@ -40,7 +42,7 @@ void main() {
         auth: auth,
         store: store ?? MapCredentialStore(),
         deviceName: 'office-desktop',
-        uploadBuilder: (session) => throw UnimplementedError(),
+        uploadBuilder: (session) => const _RefusingUploads(),
       );
 
   group('before signing in', () {
@@ -299,4 +301,29 @@ void main() {
       expect(auth.signOutCalls, 1);
     });
   });
+}
+
+/// An uploader that sends nothing.
+///
+/// A builder that **threw** used to be enough for these tests, because signing in
+/// never re-read `AccountSession.upload`. It does now: a successful sign-in tells
+/// the shell to re-read its services, so the licence verdict and the token are
+/// re-read together, and that reads the uploader. Throwing would fail the
+/// sign-in test for a reason that has nothing to do with what it asserts.
+class _RefusingUploads implements UploadActions {
+  const _RefusingUploads();
+
+  @override
+  BackendSession? get session => null;
+
+  @override
+  bool get canUpload => false;
+
+  @override
+  Future<UploadResult> upload(BookBackup backup) async =>
+      throw UnimplementedError('this test uploads nothing');
+
+  @override
+  Future<List<UploadRecord>> uploadsFor(String fiscalYearLabel) async =>
+      const <UploadRecord>[];
 }

@@ -28,6 +28,7 @@ import '../domain/billing/purchase_repository.dart';
 import '../domain/billing/supplier_repository.dart';
 import '../domain/fiscal/fiscal_year.dart';
 import '../domain/inventory/inventory_repository.dart';
+import '../domain/inventory/product_category.dart';
 import '../domain/reporting/financial_reports.dart';
 import '../domain/shared/money.dart';
 
@@ -206,6 +207,124 @@ class BuildInventorySummary {
   }
 }
 
+/// Builds the stock report grouped by product category.
+///
+/// This is the reason [ProductCategory] exists (ADR 013): a flat
+/// stock list is unusable for a business with a hundred products. It
+/// groups the same stock value [BuildInventorySummary] shows, by the
+/// category each product belongs to, so the two reports must agree on
+/// the total — and a test asserts that they do.
+///
+/// ## One level of nesting, resolved
+///
+/// A product in a child category is reported under its **top-level**
+/// parent. That is what "resolves one level of nesting" means: the
+/// report is flat, so a child's stock is rolled up to the heading a
+/// reader would look for it under.
+///
+/// ## A tree it cannot report is refused, not flattened
+///
+/// A category whose parent does not exist, or that sits more than one
+/// level down, would otherwise be flattened into a wrong group. The
+/// tree is validated before anything is grouped, so such a book
+/// reports a failure rather than a number nobody chose (ADR 013).
+class BuildCategoryReport {
+  const BuildCategoryReport({
+    required this.fiscalYear,
+    required this.inventory,
+    this.currency = bookCurrency,
+  });
+
+  final FiscalYear fiscalYear;
+  final InventoryRepository inventory;
+  final String currency;
+
+  Future<CategorySummary> load() async {
+    final categories = await inventory.allCategories();
+    final products = await inventory.allProducts();
+    final movements = await inventory.allMovements();
+
+    // **The tree is validated before anything is grouped.** A category
+    // whose parent is missing, or that sits below the one level V1
+    // reports, would otherwise be flattened into a wrong group.
+    // Refusing is the honest answer, and it is cheap.
+    final byId = <String, ProductCategory>{
+      for (final category in categories) category.id: category,
+    };
+    for (final category in categories) {
+      category.assertWithinV1Depth(byId);
+    }
+
+    // **Stock held is as at today, so every movement counts** — the
+    // same rule as the inventory report, because both read the same
+    // history. A balance, not a period's movement.
+    final valueByProduct = <String, int>{};
+    for (final movement in movements) {
+      valueByProduct.update(
+        movement.productId,
+        (existing) => existing + movement.value.minorUnits,
+        ifAbsent: () => movement.value.minorUnits,
+      );
+    }
+
+    // Group each product's stock under the top-level category it
+    // belongs to. A product with no category is ordinary (ADR 013), so
+    // it is reported under its own heading rather than hidden.
+    final byCategory = <String, int>{};
+    for (final product in products) {
+      final value = valueByProduct[product.id] ?? 0;
+      if (value == 0) continue;
+
+      final categoryId = product.categoryId;
+      final key = categoryId == null
+          ? CategorySummary.uncategorizedLabel
+          : _topLevel(byId[categoryId]!, byId).id;
+      byCategory.update(
+        key,
+        (existing) => existing + value,
+        ifAbsent: () => value,
+      );
+    }
+
+    final labels = <String, String>{
+      for (final category in categories) category.id: category.name,
+    };
+
+    final lines = byCategory.entries
+        .map(
+          (MapEntry<String, int> e) => ReportTotal(
+            // The category's name, or the uncategorized heading for the
+            // products that belong to none.
+            label: labels[e.key] ?? e.key,
+            amount: Money.minor(e.value, currency),
+          ),
+        )
+        .toList()
+      // Largest first, because that is the order a reader wants, and
+      // the order the inventory report uses.
+      ..sort((ReportTotal a, ReportTotal b) =>
+          b.amount.minorUnits.compareTo(a.amount.minorUnits));
+
+    return CategorySummary.from(lines: lines, currency: currency);
+  }
+
+  /// The top-level category [category] sits under, walking up the
+  /// parent chain.
+  ///
+  /// Safe to call only on a tree that has already been validated,
+  /// because every parent in the chain is then known to exist.
+  ProductCategory _topLevel(
+    ProductCategory category,
+    Map<String, ProductCategory> byId,
+  ) {
+    var current = category;
+    while (current.parentId != null) {
+      current = byId[current.parentId!]!;
+    }
+    return current;
+  }
+}
+
 /// Builds the VAT figures a return needs, for a period.
 ///
 /// ## Input VAT is real, and part of it is at risk
@@ -305,8 +424,9 @@ class BuildTaxSummary {
       for (final record in await purchaseStore.all()) {
         if (!inRange(record.purchase.issueDate)) continue;
 
-        final supplier =
-            supplierStore == null ? null : await supplierStore.byId(record.purchase.supplierId);
+        final supplier = supplierStore == null
+            ? null
+            : await supplierStore.byId(record.purchase.supplierId);
 
         // **No supplier store means the claim cannot be substantiated**, so the
         // whole amount is at risk. Defaulting to "claimable" would be the unsafe

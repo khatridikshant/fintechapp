@@ -215,6 +215,59 @@ class InventorySummary {
   String toString() => 'InventorySummary(${lines.length} products)';
 }
 
+/// Stock on hand, grouped by product category.
+///
+/// Derived from the **inventory movements** — the same authoritative
+/// source the stock balance and the inventory report use — so a
+/// category report and an inventory report can never disagree about
+/// what is held. Both read the same history, so their totals must
+/// agree, and a test asserts that they do.
+///
+/// A product in a child category is reported under its **top-level**
+/// parent. That is what "resolves one level of nesting" means (ADR
+/// 013): the report is flat, so a child's stock is rolled up to the
+/// category a reader would look for it under. It is also why a tree
+/// deeper than one level is refused rather than flattened — flattening
+/// a two-level tree would silently move stock under the wrong heading.
+class CategorySummary {
+  const CategorySummary._({required this.currency, required this.lines});
+
+  factory CategorySummary.from({
+    required List<ReportTotal> lines,
+    required String currency,
+  }) =>
+      CategorySummary._(
+        currency: currency,
+        lines: List<ReportTotal>.unmodifiable(lines),
+      );
+
+  final String currency;
+
+  /// What is held, per top-level category, plus one line for the
+  /// products that belong to no category.
+  final List<ReportTotal> lines;
+
+  /// The label of the line that holds products belonging to no
+  /// category.
+  ///
+  /// A product with no category is an ordinary product, not an
+  /// incomplete one (ADR 013), so it is reported under a name that
+  /// says what it is rather than hidden.
+  static const String uncategorizedLabel = 'Uncategorized';
+
+  /// The total value of stock held, across every category.
+  Money get totalValue {
+    var total = 0;
+    for (final line in lines) {
+      total += line.amount.minorUnits;
+    }
+    return Money.minor(total, currency);
+  }
+
+  @override
+  String toString() => 'CategorySummary(${lines.length} categories)';
+}
+
 /// The figures a VAT return needs, for a period.
 ///
 /// ## The basis matters

@@ -181,6 +181,12 @@ class FileBooksSession implements BooksSession {
       );
 
   @override
+  BuildCategoryReport get categoryReport => BuildCategoryReport(
+        fiscalYear: _openYear.fiscalYear,
+        inventory: DriftInventoryRepository(_database),
+      );
+
+  @override
 
   /// Built fresh on each access, like every other loader here, so a report can
   /// never be left holding a repository bound to a year since concluded.
@@ -271,8 +277,7 @@ class FileBooksSession implements BooksSession {
       );
 
   @override
-  RecordSupplierPayment get recordSupplierPayment =>
-      RecordSupplierPayment(
+  RecordSupplierPayment get recordSupplierPayment => RecordSupplierPayment(
         fiscalYear: _openYear.fiscalYear,
         purchases: DriftPurchaseRepository(_database),
         payments: DriftSupplierPaymentRepository(_database),

@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' show OrderingTerm, Value;
 import '../../domain/inventory/inventory_movement.dart';
 import '../../domain/inventory/inventory_repository.dart';
 import '../../domain/inventory/product.dart';
+import '../../domain/inventory/product_category.dart';
 import '../../domain/inventory/product_stock.dart';
 import '../../domain/shared/money.dart';
 import 'app_database.dart';
@@ -15,6 +16,7 @@ class DriftInventoryRepository implements InventoryRepository {
   @override
   Future<void> saveProduct(Product product) async {
     await _db.into(_db.products).insertOnConflictUpdate(_toCompanion(product));
+    await _saveCategoryAssignment(product);
   }
 
   @override
@@ -23,13 +25,74 @@ class DriftInventoryRepository implements InventoryRepository {
     await _db.batch((batch) {
       batch.insertAllOnConflictUpdate(_db.products, companions);
     });
+    for (final product in products) {
+      await _saveCategoryAssignment(product);
+    }
   }
+
+  /// The product's category, in the separate assignments table.
+  ///
+  /// The row is deleted then re-inserted, so a product that had a
+  /// category and no longer does ends up with no row at all rather
+  /// than a stale one pointing at a category it left.
+  Future<void> _saveCategoryAssignment(Product product) async {
+    await (_db.delete(_db.productCategoryAssignments)
+          ..where((t) => t.productId.equals(product.id)))
+        .go();
+    final categoryId = product.categoryId;
+    if (categoryId == null) return;
+    await _db.into(_db.productCategoryAssignments).insert(
+          ProductCategoryAssignmentsCompanion.insert(
+            productId: product.id,
+            categoryId: categoryId,
+          ),
+        );
+  }
+
+  @override
+  Future<void> saveCategory(ProductCategory category) async {
+    // **Refuse a tree V1 cannot report before writing it** (ADR 013).
+    // The report would refuse it anyway; refusing here keeps the bad
+    // data out of the book in the first place. The parent must already
+    // exist, so a category is saved parent-first.
+    final tree = <String, ProductCategory>{
+      for (final existing in await allCategories()) existing.id: existing,
+      category.id: category,
+    };
+    category.assertWithinV1Depth(tree);
+
+    await _db.into(_db.productCategories).insertOnConflictUpdate(
+          ProductCategoriesCompanion.insert(
+            id: category.id,
+            code: category.code,
+            name: category.name,
+            parentId: Value(category.parentId),
+          ),
+        );
+  }
+
+  @override
+  Future<List<ProductCategory>> allCategories() async {
+    final rows = await (_db.select(_db.productCategories)
+          ..orderBy([(t) => OrderingTerm(expression: t.name)]))
+        .get();
+    return rows.map(_toDomainCategory).toList();
+  }
+
+  ProductCategory _toDomainCategory(ProductCategoryRow row) => ProductCategory(
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        parentId: row.parentId,
+      );
 
   @override
   Future<Product?> productById(String id) async {
     final row = await (_db.select(_db.products)..where((t) => t.id.equals(id)))
         .getSingleOrNull();
-    return row == null ? null : _toDomain(row);
+    if (row == null) return null;
+    final categoryOf = await _categoryAssignments();
+    return _toDomain(row, categoryOf[row.id]);
   }
 
   @override
@@ -37,7 +100,21 @@ class DriftInventoryRepository implements InventoryRepository {
     final rows = await (_db.select(_db.products)
           ..orderBy([(t) => OrderingTerm(expression: t.name)]))
         .get();
-    return rows.map(_toDomain).toList();
+    final categoryOf = await _categoryAssignments();
+    return rows
+        .map((ProductRow row) => _toDomain(row, categoryOf[row.id]))
+        .toList();
+  }
+
+  /// The category each product is assigned to, by product id.
+  ///
+  /// Read once for a whole read, so listing every product is two
+  /// queries rather than one per product.
+  Future<Map<String, String>> _categoryAssignments() async {
+    final rows = await _db.select(_db.productCategoryAssignments).get();
+    return <String, String>{
+      for (final row in rows) row.productId: row.categoryId,
+    };
   }
 
   @override
@@ -118,11 +195,12 @@ class DriftInventoryRepository implements InventoryRepository {
         stockTrackingEnabled: product.stockTrackingEnabled,
       );
 
-  Product _toDomain(ProductRow row) => Product(
+  Product _toDomain(ProductRow row, String? categoryId) => Product(
         id: row.id,
         name: row.name,
         salePrice: Money.minor(row.salePriceMinorUnits, row.currency),
         stockTrackingEnabled: row.stockTrackingEnabled,
+        categoryId: categoryId,
       );
 
   /// Rebuilds a movement from its row.

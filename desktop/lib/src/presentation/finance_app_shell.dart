@@ -58,7 +58,8 @@ class FinanceAppShellState extends State<FinanceAppShell> {
   ///
   /// A brief flash of a fully populated shell before the licence is checked is the
   /// exact thing a gate exists to prevent.
-  bool get _awaitingLicence => _access == null && _services.recheckLicence != null;
+  bool get _awaitingLicence =>
+      _access == null && _services.recheckLicence != null;
   late NavigationItem _selected = _groups.first.sections.first;
 
   List<NavigationGroup> _navigationFor(AppServices services) =>
@@ -94,6 +95,11 @@ class FinanceAppShellState extends State<FinanceAppShell> {
       _services = _services.forAccount();
       _groups = _navigationFor(_services);
     });
+    // **The account and the licence are one decision.** Re-read the verdict here
+    // as well as the services, so a sign-out that forgot its licence locks the
+    // application again, and a sign-in that stored one is noticed at once rather
+    // than on the next launch.
+    await refreshLicence();
   }
 
   /// Selects a navigation item.
@@ -185,13 +191,26 @@ class FinanceAppShellState extends State<FinanceAppShell> {
       );
     }
     if (access != null && !access.mayOperate) {
+      final signInForLicence = _services.signInForLicence;
       return LicenceRequiredScreen(
         access: access,
-        onSignIn: _services.signInForLicence ?? _refuseSignIn,
-        onSignOut: _services.signOutForLicence == null ? null : () async {
-          await _services.signOutForLicence!();
-          await refreshLicence();
-        },
+        onSignIn: signInForLicence == null
+            ? _refuseSignIn
+            : ({required String email, required String password}) async {
+                await signInForLicence(email: email, password: password);
+                // **The sign-in stored the authorisation; re-read the
+                // verdict so the books appear.** Without this the sign-in
+                // succeeded but the shell stayed locked on the sign-in
+                // screen, showing nothing — which a user reports as "it
+                // does not log in and says nothing".
+                await refreshLicence();
+              },
+        onSignOut: _services.signOutForLicence == null
+            ? null
+            : () async {
+                await _services.signOutForLicence!();
+                await refreshLicence();
+              },
       );
     }
 

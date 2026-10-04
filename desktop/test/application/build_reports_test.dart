@@ -15,6 +15,7 @@ import 'package:financeapp/src/domain/fiscal/nepali_fiscal_calendar.dart';
 import 'package:financeapp/src/domain/inventory/inventory_movement.dart';
 import 'package:financeapp/src/domain/inventory/inventory_repository.dart';
 import 'package:financeapp/src/domain/inventory/product.dart';
+import 'package:financeapp/src/domain/inventory/product_category.dart';
 import 'package:financeapp/src/domain/inventory/product_stock.dart';
 import 'package:financeapp/src/domain/reporting/financial_reports.dart';
 import 'package:financeapp/src/domain/shared/money.dart';
@@ -28,6 +29,7 @@ import 'package:financeapp/src/infrastructure/database/drift_invoice_repository.
 import 'package:financeapp/src/infrastructure/database/drift_unit_of_work.dart';
 import 'package:financeapp/src/infrastructure/database/drift_journal_repository.dart';
 import 'package:financeapp/src/infrastructure/database/sqlite_native.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 
 const npr = 'NPR';
@@ -143,6 +145,13 @@ class _MovementsWithoutCatalogue implements InventoryRepository {
 
   @override
   Future<List<Product>> allProducts() async => const <Product>[];
+
+  @override
+  Future<void> saveCategory(ProductCategory category) async {}
+
+  @override
+  Future<List<ProductCategory>> allCategories() async =>
+      const <ProductCategory>[];
 
   @override
   Future<Product?> productById(String id) async => null;
@@ -660,6 +669,315 @@ void main() {
       addTearDown(db.close);
 
       final summary = await BuildInventorySummary(
+        fiscalYear: fiscalYear,
+        inventory: DriftInventoryRepository(db),
+      ).load();
+
+      expect(summary.lines, isEmpty);
+      expect(summary.totalValue.isZero, isTrue);
+    });
+  });
+
+  group('BuildCategoryReport', () {
+    Future<void> seedCategorizedStock(AppDatabase db) async {
+      final inventory = DriftInventoryRepository(db);
+
+      // Electronics is top level; Smartphones sits one level down, under
+      // it; Spices is top level again.
+      await inventory.saveCategory(ProductCategory(
+        id: 'cat-elec',
+        code: 'ELEC-01',
+        name: 'Electronics',
+      ));
+      await inventory.saveCategory(ProductCategory(
+        id: 'cat-phone',
+        code: 'ELEC-01-PHONE',
+        name: 'Smartphones',
+        parentId: 'cat-elec',
+      ));
+      await inventory.saveCategory(ProductCategory(
+        id: 'cat-spice',
+        code: 'SPC-01',
+        name: 'Spices',
+      ));
+
+      // The smartphone sits in the child category, so it must be reported
+      // under Electronics. The notebook belongs to no category at all,
+      // which is an ordinary state, not an incomplete one.
+      final keyboard = Product(
+        id: 'prod-keyboard',
+        name: 'Keyboard',
+        salePrice: rs(200),
+        categoryId: 'cat-elec',
+      );
+      final phone = Product(
+        id: 'prod-phone',
+        name: 'Smartphone',
+        salePrice: rs(1500),
+        categoryId: 'cat-phone',
+      );
+      final pepper = Product(
+        id: 'prod-pepper',
+        name: 'Pepper',
+        salePrice: rs(100),
+        categoryId: 'cat-spice',
+      );
+      final notebook = Product(
+        id: 'prod-notebook',
+        name: 'Notebook',
+        salePrice: rs(50),
+      );
+      await inventory.saveProduct(keyboard);
+      await inventory.saveProduct(phone);
+      await inventory.saveProduct(pepper);
+      await inventory.saveProduct(notebook);
+
+      // Stock value, hand-computed below.
+      await inventory.applyMovement(
+        keyboard,
+        InventoryMovement.receipt(
+          id: 'MV-1',
+          productId: 'prod-keyboard',
+          date: DateTime(2026, 3, 1),
+          reason: MovementReason.purchase,
+          quantity: 20,
+          value: rs(6000),
+        ),
+      );
+      await inventory.applyMovement(
+        keyboard,
+        InventoryMovement.issue(
+          id: 'MV-2',
+          productId: 'prod-keyboard',
+          date: DateTime(2026, 3, 10),
+          reason: MovementReason.sale,
+          quantity: 3,
+          value: rs(1800),
+        ),
+      );
+      await inventory.applyMovement(
+        phone,
+        InventoryMovement.receipt(
+          id: 'MV-3',
+          productId: 'prod-phone',
+          date: DateTime(2026, 3, 5),
+          reason: MovementReason.purchase,
+          quantity: 10,
+          value: rs(3000),
+        ),
+      );
+      await inventory.applyMovement(
+        pepper,
+        InventoryMovement.receipt(
+          id: 'MV-4',
+          productId: 'prod-pepper',
+          date: DateTime(2026, 3, 5),
+          reason: MovementReason.purchase,
+          quantity: 5,
+          value: rs(1000),
+        ),
+      );
+      await inventory.applyMovement(
+        notebook,
+        InventoryMovement.receipt(
+          id: 'MV-5',
+          productId: 'prod-notebook',
+          date: DateTime(2026, 3, 5),
+          reason: MovementReason.openingStock,
+          quantity: 50,
+          value: rs(500),
+        ),
+      );
+    }
+
+    test('groups stock by category, rolling a child up to its parent',
+        () async {
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      await seedCategorizedStock(db);
+
+      final summary = await BuildCategoryReport(
+        fiscalYear: fiscalYear,
+        inventory: DriftInventoryRepository(db),
+      ).load();
+
+      // **Hand-computed.** Electronics holds the keyboard (6,000 in less
+      // 1,800 out = 4,200) and the smartphone (3,000), the latter a
+      // child category reported under its parent: 7,200.
+      expect(
+        summary.lines
+            .firstWhere((ReportTotal l) => l.label == 'Electronics')
+            .amount
+            .minorUnits,
+        720000,
+      );
+      // Spices holds the pepper: 1,000.
+      expect(
+        summary.lines
+            .firstWhere((ReportTotal l) => l.label == 'Spices')
+            .amount
+            .minorUnits,
+        100000,
+      );
+      // A product with no category is ordinary, so it is reported, not
+      // hidden: the notebook's 500.
+      expect(
+        summary.lines
+            .firstWhere((ReportTotal l) =>
+                l.label == CategorySummary.uncategorizedLabel)
+            .amount
+            .minorUnits,
+        50000,
+      );
+      expect(summary.totalValue.minorUnits, 870000);
+    });
+
+    test('agrees with the inventory report, which reads the same movements',
+        () async {
+      // Both reports read the same movement history, so the total stock
+      // value they report must be identical. Two independent derivations
+      // of the same number agreeing is worth more than either alone.
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      await seedCategorizedStock(db);
+      final inventory = DriftInventoryRepository(db);
+
+      final byCategory = await BuildCategoryReport(
+        fiscalYear: fiscalYear,
+        inventory: inventory,
+      ).load();
+      final byProduct = await BuildInventorySummary(
+        fiscalYear: fiscalYear,
+        inventory: inventory,
+      ).load();
+
+      expect(
+        byCategory.totalValue.minorUnits,
+        byProduct.totalValue.minorUnits,
+      );
+    });
+
+    test('lines are ordered largest first', () async {
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      await seedCategorizedStock(db);
+
+      final summary = await BuildCategoryReport(
+        fiscalYear: fiscalYear,
+        inventory: DriftInventoryRepository(db),
+      ).load();
+
+      expect(summary.lines.first.label, 'Electronics');
+    });
+
+    test('saving a category two levels down is refused at write time',
+        () async {
+      // **The case ADR 013 exists for.** Android Handsets under
+      // Smartphones under Electronics is two levels down. `saveCategory`
+      // refuses it before anything is written, so such a category never
+      // reaches the book.
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      final inventory = DriftInventoryRepository(db);
+      await inventory.saveCategory(ProductCategory(
+        id: 'cat-elec',
+        code: 'ELEC-01',
+        name: 'Electronics',
+      ));
+      await inventory.saveCategory(ProductCategory(
+        id: 'cat-phone',
+        code: 'ELEC-01-PHONE',
+        name: 'Smartphones',
+        parentId: 'cat-elec',
+      ));
+
+      await expectLater(
+        inventory.saveCategory(ProductCategory(
+          id: 'cat-android',
+          code: 'ELEC-01-PHONE-ANDROID',
+          name: 'Android Handsets',
+          parentId: 'cat-phone',
+        )),
+        throwsA(isA<CategoryDepthException>()),
+      );
+
+      // And nothing was written: the refused category is not in the book.
+      expect(
+        (await inventory.allCategories())
+            .where((ProductCategory c) => c.id == 'cat-android'),
+        isEmpty,
+      );
+    });
+
+    test('a category two levels down is refused by the report, not flattened',
+        () async {
+      // **Written straight into the database**, because `saveCategory`
+      // refuses this tree, so the only way a report can ever see it is a
+      // row that did not go through the domain -- exactly the corruption
+      // the report exists to catch.
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      await db.into(db.productCategories).insert(
+            ProductCategoriesCompanion.insert(
+              id: 'cat-elec',
+              code: 'ELEC-01',
+              name: 'Electronics',
+            ),
+          );
+      await db.into(db.productCategories).insert(
+            ProductCategoriesCompanion.insert(
+              id: 'cat-phone',
+              code: 'ELEC-01-PHONE',
+              name: 'Smartphones',
+              parentId: const Value('cat-elec'),
+            ),
+          );
+      await db.into(db.productCategories).insert(
+            ProductCategoriesCompanion.insert(
+              id: 'cat-android',
+              code: 'ELEC-01-PHONE-ANDROID',
+              name: 'Android Handsets',
+              parentId: const Value('cat-phone'),
+            ),
+          );
+
+      await expectLater(
+        BuildCategoryReport(
+          fiscalYear: fiscalYear,
+          inventory: DriftInventoryRepository(db),
+        ).load(),
+        throwsA(isA<CategoryDepthException>()),
+      );
+    });
+
+    test('a category whose parent does not exist is refused', () async {
+      // A dangling parent would otherwise be flattened to the root, which
+      // is a different answer and not one anybody chose.
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+      await db.into(db.productCategories).insert(
+            ProductCategoriesCompanion.insert(
+              id: 'cat-orphan',
+              code: 'ELEC-99',
+              name: 'Orphan',
+              parentId: const Value('cat-ghost'),
+            ),
+          );
+
+      await expectLater(
+        BuildCategoryReport(
+          fiscalYear: fiscalYear,
+          inventory: DriftInventoryRepository(db),
+        ).load(),
+        throwsA(isA<CategoryDepthException>()),
+      );
+    });
+
+    test('a business with no categories reports zero, not an error', () async {
+      final db = openInMemoryDatabase();
+      addTearDown(db.close);
+
+      final summary = await BuildCategoryReport(
         fiscalYear: fiscalYear,
         inventory: DriftInventoryRepository(db),
       ).load();

@@ -118,6 +118,11 @@ abstract interface class BooksSession {
 
   BuildInventorySummary get inventoryReport;
 
+  /// The stock held, valued, grouped by product category.
+  ///
+  /// **Read-only**, so it is safe on a concluded year.
+  BuildCategoryReport get categoryReport;
+
   /// The VAT figures. **Input VAT is always zero**, because there are no purchase
   /// records yet, so this is not yet a complete return.
   /// The Profit and Loss statement for the open year.

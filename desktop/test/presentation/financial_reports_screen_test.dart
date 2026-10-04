@@ -84,6 +84,10 @@ AppServices servicesWith({
         fiscalYear: fiscalYear,
         inventory: _NoStock(),
       ),
+      categoryReport: BuildCategoryReport(
+        fiscalYear: fiscalYear,
+        inventory: _NoStock(),
+      ),
       tax: BuildTaxSummary(
         fiscalYear: fiscalYear,
         invoices: _NoInvoices(),
@@ -229,6 +233,10 @@ void main() {
             creditNotes: _NoCreditNotes(),
           ),
           inventory: BuildInventorySummary(
+            fiscalYear: fiscalYear,
+            inventory: _NoStock(),
+          ),
+          categoryReport: BuildCategoryReport(
             fiscalYear: fiscalYear,
             inventory: _NoStock(),
           ),

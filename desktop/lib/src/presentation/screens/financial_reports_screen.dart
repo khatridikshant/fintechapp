@@ -5,15 +5,16 @@ import '../../domain/reporting/financial_reports.dart';
 import '../../domain/shared/money.dart';
 import '../theme/app_theme.dart';
 
-/// Which of the four reports to show.
+/// Which of the five reports to show.
 ///
-/// An enum rather than four screens, because they share a layout, a period and a
-/// set of money-formatting rules. Four near-identical screens would be four places
+/// An enum rather than five screens, because they share a layout, a period and a
+/// set of money-formatting rules. Five near-identical screens would be five places
 /// to fix a formatting bug later.
 enum FinancialReport {
   cashFlow('Cash Flow'),
   sales('Sales'),
   inventory('Inventory'),
+  byCategory('By Category'),
   tax('VAT');
 
   const FinancialReport(this.title);
@@ -22,12 +23,12 @@ enum FinancialReport {
   final String title;
 }
 
-/// The four remaining financial reports.
+/// The five remaining financial reports.
 ///
 /// ## Everything comes from a use case
 ///
 /// This screen never touches a repository and never computes a figure. It is handed
-/// the four use cases and renders what they return, so a report can only ever show
+/// the five use cases and renders what they return, so a report can only ever show
 /// numbers the application layer derived.
 ///
 /// ## A negative figure is shown as a negative figure
@@ -41,6 +42,7 @@ class FinancialReportsScreen extends StatefulWidget {
     required this.cashFlow,
     required this.sales,
     required this.inventory,
+    required this.categoryReport,
     required this.tax,
     this.fiscalYearLabel,
     this.from,
@@ -51,6 +53,7 @@ class FinancialReportsScreen extends StatefulWidget {
   final BuildCashFlow cashFlow;
   final BuildSalesSummary sales;
   final BuildInventorySummary inventory;
+  final BuildCategoryReport categoryReport;
   final BuildTaxSummary tax;
 
   /// Shown in the subtitle. The shell knows the year; the reports do not.
@@ -147,6 +150,11 @@ class _FinancialReportsScreenState extends State<FinancialReportsScreen> {
         return _InventoryView(
           key: const ValueKey('inventory'),
           useCase: widget.inventory,
+        );
+      case FinancialReport.byCategory:
+        return _CategoryView(
+          key: const ValueKey('by-category'),
+          useCase: widget.categoryReport,
         );
       case FinancialReport.tax:
         return _TaxView(
@@ -584,6 +592,44 @@ class _InventoryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<InventorySummary>(
+      future: useCase.load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return _ReportError(error: snapshot.error!);
+        }
+
+        final summary = snapshot.data!;
+        return _ReportBody(
+          totals: <_TotalRow>[
+            _TotalRow(
+              label: 'Total stock value',
+              amount: summary.totalValue,
+              emphasise: true,
+            ),
+          ],
+          lines: <_LineRow>[
+            for (final line in summary.lines)
+              _LineRow(label: line.label, amount: line.amount),
+          ],
+          notice: null,
+          empty: 'No stock has been recorded.',
+        );
+      },
+    );
+  }
+}
+
+class _CategoryView extends StatelessWidget {
+  const _CategoryView({super.key, required this.useCase});
+
+  final BuildCategoryReport useCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<CategorySummary>(
       future: useCase.load(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
